@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title: "فلوریش | بوتیک نان و شیرینی",
   description: "فلوریش، بوتیک نان و شیرینی مدرن با محصولات دست‌ساز و تازه.",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/assets/logo-placeholder.png",
   },
 };
 
