@@ -21,8 +21,8 @@
       "Bash(disown)",
       "Bash(curl -s http://localhost:4000/health)",
       "Bash(curl -s http://localhost:4000/api/categories)",
-      "Bash(curl -s -c /tmp/claude-0/-home-user-flourish/61e01b6c-3405-5c21-a7aa-3b23adbec9bf/scratchpad/cookies.txt -X POST http://localhost:4000/api/admin/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@flourishbakery.ir\",\"password\":\"Flourish@Dev123\"}')",
-      "Bash(curl -s -b /tmp/claude-0/-home-user-flourish/61e01b6c-3405-5c21-a7aa-3b23adbec9bf/scratchpad/cookies.txt http://localhost:4000/api/admin/auth/me)"
+      "Bash(curl -s -c /tmp/*/cookies.txt -X POST http://localhost:4000/api/admin/auth/login -H 'Content-Type: application/json' -d @*)",
+      "Bash(curl -s -b /tmp/*/cookies.txt http://localhost:4000/api/admin/auth/me)"
     ]
   }
 }
