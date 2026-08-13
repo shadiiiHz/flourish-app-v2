@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: flourish
+      POSTGRES_PASSWORD: flourish
+      POSTGRES_DB: flourish
+    ports:
+      - "5432:5432"
+    volumes:
+      - flourish_db_data:/var/lib/postgresql/data
+
+volumes:
+  flourish_db_data:

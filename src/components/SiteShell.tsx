@@ -1,0 +1,48 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { AnimatePresence } from "framer-motion";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import GoToTop from "@/components/GoToTop";
+import CartDrawer from "@/components/CartDrawer";
+import CartToast from "@/components/CartToast";
+import AuthModal from "@/components/AuthModal";
+import AuthToast from "@/components/AuthToast";
+import { useCart } from "@/context/CartContext";
+
+function CartOverlay() {
+  const { isOpen } = useCart();
+  return (
+    <>
+      <AnimatePresence>{isOpen && <CartDrawer />}</AnimatePresence>
+      <CartToast />
+    </>
+  );
+}
+
+export default function SiteShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative min-h-svh overflow-x-clip bg-cream text-cocoa-900">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
+        style={{
+          backgroundImage: "url(/assets/logo.png)",
+          backgroundRepeat: "repeat",
+          backgroundSize: "100px 100px",
+        }}
+      />
+
+      <div className="relative z-10">
+        <Header />
+        <main>{children}</main>
+        <Footer />
+      </div>
+      <GoToTop />
+      <CartOverlay />
+      <AuthModal />
+      <AuthToast />
+    </div>
+  );
+}

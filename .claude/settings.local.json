@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /home/user/flourish/server/uploads)",
+      "Bash(touch /home/user/flourish/server/uploads/.gitkeep)",
+      "Bash(mkdir -p /home/user/flourish/server/src/routes/admin)",
+      "Bash(npm install *)",
+      "Bash(npx prisma *)",
+      "Bash(npx tsc *)",
+      "Bash(cp server/.env.example server/.env)",
+      "Bash(docker compose *)",
+      "Bash(dpkg -l)",
+      "Bash(service postgresql *)",
+      "Read(//etc/init.d/**)",
+      "Bash(command -v service)",
+      "Bash(pg_lsclusters)",
+      "Bash(sudo -u postgres psql -c \"ALTER ROLE flourish CREATEDB;\")",
+      "Bash(cp /home/user/flourish/src/assets/mainCat/*.svg /home/user/flourish/public/seed/mainCat/)",
+      "Bash(cp /home/user/flourish/src/assets/items/* /home/user/flourish/public/seed/items/)",
+      "Bash(npx tsx *)",
+      "Bash(disown)",
+      "Bash(curl -s http://localhost:4000/health)",
+      "Bash(curl -s http://localhost:4000/api/categories)",
+      "Bash(curl -s -c /tmp/claude-0/-home-user-flourish/61e01b6c-3405-5c21-a7aa-3b23adbec9bf/scratchpad/cookies.txt -X POST http://localhost:4000/api/admin/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@flourishbakery.ir\",\"password\":\"Flourish@Dev123\"}')",
+      "Bash(curl -s -b /tmp/claude-0/-home-user-flourish/61e01b6c-3405-5c21-a7aa-3b23adbec9bf/scratchpad/cookies.txt http://localhost:4000/api/admin/auth/me)"
+    ]
+  }
+}

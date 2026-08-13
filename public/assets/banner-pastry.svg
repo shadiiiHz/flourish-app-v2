@@ -1,0 +1,42 @@
+<svg width="700" height="560" viewBox="0 0 700 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pastryBlob" x1="90" y1="70" x2="610" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FDE3C2"/>
+      <stop offset="1" stop-color="#F0B06A"/>
+    </linearGradient>
+    <linearGradient id="croissantBody" x1="220" y1="190" x2="480" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E2954A"/>
+      <stop offset="1" stop-color="#8A5427"/>
+    </linearGradient>
+    <clipPath id="croissantClip">
+      <path d="M470 300C470 373.8 410.3 434 336 434C316 434 297 429.6 280 421.7C339.6 411 385 358.6 385 296C385 233.4 339.6 181 280 170.3C297 162.4 316 158 336 158C410.3 158 470 218.2 470 300Z"/>
+    </clipPath>
+  </defs>
+
+  <path d="M330 50C430 30 560 80 605 180C650 280 610 400 510 460C410 520 260 520 170 450C80 380 60 260 110 175C160 90 230 70 330 50Z" fill="url(#pastryBlob)" fill-opacity="0.9"/>
+
+  <ellipse cx="350" cy="460" rx="180" ry="24" fill="#B9713A" fill-opacity="0.15"/>
+
+  <path d="M470 300C470 373.8 410.3 434 336 434C316 434 297 429.6 280 421.7C339.6 411 385 358.6 385 296C385 233.4 339.6 181 280 170.3C297 162.4 316 158 336 158C410.3 158 470 218.2 470 300Z" fill="url(#croissantBody)" stroke="#5E3A1D" stroke-opacity="0.15" stroke-width="2"/>
+
+  <g clip-path="url(#croissantClip)" opacity="0.5">
+    <path d="M300 210C330 240 330 280 305 315" stroke="#5E3A1D" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <path d="M340 235C368 262 368 300 345 335" stroke="#5E3A1D" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <path d="M375 265C400 290 400 322 380 352" stroke="#5E3A1D" stroke-width="7" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <circle cx="500" cy="180" r="34" fill="#FDF4E6" stroke="#DFA45F" stroke-width="2"/>
+  <circle cx="488" cy="170" r="4.5" fill="#8A5427"/>
+  <circle cx="512" cy="176" r="4.5" fill="#8A5427"/>
+  <circle cx="497" cy="192" r="4.5" fill="#8A5427"/>
+  <circle cx="515" cy="195" r="3.5" fill="#8A5427"/>
+
+  <circle cx="185" cy="380" r="26" fill="#FDF4E6" stroke="#DFA45F" stroke-width="2"/>
+  <circle cx="176" cy="372" r="4" fill="#8A5427"/>
+  <circle cx="195" cy="380" r="4" fill="#8A5427"/>
+  <circle cx="182" cy="392" r="4" fill="#8A5427"/>
+
+  <circle cx="600" cy="330" r="9" fill="#FFFFFF" fill-opacity="0.55"/>
+  <circle cx="150" cy="220" r="7" fill="#FFFFFF" fill-opacity="0.55"/>
+  <circle cx="580" cy="440" r="6" fill="#FFFFFF" fill-opacity="0.6"/>
+</svg>

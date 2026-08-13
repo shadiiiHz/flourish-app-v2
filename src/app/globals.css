@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #ffffff;
+  --color-cream-soft: #fff3e4;
+  --color-sand-50: #fff3e4;
+  --color-sand-100: #fad4a5;
+  --color-sand-200: #f0c085;
+  --color-sand-300: #ce8a39;
+  --color-sand-400: #ba6b26;
+  --color-sand-500: #a44819;
+  --color-cocoa-500: #6e6b45;
+  --color-cocoa-600: #55532f;
+  --color-cocoa-700: #3e3f20;
+  --color-cocoa-900: #000000;
+  --color-danger-50: #fbeeec;
+  --color-danger-500: #c1615a;
+
+  --font-sans: var(--font-vazirmatn), "Roboto", "Helvetica", "Arial", sans-serif;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-float-slow: float 9s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-16px);
+  }
+}
+
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-cream);
+  font-family: var(--font-sans);
+}
+
+/* soft organic blob shape, used behind illustrations */
+.blob {
+  border-radius: 62% 38% 55% 45% / 45% 55% 45% 55%;
+}
+
+::selection {
+  background-color: var(--color-sand-200);
+  color: var(--color-cocoa-900);
+}
