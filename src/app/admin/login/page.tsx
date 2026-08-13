@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { useAdminAuth } from "@/context/AdminAuthContext";
+import Preloader from "@/components/Preloader";
 
 function AdminLoginPage() {
   const { isAuthenticated, isLoading, login } = useAdminAuth();
@@ -19,7 +20,9 @@ function AdminLoginPage() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  if (!isLoading && isAuthenticated) {
+  if (isLoading) return <Preloader />;
+
+  if (isAuthenticated) {
     return null;
   }
 

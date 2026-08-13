@@ -22,6 +22,7 @@ import { getMyOrders } from "@/lib/api";
 import { ORDER_STATUS_LABELS, type Order } from "@/types/order";
 import AddressesPanel from "@/components/AddressesPanel";
 import ChangePasswordPanel from "@/components/ChangePasswordPanel";
+import Preloader from "@/components/Preloader";
 
 type ProfileTab =
   | "info"
@@ -74,7 +75,7 @@ function OrdersPanel() {
       <h2 className="font-display text-lg font-bold text-cocoa-900">سفارش‌های من</h2>
 
       {loading ? (
-        <p className="mt-3 text-sm text-cocoa-500">در حال بارگذاری…</p>
+        <Preloader fullScreen={false} />
       ) : orders.length === 0 ? (
         <p className="mt-3 text-sm text-cocoa-500">هنوز سفارشی ثبت نکرده‌اید.</p>
       ) : (
@@ -403,7 +404,8 @@ function ProfilePageContent() {
 
   const activeLabel = TABS.find((t) => t.id === activeTab)?.label ?? "اطلاعات من";
 
-  if (isLoading || !isAuthenticated) return null;
+  if (isLoading) return <Preloader />;
+  if (!isAuthenticated) return null;
 
   return (
     <div className="mx-auto max-w-5xl px-3 py-8 sm:px-6 sm:py-12">

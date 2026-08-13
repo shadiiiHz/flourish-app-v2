@@ -4,10 +4,11 @@ import { useState } from "react";
 import { MapPin, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import { useAddresses, type Address } from "../context/AddressContext";
 import AddressModal from "./AddressModal";
+import Preloader from "./Preloader";
 import { toPersianDigits } from "../utils/phone";
 
 function AddressesPanel() {
-  const { addresses, removeAddress } = useAddresses();
+  const { addresses, isLoading, removeAddress } = useAddresses();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
 
@@ -38,7 +39,9 @@ function AddressesPanel() {
         </button>
       </div>
 
-      {addresses.length === 0 ? (
+      {isLoading ? (
+        <Preloader fullScreen={false} />
+      ) : addresses.length === 0 ? (
         <p className="mt-2 text-sm font-semibold text-sand-500">
           آدرسی ثبت نشده است، لطفا آدرس خود را ثبت نمایید.
         </p>

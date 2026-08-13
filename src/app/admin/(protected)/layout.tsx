@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
+import Preloader from "@/components/Preloader";
 
 const NAV_ITEMS = [
   { href: "/admin", exact: true, label: "داشبورد", icon: LayoutDashboard },
@@ -42,11 +43,7 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
   };
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-svh items-center justify-center bg-cream text-sm text-cocoa-500">
-        در حال بررسی نشست ادمین…
-      </div>
-    );
+    return <Preloader label="در حال بررسی نشست ادمین…" />;
   }
 
   if (!isAuthenticated) {

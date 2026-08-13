@@ -28,6 +28,7 @@ export interface Address {
 
 interface AddressContextValue {
   addresses: Address[];
+  isLoading: boolean;
   addAddress: (data: Omit<Address, "id">) => void;
   updateAddress: (id: string, data: Omit<Address, "id">) => void;
   removeAddress: (id: string) => void;
@@ -50,15 +51,18 @@ function mapAddress(a: ApiAddress): Address {
 export function AddressProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, notify } = useAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setAddresses([]);
       return;
     }
+    setIsLoading(true);
     getMyAddresses()
       .then((data) => setAddresses(data.map(mapAddress)))
-      .catch(() => setAddresses([]));
+      .catch(() => setAddresses([]))
+      .finally(() => setIsLoading(false));
   }, [isAuthenticated]);
 
   const addAddress = (data: Omit<Address, "id">) => {
@@ -87,7 +91,13 @@ export function AddressProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const value: AddressContextValue = { addresses, addAddress, updateAddress, removeAddress };
+  const value: AddressContextValue = {
+    addresses,
+    isLoading,
+    addAddress,
+    updateAddress,
+    removeAddress,
+  };
 
   return <AddressContext.Provider value={value}>{children}</AddressContext.Provider>;
 }
