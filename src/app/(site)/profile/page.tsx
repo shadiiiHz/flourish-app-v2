@@ -370,7 +370,7 @@ function SidebarDrawer({
 }
 
 function ProfilePageContent() {
-  const { logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -379,6 +379,10 @@ function ProfilePageContent() {
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) router.replace("/");
+  }, [isAuthenticated, router]);
 
   const requestedTab = searchParams.get("tab");
   const activeTab: ProfileTab = TABS.some((t) => t.id === requestedTab)
@@ -398,6 +402,8 @@ function ProfilePageContent() {
   };
 
   const activeLabel = TABS.find((t) => t.id === activeTab)?.label ?? "اطلاعات من";
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="mx-auto max-w-5xl px-3 py-8 sm:px-6 sm:py-12">
