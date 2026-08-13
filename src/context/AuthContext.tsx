@@ -76,13 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const notify = (message: string) => setToast(message);
 
-  // بدون سرویس پیامک واقعی، بک‌اند کد را به‌جای ارسال پیامکی در پاسخ
-  // برمی‌گرداند (فقط برای دمو). برای اتصال به یک سرویس واقعی (مثلاً
-  // کاوه‌نگار، ملی‌پیامک و...)، سمت سرور باید پیامک واقعی ارسال کند و کد
-  // از پاسخ حذف شود.
+  // کد از طریق پیامک واقعی ارسال می‌شود؛ اگر بک‌اند سرویس پیامک تنظیم‌نشده
+  // داشته باشد (حالت دمو/توسعه)، کد در پاسخ برمی‌گردد و همینجا نمایش داده می‌شود.
   const requestOtp = async (phone: string) => {
     const { code } = await customerRequestOtp(phone);
-    notify(`کد یکبار مصرف شبیه‌سازی‌شده: ${code}`);
+    notify(code ? `کد یکبار مصرف شبیه‌سازی‌شده: ${code}` : "کد ورود پیامک شد");
   };
 
   const verifyOtp = async (phone: string, code: string) => {
@@ -113,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestPasswordChange = async (newPassword: string) => {
     const { code } = await customerRequestPasswordChange(newPassword);
-    notify(`کد یکبار مصرف شبیه‌سازی‌شده: ${code}`);
+    notify(code ? `کد یکبار مصرف شبیه‌سازی‌شده: ${code}` : "کد تایید پیامک شد");
   };
 
   const confirmPasswordChange = async (code: string) => {

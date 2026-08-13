@@ -3,11 +3,27 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { CUSTOMER_COOKIE_NAME, signCustomerToken } from "../lib/auth.js";
+import { env } from "../lib/env.js";
 import { loginOtpStore, passwordChangeOtpStore } from "../lib/otpStore.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
+import { sendSms } from "../lib/sms.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 
 export const customerAuthRouter = Router();
+
+/**
+ * Sends the OTP over SMS when MELIPAYAMAK_API_KEY is configured; otherwise
+ * falls back to logging + returning the code in the response, same as the
+ * old fully-simulated demo flow (useful for local dev without SMS credit).
+ */
+async function deliverOtp(phone: string, code: string, message: string): Promise<{ code?: string }> {
+  if (!env.melipayamakApiKey) {
+    console.info(`[Flourish] کد شبیه‌سازی‌شده برای ${phone}: ${code}`);
+    return { code };
+  }
+  await sendSms(phone, message);
+  return {};
+}
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -47,12 +63,10 @@ customerAuthRouter.post(
       res.status(400).json({ error: "شماره موبایل معتبر نیست" });
       return;
     }
-    const code = loginOtpStore.generate(parsed.data.phone, undefined);
-    // بدون سرویس پیامک واقعی، کد به‌جای ارسال پیامکی در پاسخ برگردانده می‌شود
-    // (فقط برای دمو — برای اتصال به یک سرویس واقعی مثل کاوه‌نگار، اینجا باید
-    // پیامک واقعی ارسال شود و کد از پاسخ حذف شود).
-    console.info(`[Flourish] کد ورود شبیه‌سازی‌شده برای ${parsed.data.phone}: ${code}`);
-    res.json({ code });
+    const { phone } = parsed.data;
+    const code = loginOtpStore.generate(phone, undefined);
+    const result = await deliverOtp(phone, code, `کد ورود شما به فلوریش: ${code}`);
+    res.json(result);
   }),
 );
 
@@ -140,8 +154,12 @@ customerAuthRouter.post(
     }
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
     const code = passwordChangeOtpStore.generate(req.customer!.sub, { passwordHash });
-    console.info(`[Flourish] کد تایید شبیه‌سازی‌شده برای تغییر رمز عبور: ${code}`);
-    res.json({ code });
+    const result = await deliverOtp(
+      req.customer!.phone,
+      code,
+      `کد تایید تغییر رمز عبور فلوریش: ${code}`,
+    );
+    res.json(result);
   }),
 );
 

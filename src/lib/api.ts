@@ -182,7 +182,7 @@ export interface CustomerAuthUser {
 }
 
 export function customerRequestOtp(phone: string) {
-  return apiFetch<{ code: string }>("/api/customers/auth/otp/request", {
+  return apiFetch<{ code?: string }>("/api/customers/auth/otp/request", {
     method: "POST",
     body: JSON.stringify({ phone }),
   });
@@ -211,7 +211,7 @@ export function customerLogout() {
 }
 
 export function customerRequestPasswordChange(newPassword: string) {
-  return apiFetch<{ code: string }>("/api/customers/auth/password/request", {
+  return apiFetch<{ code?: string }>("/api/customers/auth/password/request", {
     method: "POST",
     body: JSON.stringify({ newPassword }),
   });

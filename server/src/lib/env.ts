@@ -14,4 +14,6 @@ export const env = {
   adminSeedEmail: process.env.ADMIN_SEED_EMAIL,
   adminSeedPassword: process.env.ADMIN_SEED_PASSWORD,
   adminSeedName: process.env.ADMIN_SEED_NAME ?? "مدیر فلوریش",
+  melipayamakApiKey: process.env.MELIPAYAMAK_API_KEY,
+  melipayamakSender: process.env.MELIPAYAMAK_SENDER ?? "09960080286",
 };
