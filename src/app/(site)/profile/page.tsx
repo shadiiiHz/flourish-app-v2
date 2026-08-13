@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { normalizeDigits, PHONE_REGEX, toPersianDigits } from "@/utils/phone";
-import { getCustomerOrders } from "@/lib/api";
+import { getMyOrders } from "@/lib/api";
 import { ORDER_STATUS_LABELS, type Order } from "@/types/order";
 import AddressesPanel from "@/components/AddressesPanel";
 import ChangePasswordPanel from "@/components/ChangePasswordPanel";
@@ -58,16 +58,16 @@ function PlaceholderPanel({ label }: { label: string }) {
 }
 
 function OrdersPanel() {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(!!user);
+  const [loading, setLoading] = useState(isAuthenticated);
 
   useEffect(() => {
-    if (!user) return;
-    getCustomerOrders(user.phone)
+    if (!isAuthenticated) return;
+    getMyOrders()
       .then(setOrders)
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [isAuthenticated]);
 
   return (
     <GlassCard>
@@ -370,7 +370,7 @@ function SidebarDrawer({
 }
 
 function ProfilePageContent() {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -381,8 +381,8 @@ function ProfilePageContent() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace("/");
-  }, [isAuthenticated, router]);
+    if (!isLoading && !isAuthenticated) router.replace("/");
+  }, [isLoading, isAuthenticated, router]);
 
   const requestedTab = searchParams.get("tab");
   const activeTab: ProfileTab = TABS.some((t) => t.id === requestedTab)
@@ -403,7 +403,7 @@ function ProfilePageContent() {
 
   const activeLabel = TABS.find((t) => t.id === activeTab)?.label ?? "اطلاعات من";
 
-  if (!isAuthenticated) return null;
+  if (isLoading || !isAuthenticated) return null;
 
   return (
     <div className="mx-auto max-w-5xl px-3 py-8 sm:px-6 sm:py-12">

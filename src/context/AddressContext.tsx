@@ -7,6 +7,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useAuth } from "./AuthContext";
+import {
+  createMyAddress,
+  deleteMyAddress,
+  getMyAddresses,
+  updateMyAddress,
+  type ApiAddress,
+} from "../lib/api";
 
 export interface Address {
   id: string;
@@ -26,38 +34,57 @@ interface AddressContextValue {
 }
 
 const AddressContext = createContext<AddressContextValue | null>(null);
-const STORAGE_KEY = "flourish-addresses";
 
-function loadInitialAddresses(): Address[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function mapAddress(a: ApiAddress): Address {
+  return {
+    id: a.id,
+    address: a.address,
+    details: a.details ?? undefined,
+    phone: a.phone ?? undefined,
+    title: a.title ?? undefined,
+    lat: a.lat ?? undefined,
+    lng: a.lng ?? undefined,
+  };
 }
 
 export function AddressProvider({ children }: { children: ReactNode }) {
-  const [addresses, setAddresses] = useState<Address[]>(loadInitialAddresses);
+  const { isAuthenticated, notify } = useAuth();
+  const [addresses, setAddresses] = useState<Address[]>([]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(addresses));
-  }, [addresses]);
+    if (!isAuthenticated) {
+      setAddresses([]);
+      return;
+    }
+    getMyAddresses()
+      .then((data) => setAddresses(data.map(mapAddress)))
+      .catch(() => setAddresses([]));
+  }, [isAuthenticated]);
 
   const addAddress = (data: Omit<Address, "id">) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    setAddresses((prev) => [...prev, { ...data, id }]);
+    if (!isAuthenticated) return;
+    createMyAddress(data)
+      .then((created) => setAddresses((prev) => [...prev, mapAddress(created)]))
+      .catch(() => notify("ثبت آدرس با خطا مواجه شد"));
   };
 
   const updateAddress = (id: string, data: Omit<Address, "id">) => {
-    setAddresses((prev) => prev.map((a) => (a.id === id ? { ...data, id } : a)));
+    if (!isAuthenticated) return;
+    updateMyAddress(id, data)
+      .then((updated) =>
+        setAddresses((prev) => prev.map((a) => (a.id === id ? mapAddress(updated) : a))),
+      )
+      .catch(() => notify("ویرایش آدرس با خطا مواجه شد"));
   };
 
   const removeAddress = (id: string) => {
+    if (!isAuthenticated) return;
+    const previous = addresses;
     setAddresses((prev) => prev.filter((a) => a.id !== id));
+    deleteMyAddress(id).catch(() => {
+      notify("حذف آدرس با خطا مواجه شد");
+      setAddresses(previous);
+    });
   };
 
   const value: AddressContextValue = { addresses, addAddress, updateAddress, removeAddress };

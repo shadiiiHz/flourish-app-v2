@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 
 export const ordersRouter = Router();
 
@@ -17,7 +18,6 @@ const orderItemSchema = z.object({
 });
 
 const createOrderSchema = z.object({
-  customerPhone: z.string().min(5),
   customerName: z.string().optional(),
   note: z.string().optional(),
   items: z.array(orderItemSchema).min(1),
@@ -25,15 +25,15 @@ const createOrderSchema = z.object({
 
 ordersRouter.post(
   "/",
+  requireCustomerAuth,
   asyncHandler(async (req, res) => {
     const parsed = createOrderSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "اطلاعات سفارش نامعتبر است" });
       return;
     }
-    const { customerPhone, customerName, note, items } = parsed.data;
-
-    const customer = await prisma.customer.findUnique({ where: { phone: customerPhone } });
+    const { customerName, note, items } = parsed.data;
+    const { sub: customerId, phone: customerPhone } = req.customer!;
 
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const tax = Math.round(subtotal * TAX_RATE);
@@ -41,7 +41,7 @@ ordersRouter.post(
 
     const order = await prisma.order.create({
       data: {
-        customerId: customer?.id,
+        customerId,
         customerPhone,
         customerName,
         note,

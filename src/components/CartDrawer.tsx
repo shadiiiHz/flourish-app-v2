@@ -12,13 +12,8 @@ import { createOrder } from "../lib/api";
 
 const placeholder = "/assets/placeholder.png";
 
-function submitOrder(
-  lines: CartLine[],
-  customerPhone: string,
-  customerName: string | undefined,
-) {
+function submitOrder(lines: CartLine[], customerName: string | undefined) {
   createOrder({
-    customerPhone,
     customerName,
     items: lines.map((line) => ({
       productId: line.itemId,
@@ -232,7 +227,7 @@ function CartDrawer() {
                 rel="noreferrer"
                 onClick={() => {
                   if (user) {
-                    submitOrder(lines, user.phone, [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined);
+                    submitOrder(lines, [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined);
                   }
                   clearCart();
                 }}

@@ -7,7 +7,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { syncCustomer as syncCustomerApi } from "../lib/api";
+import { ApiError } from "../lib/api";
+import {
+  customerAuthMe,
+  customerConfirmPasswordChange,
+  customerLogin,
+  customerLogout,
+  customerRequestOtp,
+  customerRequestPasswordChange,
+  customerVerifyOtp,
+  updateMyProfile,
+} from "../lib/api";
 
 export interface AuthUser {
   phone: string;
@@ -23,6 +33,7 @@ export type AuthView = "otp-phone" | "otp-verify" | "password";
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   isAuthOpen: boolean;
   authView: AuthView;
   openAuth: (view?: AuthView) => void;
@@ -42,35 +53,20 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const STORAGE_KEY = "flourish-auth";
-
-function loadInitialUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed.phone === "string" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(loadInitialUser);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authView, setAuthView] = useState<AuthView>("otp-phone");
-  const [pendingOtp, setPendingOtp] = useState<{ phone: string; code: string } | null>(null);
-  const [pendingPasswordChange, setPendingPasswordChange] = useState<{
-    password: string;
-    code: string;
-  } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    else window.localStorage.removeItem(STORAGE_KEY);
-  }, [user]);
+    customerAuthMe()
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -80,93 +76,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const notify = (message: string) => setToast(message);
 
-  const syncCustomer = (data: {
-    phone: string;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    avatar?: string;
-  }) => {
-    syncCustomerApi(data).catch(() => {
-      // best-effort sync — customer sync failing shouldn't block the storefront
-    });
-  };
-
-  // بدون سرویس پیامک واقعی، کد به‌صورت شبیه‌سازی‌شده ساخته می‌شود.
-  // برای اتصال به یک سرویس واقعی، این تابع را با فراخوانی API پیامک
-  // (مثلاً کاوه‌نگار، ملی‌پیامک و...) جایگزین کنید و بخش نمایش کد در
-  // نوتیف را حذف کنید چون سرویس واقعی کد را در پیامک پیامک می‌کند، نه در UI.
+  // بدون سرویس پیامک واقعی، بک‌اند کد را به‌جای ارسال پیامکی در پاسخ
+  // برمی‌گرداند (فقط برای دمو). برای اتصال به یک سرویس واقعی (مثلاً
+  // کاوه‌نگار، ملی‌پیامک و...)، سمت سرور باید پیامک واقعی ارسال کند و کد
+  // از پاسخ حذف شود.
   const requestOtp = async (phone: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const code = String(Math.floor(10000 + Math.random() * 90000));
-    console.info(`[Flourish] کد ورود شبیه‌سازی‌شده برای ${phone}: ${code}`);
-    setPendingOtp({ phone, code });
+    const { code } = await customerRequestOtp(phone);
     notify(`کد یکبار مصرف شبیه‌سازی‌شده: ${code}`);
   };
 
   const verifyOtp = async (phone: string, code: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    if (!pendingOtp || pendingOtp.phone !== phone || pendingOtp.code !== code) {
-      return false;
+    try {
+      const nextUser = await customerVerifyOtp(phone, code);
+      setUser(nextUser);
+      setIsAuthOpen(false);
+      notify("با موفقیت وارد شدید");
+      return true;
+    } catch (err) {
+      if (err instanceof ApiError) return false;
+      throw err;
     }
-    setUser((prev) => ({
-      phone,
-      hasPassword: prev?.phone === phone ? prev.hasPassword : false,
-    }));
-    setPendingOtp(null);
-    setIsAuthOpen(false);
-    notify("با موفقیت وارد شدید");
-    syncCustomer({ phone });
-    return true;
   };
 
   const loginWithPassword = async (phone: string, password: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    if (!password) return false;
-    setUser({ phone, hasPassword: true });
-    setIsAuthOpen(false);
-    notify("با موفقیت وارد شدید");
-    syncCustomer({ phone });
-    return true;
+    try {
+      const nextUser = await customerLogin(phone, password);
+      setUser(nextUser);
+      setIsAuthOpen(false);
+      notify("با موفقیت وارد شدید");
+      return true;
+    } catch (err) {
+      if (err instanceof ApiError) return false;
+      throw err;
+    }
   };
 
-  // مشابه requestOtp، کد تایید تغییر رمز عبور به‌صورت شبیه‌سازی‌شده ساخته می‌شود.
   const requestPasswordChange = async (newPassword: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const code = String(Math.floor(10000 + Math.random() * 90000));
-    console.info(`[Flourish] کد تایید شبیه‌سازی‌شده برای تغییر رمز عبور: ${code}`);
-    setPendingPasswordChange({ password: newPassword, code });
+    const { code } = await customerRequestPasswordChange(newPassword);
     notify(`کد یکبار مصرف شبیه‌سازی‌شده: ${code}`);
   };
 
   const confirmPasswordChange = async (code: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    if (!pendingPasswordChange || pendingPasswordChange.code !== code) {
-      return false;
+    try {
+      const nextUser = await customerConfirmPasswordChange(code);
+      setUser(nextUser);
+      notify("کلمه عبور با موفقیت تغییر کرد");
+      return true;
+    } catch (err) {
+      if (err instanceof ApiError) return false;
+      throw err;
     }
-    setUser((prev) => (prev ? { ...prev, hasPassword: true } : prev));
-    setPendingPasswordChange(null);
-    notify("کلمه عبور با موفقیت تغییر کرد");
-    return true;
   };
 
   const updateProfile: AuthContextValue["updateProfile"] = (data) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...data };
-      syncCustomer({
-        phone: next.phone,
-        firstName: next.firstName,
-        lastName: next.lastName,
-        email: next.email,
-        avatar: next.avatar,
-      });
-      return next;
-    });
-    notify("تغییرات با موفقیت ثبت شد");
+    updateMyProfile(data)
+      .then((nextUser) => {
+        setUser(nextUser);
+        notify("تغییرات با موفقیت ثبت شد");
+      })
+      .catch(() => notify("ثبت تغییرات با خطا مواجه شد"));
   };
 
   const logout = () => {
+    customerLogout().catch(() => {
+      // best-effort — the cookie clears client-side regardless of the request outcome
+    });
     setUser(null);
     notify("از حساب کاربری خارج شدید");
   };
@@ -174,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     user,
     isAuthenticated: !!user,
+    isLoading,
     isAuthOpen,
     authView,
     openAuth: (view = "otp-phone") => {

@@ -6,6 +6,7 @@ import { env } from "./lib/env.js";
 import { adminAuthRouter } from "./routes/adminAuth.js";
 import { adminRouter } from "./routes/admin/index.js";
 import { catalogRouter } from "./routes/catalog.js";
+import { customerAuthRouter } from "./routes/customerAuth.js";
 import { customersRouter } from "./routes/customers.js";
 import { ordersRouter } from "./routes/orders.js";
 
@@ -19,6 +20,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.use("/api", catalogRouter);
+app.use("/api/customers/auth", customerAuthRouter);
 app.use("/api/customers", customersRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/admin/auth", adminAuthRouter);

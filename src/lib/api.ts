@@ -172,27 +172,119 @@ export async function getNewProducts(): Promise<MenuItem[]> {
 /* Customers / orders (storefront)                                     */
 /* ------------------------------------------------------------------ */
 
-export interface SyncCustomerPayload {
+export interface CustomerAuthUser {
   phone: string;
+  hasPassword: boolean;
   firstName?: string;
   lastName?: string;
   email?: string;
   avatar?: string;
 }
 
-export function syncCustomer(data: SyncCustomerPayload) {
-  return apiFetch("/api/customers/sync", {
+export function customerRequestOtp(phone: string) {
+  return apiFetch<{ code: string }>("/api/customers/auth/otp/request", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ phone }),
   });
 }
 
-export function getCustomerOrders(phone: string) {
-  return apiFetch<Order[]>(`/api/customers/${phone}/orders`);
+export function customerVerifyOtp(phone: string, code: string) {
+  return apiFetch<CustomerAuthUser>("/api/customers/auth/otp/verify", {
+    method: "POST",
+    body: JSON.stringify({ phone, code }),
+  });
+}
+
+export function customerLogin(phone: string, password: string) {
+  return apiFetch<CustomerAuthUser>("/api/customers/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ phone, password }),
+  });
+}
+
+export function customerAuthMe() {
+  return apiFetch<CustomerAuthUser>("/api/customers/auth/me");
+}
+
+export function customerLogout() {
+  return apiFetch("/api/customers/auth/logout", { method: "POST" });
+}
+
+export function customerRequestPasswordChange(newPassword: string) {
+  return apiFetch<{ code: string }>("/api/customers/auth/password/request", {
+    method: "POST",
+    body: JSON.stringify({ newPassword }),
+  });
+}
+
+export function customerConfirmPasswordChange(code: string) {
+  return apiFetch<CustomerAuthUser>("/api/customers/auth/password/confirm", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export interface UpdateProfilePayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  avatar?: string;
+  phone?: string;
+}
+
+export function updateMyProfile(payload: UpdateProfilePayload) {
+  return apiFetch<CustomerAuthUser>("/api/customers/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getMyOrders() {
+  return apiFetch<Order[]>("/api/customers/me/orders");
+}
+
+export interface ApiAddress {
+  id: string;
+  title?: string | null;
+  address: string;
+  details?: string | null;
+  phone?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+export interface AddressPayload {
+  title?: string;
+  address: string;
+  details?: string;
+  phone?: string;
+  lat?: number;
+  lng?: number;
+}
+
+export function getMyAddresses() {
+  return apiFetch<ApiAddress[]>("/api/customers/me/addresses");
+}
+
+export function createMyAddress(payload: AddressPayload) {
+  return apiFetch<ApiAddress>("/api/customers/me/addresses", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateMyAddress(id: string, payload: AddressPayload) {
+  return apiFetch<ApiAddress>(`/api/customers/me/addresses/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteMyAddress(id: string) {
+  return apiFetch(`/api/customers/me/addresses/${id}`, { method: "DELETE" });
 }
 
 export interface CreateOrderPayload {
-  customerPhone: string;
   customerName?: string;
   items: {
     productId: string;
