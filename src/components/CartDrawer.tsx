@@ -188,7 +188,7 @@ function CartDrawer() {
               </button>
               <button
                 type="button"
-                onClick={closeCart}
+                onClick={goToMenu}
                 className="rounded-full border border-sand-200 bg-white px-4 py-3 text-sm font-bold text-cocoa-700 transition hover:bg-sand-50"
               >
                 ادامه خرید

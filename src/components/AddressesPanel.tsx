@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MapPin, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import { useAddresses, type Address } from "../context/AddressContext";
 import AddressModal from "./AddressModal";
+import ConfirmModal from "./ConfirmModal";
 import Preloader from "./Preloader";
 import { toPersianDigits } from "../utils/phone";
 
@@ -11,6 +12,7 @@ function AddressesPanel() {
   const { addresses, isLoading, removeAddress } = useAddresses();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [deletingAddress, setDeletingAddress] = useState<Address | null>(null);
 
   const openNewModal = () => {
     setEditingAddress(null);
@@ -85,7 +87,7 @@ function AddressesPanel() {
                   type="button"
                   aria-label="حذف آدرس"
                   disabled={item.isDefault || addresses.length <= 1}
-                  onClick={() => removeAddress(item.id)}
+                  onClick={() => setDeletingAddress(item)}
                   className="text-cocoa-400 transition hover:text-danger-500 disabled:pointer-events-none disabled:opacity-30"
                 >
                   <Trash2 className="h-4.5 w-4.5" />
@@ -100,6 +102,22 @@ function AddressesPanel() {
         isOpen={isModalOpen}
         editingAddress={editingAddress}
         onClose={() => setIsModalOpen(false)}
+      />
+
+      <ConfirmModal
+        isOpen={!!deletingAddress}
+        title="حذف آدرس"
+        description={
+          deletingAddress
+            ? `آیا مطمئنید می‌خواهید «${deletingAddress.title || deletingAddress.address}» را حذف کنید؟`
+            : undefined
+        }
+        confirmLabel="بله، حذف شود"
+        cancelLabel="انصراف"
+        onConfirm={() => {
+          if (deletingAddress) removeAddress(deletingAddress.id);
+        }}
+        onClose={() => setDeletingAddress(null)}
       />
     </div>
   );
