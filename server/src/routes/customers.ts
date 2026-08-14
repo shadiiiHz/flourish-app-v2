@@ -55,6 +55,21 @@ customersRouter.get(
   }),
 );
 
+customersRouter.get(
+  "/me/orders/:id",
+  asyncHandler(async (req, res) => {
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.id, customerId: req.customer!.sub },
+      include: { items: true },
+    });
+    if (!order) {
+      res.status(404).json({ error: "سفارش یافت نشد" });
+      return;
+    }
+    res.json(order);
+  }),
+);
+
 const addressSchema = z.object({
   title: z.string().optional(),
   address: z.string().min(1),

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   Package,
+  Settings,
   ShoppingBag,
   Tags,
   Users,
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { href: "/admin/categories", exact: false, label: "دسته‌بندی‌ها", icon: Tags },
   { href: "/admin/orders", exact: false, label: "سفارش‌ها", icon: ShoppingBag },
   { href: "/admin/customers", exact: false, label: "مشتریان", icon: Users },
+  { href: "/admin/settings", exact: false, label: "تنظیمات", icon: Settings },
 ];
 
 function isActivePath(pathname: string, href: string, exact: boolean) {

@@ -9,6 +9,7 @@ import { catalogRouter } from "./routes/catalog.js";
 import { customerAuthRouter } from "./routes/customerAuth.js";
 import { customersRouter } from "./routes/customers.js";
 import { ordersRouter } from "./routes/orders.js";
+import { shippingRouter } from "./routes/shipping.js";
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use("/api", catalogRouter);
 app.use("/api/customers/auth", customerAuthRouter);
 app.use("/api/customers", customersRouter);
 app.use("/api/orders", ordersRouter);
+app.use("/api/shipping", shippingRouter);
 app.use("/api/admin/auth", adminAuthRouter);
 app.use("/api/admin", adminRouter);
 

@@ -5,54 +5,13 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
-import { useCart, type CartLine } from "../context/CartContext";
-import { useAuth } from "../context/AuthContext";
-import { siteConfig } from "../config/siteConfig";
-import { createOrder } from "../lib/api";
+import { useCart } from "../context/CartContext";
 
 const placeholder = "/assets/placeholder.png";
 
-function submitOrder(lines: CartLine[], customerName: string | undefined) {
-  createOrder({
-    customerName,
-    items: lines.map((line) => ({
-      productId: line.itemId,
-      variantId: line.variantId,
-      title: line.title,
-      variantTitle: line.variantTitle,
-      price: line.price,
-      quantity: line.quantity,
-    })),
-  }).catch(() => {
-    // best-effort: WhatsApp remains the actual order channel, so a failed
-    // sync here shouldn't block checkout
-  });
-}
-
-function buildWhatsappMessage(
-  lines: { title: string; variantTitle?: string; price: number; quantity: number }[],
-  totalPrice: number,
-  taxAmount: number,
-  grandTotal: number,
-) {
-  const header = "سلام، می‌خواهم سفارش زیر را ثبت کنم:";
-  const rows = lines.map((line) => {
-    const name = line.variantTitle ? `${line.title} (${line.variantTitle})` : line.title;
-    const lineTotal = (line.price * line.quantity).toLocaleString("fa-IR");
-    return `• ${name} × ${line.quantity.toLocaleString("fa-IR")} = ${lineTotal} تومان`;
-  });
-  const footer = [
-    `جمع کل: ${totalPrice.toLocaleString("fa-IR")} تومان`,
-    `مالیات (۱۰٪): ${taxAmount.toLocaleString("fa-IR")} تومان`,
-    `پرداختی: ${grandTotal.toLocaleString("fa-IR")} تومان`,
-  ].join("\n");
-  return [header, "", ...rows, "", footer].join("\n");
-}
-
 function CartDrawer() {
-  const { lines, totalCount, totalPrice, taxAmount, grandTotal, closeCart, setQuantity, removeLine, clearCart } =
+  const { lines, totalCount, totalPrice, taxAmount, grandTotal, closeCart, setQuantity, removeLine } =
     useCart();
-  const { user } = useAuth();
   const router = useRouter();
 
   const goToMenu = () => {
@@ -62,6 +21,12 @@ function CartDrawer() {
     document.body.style.overflow = "";
     closeCart();
     router.push("/menu");
+  };
+
+  const goToCheckout = () => {
+    document.body.style.overflow = "";
+    closeCart();
+    router.push("/checkout");
   };
 
   useEffect(() => {
@@ -76,13 +41,6 @@ function CartDrawer() {
       document.body.style.overflow = previousOverflow;
     };
   }, [closeCart]);
-
-  const whatsappHref =
-    lines.length > 0
-      ? `https://wa.me/${siteConfig.contact.whatsapp}?text=${encodeURIComponent(
-          buildWhatsappMessage(lines, totalPrice, taxAmount, grandTotal),
-        )}`
-      : undefined;
 
   return createPortal(
     <motion.div
@@ -221,20 +179,13 @@ function CartDrawer() {
                   </span>
                 </div>
               </div>
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => {
-                  if (user) {
-                    submitOrder(lines, [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined);
-                  }
-                  clearCart();
-                }}
+              <button
+                type="button"
+                onClick={goToCheckout}
                 className="flex items-center justify-center rounded-full bg-sand-400 px-4 py-3.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(186,107,38,0.6)] transition-transform hover:scale-[1.02] active:scale-95"
               >
                 تکمیل خرید و ارسال سفارش
-              </a>
+              </button>
               <button
                 type="button"
                 onClick={closeCart}

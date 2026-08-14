@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ApiError, adminGetOrders, adminUpdateOrderStatus } from "@/lib/api";
-import { ORDER_STATUS_LABELS, type AdminOrder, type OrderStatus } from "@/types/admin";
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+  type AdminOrder,
+  type OrderStatus,
+} from "@/types/admin";
 
 const STATUS_OPTIONS = Object.keys(ORDER_STATUS_LABELS) as OrderStatus[];
 
@@ -116,12 +121,38 @@ function AdminOrdersPage() {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between border-t border-sand-50 pt-3 text-sm">
-                      <span className="text-cocoa-600">جمع کل / مالیات</span>
+                      <span className="text-cocoa-600">جمع کالا / مالیات / ارسال</span>
                       <span className="font-semibold text-cocoa-900">
-                        {order.subtotal.toLocaleString("fa-IR")} + {order.tax.toLocaleString("fa-IR")}{" "}
-                        تومان
+                        {order.subtotal.toLocaleString("fa-IR")} + {order.tax.toLocaleString("fa-IR")} +{" "}
+                        {order.shippingCost.toLocaleString("fa-IR")} تومان
                       </span>
                     </div>
+
+                    <div className="mt-2 flex items-center justify-between text-sm">
+                      <span className="text-cocoa-600">وضعیت پرداخت</span>
+                      <span
+                        className={`font-semibold ${
+                          order.paymentStatus === "paid"
+                            ? "text-sand-500"
+                            : order.paymentStatus === "failed"
+                              ? "text-danger-500"
+                              : "text-cocoa-600"
+                        }`}
+                      >
+                        {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                      </span>
+                    </div>
+
+                    {order.addressText && (
+                      <div className="mt-2 flex items-start justify-between gap-3 text-sm">
+                        <span className="shrink-0 text-cocoa-600">آدرس تحویل</span>
+                        <span className="text-left font-semibold text-cocoa-900">
+                          {order.addressText}
+                          {order.distanceKm != null &&
+                            ` (${order.distanceKm.toLocaleString("fa-IR", { maximumFractionDigits: 1 })} کیلومتر)`}
+                        </span>
+                      </div>
+                    )}
 
                     {order.note && (
                       <p className="mt-3 rounded-xl bg-sand-50/60 p-3 text-xs text-cocoa-600">

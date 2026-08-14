@@ -15,6 +15,14 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: "لغو شده",
 };
 
+export type PaymentStatus = "pending" | "paid" | "failed";
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  pending: "در انتظار پرداخت",
+  paid: "پرداخت شده",
+  failed: "پرداخت ناموفق",
+};
+
 export interface OrderItem {
   id: string;
   title: string;
@@ -28,10 +36,14 @@ export interface Order {
   customerPhone: string;
   customerName?: string | null;
   status: OrderStatus;
+  addressText?: string | null;
+  distanceKm?: number | null;
   subtotal: number;
   tax: number;
+  shippingCost: number;
   total: number;
   note?: string | null;
+  paymentStatus: PaymentStatus;
   items: OrderItem[];
   createdAt: string;
 }

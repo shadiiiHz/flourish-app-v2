@@ -21,6 +21,12 @@ enum OrderStatus {
   cancelled
 }
 
+enum PaymentStatus {
+  pending
+  paid
+  failed
+}
+
 model Category {
   id        String      @id @default(cuid())
   slug      String      @unique
@@ -94,24 +100,33 @@ model Address {
   lat        Float?
   lng        Float?
   isDefault  Boolean  @default(false)
+  orders     Order[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  customerId    String?
-  customer      Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  customerPhone String
-  customerName  String?
-  status        OrderStatus @default(pending)
-  subtotal      Int
-  tax           Int
-  total         Int
-  note          String?
-  items         OrderItem[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                String        @id @default(cuid())
+  customerId        String?
+  customer          Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerPhone     String
+  customerName      String?
+  status            OrderStatus   @default(pending)
+  addressId         String?
+  address           Address?      @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  addressText       String?
+  distanceKm        Float?
+  subtotal          Int
+  tax               Int
+  shippingCost      Int           @default(0)
+  total             Int
+  note              String?
+  paymentStatus     PaymentStatus @default(pending)
+  paymentAuthority  String?
+  paymentRefId      String?
+  items             OrderItem[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 }
 
 model OrderItem {
@@ -126,6 +141,13 @@ model OrderItem {
   variantTitle String?
   price        Int
   quantity     Int
+}
+
+model Settings {
+  id                  Int      @id @default(1)
+  shippingCostUpTo5Km Int      @default(0)
+  shippingCostOver5Km Int      @default(0)
+  updatedAt           DateTime @updatedAt
 }
 
 model AdminUser {

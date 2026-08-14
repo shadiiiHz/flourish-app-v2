@@ -287,7 +287,9 @@ export function deleteMyAddress(id: string) {
 }
 
 export interface CreateOrderPayload {
+  addressId: string;
   customerName?: string;
+  note?: string;
   items: {
     productId: string;
     variantId?: string;
@@ -298,11 +300,29 @@ export interface CreateOrderPayload {
   }[];
 }
 
+export interface CreateOrderResult {
+  order: Order;
+  paymentUrl: string;
+}
+
 export function createOrder(payload: CreateOrderPayload) {
-  return apiFetch("/api/orders", {
+  return apiFetch<CreateOrderResult>("/api/orders", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function getOrder(id: string) {
+  return apiFetch<Order>(`/api/customers/me/orders/${id}`);
+}
+
+export interface ShippingEstimate {
+  distanceKm: number;
+  shippingCost: number;
+}
+
+export function getShippingEstimate(addressId: string) {
+  return apiFetch<ShippingEstimate>(`/api/shipping/estimate?addressId=${addressId}`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -410,4 +430,24 @@ export function adminGetCustomers() {
 
 export function adminGetCustomer(id: string) {
   return apiFetch<AdminCustomer>(`/api/admin/customers/${id}`);
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin settings (shipping cost tiers)                                */
+/* ------------------------------------------------------------------ */
+
+export interface AdminSettings {
+  shippingCostUpTo5Km: number;
+  shippingCostOver5Km: number;
+}
+
+export function adminGetSettings() {
+  return apiFetch<AdminSettings>("/api/admin/settings");
+}
+
+export function adminUpdateSettings(payload: AdminSettings) {
+  return apiFetch<AdminSettings>("/api/admin/settings", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }

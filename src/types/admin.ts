@@ -1,7 +1,7 @@
 import type { Order } from "./order";
 
-export type { OrderStatus, OrderItem as AdminOrderItem } from "./order";
-export { ORDER_STATUS_LABELS } from "./order";
+export type { OrderStatus, OrderItem as AdminOrderItem, PaymentStatus } from "./order";
+export { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "./order";
 
 export type CategoryTabId = "bakery" | "drinks";
 
