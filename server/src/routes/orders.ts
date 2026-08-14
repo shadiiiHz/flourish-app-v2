@@ -5,26 +5,17 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { calculateShipping } from "../lib/shipping.js";
 import { requestZarinpalPayment, verifyZarinpalPayment } from "../lib/zarinpal.js";
+import { getDiscountedPrice } from "../lib/pricing.js";
 import { env } from "../lib/env.js";
 
 export const ordersRouter = Router();
 
 const TAX_RATE = 0.1;
 
-const orderItemSchema = z.object({
-  productId: z.string().optional(),
-  variantId: z.string().optional(),
-  title: z.string(),
-  variantTitle: z.string().optional(),
-  price: z.number().int().nonnegative(),
-  quantity: z.number().int().positive(),
-});
-
 const createOrderSchema = z.object({
   addressId: z.string().min(1),
   customerName: z.string().optional(),
   note: z.string().optional(),
-  items: z.array(orderItemSchema).min(1),
 });
 
 ordersRouter.post(
@@ -36,7 +27,7 @@ ordersRouter.post(
       res.status(400).json({ error: "اطلاعات سفارش نامعتبر است" });
       return;
     }
-    const { addressId, customerName, note, items } = parsed.data;
+    const { addressId, customerName, note } = parsed.data;
     const { sub: customerId, phone: customerPhone } = req.customer!;
 
     const address = await prisma.address.findFirst({
@@ -51,7 +42,28 @@ ordersRouter.post(
       return;
     }
 
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const cartItems = await prisma.cartItem.findMany({
+      where: { customerId },
+      include: { product: true, variant: true },
+    });
+    if (cartItems.length === 0) {
+      res.status(400).json({ error: "سبد خرید خالی است" });
+      return;
+    }
+
+    const orderItems = cartItems.map((item) => {
+      const basePrice = item.variant ? item.variant.price : item.product.price;
+      return {
+        productId: item.productId,
+        variantId: item.variantId,
+        title: item.product.title,
+        variantTitle: item.variant?.title,
+        price: getDiscountedPrice(basePrice, item.product.discountPercent),
+        quantity: item.quantity,
+      };
+    });
+
+    const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const tax = Math.round(subtotal * TAX_RATE);
     const { distanceKm, shippingCost } = await calculateShipping(address.lat, address.lng);
     const total = subtotal + tax + shippingCost;
@@ -69,16 +81,7 @@ ordersRouter.post(
         tax,
         shippingCost,
         total,
-        items: {
-          create: items.map((item) => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            title: item.title,
-            variantTitle: item.variantTitle,
-            price: item.price,
-            quantity: item.quantity,
-          })),
-        },
+        items: { create: orderItems },
       },
       include: { items: true },
     });
@@ -142,6 +145,9 @@ ordersRouter.get(
       where: { id: order.id },
       data: { paymentStatus: "paid", paymentRefId: verified.refId },
     });
+    if (order.customerId) {
+      await prisma.cartItem.deleteMany({ where: { customerId: order.customerId } });
+    }
     res.redirect(`${env.appUrl}/checkout/result?status=paid&orderId=${order.id}`);
   }),
 );

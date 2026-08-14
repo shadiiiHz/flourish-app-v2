@@ -5,12 +5,19 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { getDiscountedPrice, type MenuItem, type MenuItemVariant } from "../config/siteConfig";
 import { useAuth } from "./AuthContext";
+import {
+  addMyCartItem,
+  clearMyCart,
+  getMyCart,
+  removeMyCartItem,
+  updateMyCartItem,
+  type ApiCartItem,
+} from "../lib/api";
 
 export interface CartLine {
   key: string;
@@ -22,6 +29,11 @@ export interface CartLine {
   image?: string;
   quantity: number;
   maxQuantity?: number;
+}
+
+interface CartLineInternal extends CartLine {
+  /** The server-side CartItem id; a synthetic placeholder until the initial add-to-cart request resolves. */
+  cartItemId: string;
 }
 
 interface CartContextValue {
@@ -45,44 +57,41 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-const STORAGE_KEY = "flourish-cart";
 const TAX_RATE = 0.1;
 
 const lineKeyFor = (itemId: string, variantId?: string) =>
   variantId ? `${itemId}:${variantId}` : itemId;
 
-function loadInitialLines(): CartLine[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function mapApiCartItem(item: ApiCartItem): CartLineInternal {
+  return {
+    key: lineKeyFor(item.productId, item.variantId ?? undefined),
+    cartItemId: item.id,
+    itemId: item.productId,
+    variantId: item.variantId ?? undefined,
+    title: item.title,
+    variantTitle: item.variantTitle ?? undefined,
+    price: item.price,
+    image: item.image ?? undefined,
+    quantity: item.quantity,
+    maxQuantity: item.maxQuantity ?? undefined,
+  };
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, openAuth } = useAuth();
-  // Starts empty (matching SSR output) and loads localStorage after mount
-  // so the client's first render can't mismatch the server-rendered HTML.
-  const [lines, setLines] = useState<CartLine[]>([]);
+  const [lines, setLines] = useState<CartLineInternal[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const skipNextPersist = useRef(true);
 
   useEffect(() => {
-    setLines(loadInitialLines());
-  }, []);
-
-  useEffect(() => {
-    if (skipNextPersist.current) {
-      skipNextPersist.current = false;
+    if (!isAuthenticated) {
+      setLines([]);
       return;
     }
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
-  }, [lines]);
+    getMyCart()
+      .then((items) => setLines(items.map(mapApiCartItem)))
+      .catch(() => setLines([]));
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!toast) return;
@@ -104,28 +113,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     const key = lineKeyFor(item.id, variant?.id);
+    const maxQuantity = variant ? variant.stock : item.stock;
+    const existing = lines.find((line) => line.key === key);
+
+    if (existing) {
+      const nextQuantity =
+        maxQuantity !== undefined
+          ? Math.min(existing.quantity + quantity, maxQuantity)
+          : existing.quantity + quantity;
+      setLines((prev) =>
+        prev.map((line) => (line.key === key ? { ...line, quantity: nextQuantity } : line)),
+      );
+      updateMyCartItem(existing.cartItemId, nextQuantity).catch(() => {
+        notify("بروزرسانی سبد خرید با خطا مواجه شد");
+      });
+      return true;
+    }
+
+    const initialQuantity = maxQuantity !== undefined ? Math.min(quantity, maxQuantity) : quantity;
+    if (initialQuantity <= 0) return true;
+
     const basePrice = variant ? variant.price : item.price;
     const price = getDiscountedPrice(basePrice, item.discountPercent);
-    const maxQuantity = variant ? variant.stock : item.stock;
-
-    setLines((prev) => {
-      const existing = prev.find((line) => line.key === key);
-      if (existing) {
-        const nextQuantity =
-          maxQuantity !== undefined
-            ? Math.min(existing.quantity + quantity, maxQuantity)
-            : existing.quantity + quantity;
-        return prev.map((line) =>
-          line.key === key ? { ...line, quantity: nextQuantity } : line,
-        );
-      }
-
-      const initialQuantity =
-        maxQuantity !== undefined ? Math.min(quantity, maxQuantity) : quantity;
-      if (initialQuantity <= 0) return prev;
-
-      const newLine: CartLine = {
+    const optimisticId = `pending-${key}`;
+    setLines((prev) => [
+      ...prev,
+      {
         key,
+        cartItemId: optimisticId,
         itemId: item.id,
         variantId: variant?.id,
         title: item.title,
@@ -134,35 +149,57 @@ export function CartProvider({ children }: { children: ReactNode }) {
         image: variant?.image || item.images[0],
         quantity: initialQuantity,
         maxQuantity,
-      };
-      return [...prev, newLine];
-    });
+      },
+    ]);
+    addMyCartItem({ productId: item.id, variantId: variant?.id, quantity: initialQuantity })
+      .then((created) => {
+        setLines((prev) => prev.map((line) => (line.key === key ? mapApiCartItem(created) : line)));
+      })
+      .catch(() => {
+        notify("افزودن به سبد خرید با خطا مواجه شد");
+        setLines((prev) => prev.filter((line) => line.cartItemId !== optimisticId));
+      });
 
     return true;
   };
 
   const setQuantity = (key: string, quantity: number) => {
-    setLines((prev) => {
-      if (quantity <= 0) return prev.filter((line) => line.key !== key);
-      return prev.map((line) =>
-        line.key === key
-          ? {
-              ...line,
-              quantity:
-                line.maxQuantity !== undefined
-                  ? Math.min(quantity, line.maxQuantity)
-                  : quantity,
-            }
-          : line,
-      );
+    const existing = lines.find((line) => line.key === key);
+    if (!existing) return;
+
+    if (quantity <= 0) {
+      setLines((prev) => prev.filter((line) => line.key !== key));
+      removeMyCartItem(existing.cartItemId).catch(() => {
+        notify("حذف از سبد خرید با خطا مواجه شد");
+      });
+      return;
+    }
+
+    const nextQuantity =
+      existing.maxQuantity !== undefined ? Math.min(quantity, existing.maxQuantity) : quantity;
+    setLines((prev) =>
+      prev.map((line) => (line.key === key ? { ...line, quantity: nextQuantity } : line)),
+    );
+    updateMyCartItem(existing.cartItemId, nextQuantity).catch(() => {
+      notify("بروزرسانی سبد خرید با خطا مواجه شد");
     });
   };
 
   const removeLine = (key: string) => {
+    const existing = lines.find((line) => line.key === key);
+    if (!existing) return;
     setLines((prev) => prev.filter((line) => line.key !== key));
+    removeMyCartItem(existing.cartItemId).catch(() => {
+      notify("حذف از سبد خرید با خطا مواجه شد");
+    });
   };
 
-  const clearCart = () => setLines([]);
+  const clearCart = () => {
+    setLines([]);
+    clearMyCart().catch(() => {
+      // best-effort — local state is already cleared
+    });
+  };
 
   const totalCount = useMemo(
     () => lines.reduce((sum, line) => sum + line.quantity, 0),

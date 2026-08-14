@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
+import { getDiscountedPrice } from "../lib/pricing.js";
+import type { Prisma } from "@prisma/client";
 
 export const customersRouter = Router();
 
@@ -179,6 +181,153 @@ customersRouter.delete(
       res.status(409).json({ error: "حداقل یک آدرس باید ثبت باشد" });
       return;
     }
+    res.status(204).end();
+  }),
+);
+
+const cartItemInclude = {
+  product: true,
+  variant: true,
+} satisfies Prisma.CartItemInclude;
+
+type CartItemWithRelations = Prisma.CartItemGetPayload<{ include: typeof cartItemInclude }>;
+
+function mapCartItem(item: CartItemWithRelations) {
+  const basePrice = item.variant ? item.variant.price : item.product.price;
+  return {
+    id: item.id,
+    productId: item.productId,
+    variantId: item.variantId,
+    title: item.product.title,
+    variantTitle: item.variant?.title,
+    price: getDiscountedPrice(basePrice, item.product.discountPercent),
+    image: item.variant?.image ?? item.product.images[0],
+    quantity: item.quantity,
+    maxQuantity: item.variant ? item.variant.stock : item.product.stock,
+  };
+}
+
+customersRouter.get(
+  "/me/cart",
+  asyncHandler(async (req, res) => {
+    const items = await prisma.cartItem.findMany({
+      where: { customerId: req.customer!.sub },
+      include: cartItemInclude,
+      orderBy: { createdAt: "asc" },
+    });
+    res.json(items.map(mapCartItem));
+  }),
+);
+
+const addCartItemSchema = z.object({
+  productId: z.string().min(1),
+  variantId: z.string().optional(),
+  quantity: z.number().int().positive().optional(),
+});
+
+customersRouter.post(
+  "/me/cart",
+  asyncHandler(async (req, res) => {
+    const parsed = addCartItemSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "اطلاعات نامعتبر است" });
+      return;
+    }
+    const customerId = req.customer!.sub;
+    const { productId, variantId, quantity = 1 } = parsed.data;
+
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: { variants: true },
+    });
+    if (!product) {
+      res.status(404).json({ error: "محصول یافت نشد" });
+      return;
+    }
+    const variant = variantId ? product.variants.find((v) => v.id === variantId) : undefined;
+    if (variantId && !variant) {
+      res.status(404).json({ error: "نوع محصول یافت نشد" });
+      return;
+    }
+    const maxQuantity = variant ? variant.stock : product.stock;
+
+    const item = await prisma.$transaction(async (tx) => {
+      const existing = await tx.cartItem.findFirst({
+        where: { customerId, productId, variantId: variantId ?? null },
+      });
+      const nextQuantity = (existing?.quantity ?? 0) + quantity;
+      const clamped = maxQuantity != null ? Math.min(nextQuantity, maxQuantity) : nextQuantity;
+      if (existing) {
+        return tx.cartItem.update({
+          where: { id: existing.id },
+          data: { quantity: clamped },
+          include: cartItemInclude,
+        });
+      }
+      return tx.cartItem.create({
+        data: { customerId, productId, variantId, quantity: clamped },
+        include: cartItemInclude,
+      });
+    });
+    res.status(201).json(mapCartItem(item));
+  }),
+);
+
+const updateCartItemSchema = z.object({
+  quantity: z.number().int(),
+});
+
+customersRouter.put(
+  "/me/cart/:id",
+  asyncHandler(async (req, res) => {
+    const parsed = updateCartItemSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "اطلاعات نامعتبر است" });
+      return;
+    }
+    const customerId = req.customer!.sub;
+    const existing = await prisma.cartItem.findFirst({
+      where: { id: req.params.id, customerId },
+      include: cartItemInclude,
+    });
+    if (!existing) {
+      res.status(404).json({ error: "آیتم سبد خرید یافت نشد" });
+      return;
+    }
+    if (parsed.data.quantity <= 0) {
+      await prisma.cartItem.delete({ where: { id: existing.id } });
+      res.status(204).end();
+      return;
+    }
+    const maxQuantity = existing.variant ? existing.variant.stock : existing.product.stock;
+    const clamped = maxQuantity != null ? Math.min(parsed.data.quantity, maxQuantity) : parsed.data.quantity;
+    const updated = await prisma.cartItem.update({
+      where: { id: existing.id },
+      data: { quantity: clamped },
+      include: cartItemInclude,
+    });
+    res.json(mapCartItem(updated));
+  }),
+);
+
+customersRouter.delete(
+  "/me/cart/:id",
+  asyncHandler(async (req, res) => {
+    const { count } = await prisma.cartItem.deleteMany({
+      where: { id: req.params.id, customerId: req.customer!.sub },
+    });
+    if (count === 0) {
+      res.status(404).json({ error: "آیتم سبد خرید یافت نشد" });
+      return;
+    }
+    res.status(204).end();
+  }),
+);
+
+customersRouter.delete(
+  "/me/cart",
+  asyncHandler(async (req, res) => {
+    await prisma.cartItem.deleteMany({ where: { customerId: req.customer!.sub } });
     res.status(204).end();
   }),
 );

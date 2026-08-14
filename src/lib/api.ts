@@ -286,18 +286,58 @@ export function deleteMyAddress(id: string) {
   return apiFetch(`/api/customers/me/addresses/${id}`, { method: "DELETE" });
 }
 
+/* ------------------------------------------------------------------ */
+/* Cart (server-persisted)                                             */
+/* ------------------------------------------------------------------ */
+
+export interface ApiCartItem {
+  id: string;
+  productId: string;
+  variantId?: string | null;
+  title: string;
+  variantTitle?: string | null;
+  price: number;
+  image?: string | null;
+  quantity: number;
+  maxQuantity?: number | null;
+}
+
+export interface AddCartItemPayload {
+  productId: string;
+  variantId?: string;
+  quantity?: number;
+}
+
+export function getMyCart() {
+  return apiFetch<ApiCartItem[]>("/api/customers/me/cart");
+}
+
+export function addMyCartItem(payload: AddCartItemPayload) {
+  return apiFetch<ApiCartItem>("/api/customers/me/cart", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateMyCartItem(id: string, quantity: number) {
+  return apiFetch<ApiCartItem>(`/api/customers/me/cart/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ quantity }),
+  });
+}
+
+export function removeMyCartItem(id: string) {
+  return apiFetch(`/api/customers/me/cart/${id}`, { method: "DELETE" });
+}
+
+export function clearMyCart() {
+  return apiFetch("/api/customers/me/cart", { method: "DELETE" });
+}
+
 export interface CreateOrderPayload {
   addressId: string;
   customerName?: string;
   note?: string;
-  items: {
-    productId: string;
-    variantId?: string;
-    title: string;
-    variantTitle?: string;
-    price: number;
-    quantity: number;
-  }[];
 }
 
 export interface CreateOrderResult {

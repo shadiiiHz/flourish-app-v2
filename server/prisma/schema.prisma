@@ -57,6 +57,7 @@ model Product {
   sortOrder       Int              @default(0)
   variants        ProductVariant[]
   orderItems      OrderItem[]
+  cartItems       CartItem[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -71,13 +72,14 @@ model ProductVariant {
   stock      Int?
   image      String?
   orderItems OrderItem[]
+  cartItems  CartItem[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 }
 
 model Customer {
-  id           String    @id @default(cuid())
-  phone        String    @unique
+  id           String     @id @default(cuid())
+  phone        String     @unique
   passwordHash String?
   firstName    String?
   lastName     String?
@@ -85,8 +87,22 @@ model Customer {
   avatar       String?
   orders       Order[]
   addresses    Address[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  cartItems    CartItem[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model CartItem {
+  id         String          @id @default(cuid())
+  customerId String
+  customer   Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity   Int
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 }
 
 model Address {

@@ -118,14 +118,6 @@ function CheckoutPage() {
         addressId: selectedAddressId,
         customerName,
         note: note.trim() || undefined,
-        items: lines.map((line) => ({
-          productId: line.itemId,
-          variantId: line.variantId,
-          title: line.title,
-          variantTitle: line.variantTitle,
-          price: line.price,
-          quantity: line.quantity,
-        })),
       });
       window.location.href = paymentUrl;
     } catch (err) {
