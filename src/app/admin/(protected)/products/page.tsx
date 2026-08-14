@@ -6,13 +6,17 @@ import {
   ApiError,
   adminCreateProduct,
   adminDeleteProduct,
-  adminGetCategories,
+  adminGetAllCategories,
   adminGetProducts,
   adminUpdateProduct,
   adminUploadImage,
   apiUploadUrl,
 } from "@/lib/api";
+import AdminPagination from "@/components/AdminPagination";
+import ConfirmModal from "@/components/ConfirmModal";
 import type { AdminCategory, AdminProduct, AdminVariant } from "@/types/admin";
+
+const PAGE_SIZE = 10;
 
 interface FormState {
   categoryId: string;
@@ -49,17 +53,23 @@ const EMPTY_FORM: FormState = {
 function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState<AdminProduct | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAll = () =>
-    Promise.all([adminGetProducts(), adminGetCategories()]).then(([p, c]) => {
-      setProducts(p);
+    Promise.all([adminGetProducts(page, PAGE_SIZE), adminGetAllCategories()]).then(([p, c]) => {
+      setProducts(p.items);
+      setTotalPages(p.totalPages);
+      setTotal(p.total);
       setCategories(c);
       setForm((f) => (f.categoryId ? f : { ...f, categoryId: c[0]?.id ?? "" }));
     });
@@ -70,8 +80,9 @@ function AdminProductsPage() {
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchAll().finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   const startCreate = () => {
     setEditingId(null);
@@ -178,10 +189,10 @@ function AdminProductsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("این محصول حذف شود؟")) return;
     await adminDeleteProduct(id);
     if (editingId === id) startCreate();
-    load();
+    if (products.length === 1 && page > 1) setPage((p) => p - 1);
+    else load();
   };
 
   return (
@@ -475,7 +486,7 @@ function AdminProductsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(p.id)}
+                        onClick={() => setDeletingProduct(p)}
                         className="flex h-8 w-8 items-center justify-center rounded-full border border-danger-500/30 text-danger-500 transition hover:bg-danger-50"
                         aria-label="حذف"
                       >
@@ -489,6 +500,22 @@ function AdminProductsPage() {
           </tbody>
         </table>
       </div>
+
+      <AdminPagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
+
+      <ConfirmModal
+        isOpen={!!deletingProduct}
+        title="حذف محصول"
+        description={
+          deletingProduct ? `آیا مطمئنید می‌خواهید محصول «${deletingProduct.title}» را حذف کنید؟` : undefined
+        }
+        confirmLabel="بله، حذف شود"
+        cancelLabel="انصراف"
+        onConfirm={() => {
+          if (deletingProduct) handleDelete(deletingProduct.id);
+        }}
+        onClose={() => setDeletingProduct(null)}
+      />
     </div>
   );
 }

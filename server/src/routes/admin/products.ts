@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
+import { parsePagination, paginatedResult } from "../../lib/pagination.js";
 
 export const adminProductsRouter = Router();
 
@@ -32,12 +33,18 @@ const productSchema = z.object({
 
 adminProductsRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const products = await prisma.product.findMany({
-      orderBy: { sortOrder: "asc" },
-      include: { variants: true, category: true },
-    });
-    res.json(products);
+  asyncHandler(async (req, res) => {
+    const pagination = parsePagination(req);
+    const [products, total] = await prisma.$transaction([
+      prisma.product.findMany({
+        orderBy: { sortOrder: "asc" },
+        include: { variants: true, category: true },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      prisma.product.count(),
+    ]);
+    res.json(paginatedResult(products, total, pagination));
   }),
 );
 

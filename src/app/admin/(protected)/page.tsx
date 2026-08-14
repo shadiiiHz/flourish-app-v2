@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Package, ShoppingBag, Tags, Users } from "lucide-react";
 import { adminGetCategories, adminGetCustomers, adminGetOrders, adminGetProducts } from "@/lib/api";
-import type { AdminCategory, AdminCustomer, AdminOrder, AdminProduct } from "@/types/admin";
 
 function StatCard({
   label,
@@ -27,46 +26,52 @@ function StatCard({
   );
 }
 
+interface Stats {
+  categories: number;
+  products: number;
+  orders: number;
+  pendingOrders: number;
+  customers: number;
+}
+
 function AdminDashboardPage() {
-  const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [products, setProducts] = useState<AdminProduct[]>([]);
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [customers, setCustomers] = useState<AdminCustomer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
+    // Only the `total` count is needed here, so every list is fetched with
+    // pageSize=1 instead of pulling the full (potentially huge) dataset.
     Promise.all([
-      adminGetCategories(),
-      adminGetProducts(),
-      adminGetOrders(),
-      adminGetCustomers(),
-    ])
-      .then(([c, p, o, cu]) => {
-        setCategories(c);
-        setProducts(p);
-        setOrders(o);
-        setCustomers(cu);
-      })
-      .finally(() => setLoading(false));
+      adminGetCategories(1, 1),
+      adminGetProducts(1, 1),
+      adminGetOrders("all", 1, 1),
+      adminGetOrders("pending", 1, 1),
+      adminGetCustomers(1, 1),
+    ]).then(([categories, products, orders, pendingOrders, customers]) => {
+      setStats({
+        categories: categories.total,
+        products: products.total,
+        orders: orders.total,
+        pendingOrders: pendingOrders.total,
+        customers: customers.total,
+      });
+    });
   }, []);
-
-  const pendingOrders = orders.filter((o) => o.status === "pending").length;
 
   return (
     <div>
       <h1 className="font-display text-xl font-bold text-cocoa-900">داشبورد</h1>
-      {loading ? (
+      {!stats ? (
         <p className="mt-4 text-sm text-cocoa-500">در حال بارگذاری…</p>
       ) : (
         <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label="محصولات" value={products.length} icon={Package} />
-          <StatCard label="دسته‌بندی‌ها" value={categories.length} icon={Tags} />
+          <StatCard label="محصولات" value={stats.products} icon={Package} />
+          <StatCard label="دسته‌بندی‌ها" value={stats.categories} icon={Tags} />
           <StatCard
             label="سفارش‌ها"
-            value={`${orders.length} (${pendingOrders} در انتظار)`}
+            value={`${stats.orders} (${stats.pendingOrders} در انتظار)`}
             icon={ShoppingBag}
           />
-          <StatCard label="مشتریان" value={customers.length} icon={Users} />
+          <StatCard label="مشتریان" value={stats.customers} icon={Users} />
         </div>
       )}
     </div>

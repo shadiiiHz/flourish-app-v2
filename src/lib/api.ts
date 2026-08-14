@@ -391,12 +391,27 @@ export function adminLogout() {
   return apiFetch("/api/admin/auth/logout", { method: "POST" });
 }
 
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 /* ------------------------------------------------------------------ */
 /* Admin catalog management                                            */
 /* ------------------------------------------------------------------ */
 
-export function adminGetCategories() {
-  return apiFetch<AdminCategory[]>("/api/admin/categories");
+export function adminGetCategories(page = 1, pageSize = 20) {
+  return apiFetch<Paginated<AdminCategory>>(
+    `/api/admin/categories?page=${page}&pageSize=${pageSize}`,
+  );
+}
+
+/** Unpaginated — for populating dropdowns (e.g. the product form's category select). */
+export function adminGetAllCategories() {
+  return apiFetch<AdminCategory[]>("/api/admin/categories?all=true");
 }
 
 export function adminCreateCategory(payload: Record<string, unknown>) {
@@ -417,8 +432,8 @@ export function adminDeleteCategory(id: string) {
   return apiFetch(`/api/admin/categories/${id}`, { method: "DELETE" });
 }
 
-export function adminGetProducts() {
-  return apiFetch<AdminProduct[]>("/api/admin/products");
+export function adminGetProducts(page = 1, pageSize = 20) {
+  return apiFetch<Paginated<AdminProduct>>(`/api/admin/products?page=${page}&pageSize=${pageSize}`);
 }
 
 export function adminCreateProduct(payload: Record<string, unknown>) {
@@ -452,9 +467,12 @@ export function adminUploadImage(file: File) {
 /* Admin orders / customers                                            */
 /* ------------------------------------------------------------------ */
 
-export function adminGetOrders(status?: OrderStatus | "all") {
-  const query = !status || status === "all" ? "" : `?status=${status}`;
-  return apiFetch<AdminOrder[]>(`/api/admin/orders${query}`);
+export function adminGetOrders(status?: OrderStatus | "all", page = 1, pageSize = 20) {
+  const params = new URLSearchParams();
+  if (status && status !== "all") params.set("status", status);
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
+  return apiFetch<Paginated<AdminOrder>>(`/api/admin/orders?${params.toString()}`);
 }
 
 export function adminUpdateOrderStatus(id: string, status: OrderStatus) {
@@ -464,8 +482,8 @@ export function adminUpdateOrderStatus(id: string, status: OrderStatus) {
   });
 }
 
-export function adminGetCustomers() {
-  return apiFetch<AdminCustomer[]>("/api/admin/customers");
+export function adminGetCustomers(page = 1, pageSize = 20) {
+  return apiFetch<Paginated<AdminCustomer>>(`/api/admin/customers?page=${page}&pageSize=${pageSize}`);
 }
 
 export function adminGetCustomer(id: string) {

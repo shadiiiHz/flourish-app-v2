@@ -11,7 +11,11 @@ import {
   adminUploadImage,
   apiUploadUrl,
 } from "@/lib/api";
+import AdminPagination from "@/components/AdminPagination";
+import ConfirmModal from "@/components/ConfirmModal";
 import type { AdminCategory, CategoryTabId } from "@/types/admin";
+
+const PAGE_SIZE = 10;
 
 const TAB_LABELS: Record<CategoryTabId, string> = {
   bakery: "نان و شیرینی",
@@ -31,15 +35,24 @@ const EMPTY_FORM: FormState = { slug: "", tab: "bakery", title: "", image: "", n
 
 function AdminCategoriesPage() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState<AdminCategory | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchCategories = () => adminGetCategories().then(setCategories);
+  const fetchCategories = () =>
+    adminGetCategories(page, PAGE_SIZE).then((res) => {
+      setCategories(res.items);
+      setTotalPages(res.totalPages);
+      setTotal(res.total);
+    });
 
   const load = () => {
     setLoading(true);
@@ -47,8 +60,9 @@ function AdminCategoriesPage() {
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchCategories().finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   const startCreate = () => {
     setEditingId(null);
@@ -109,10 +123,10 @@ function AdminCategoriesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("این دسته‌بندی و همه محصولات آن حذف شود؟")) return;
     await adminDeleteCategory(id);
     if (editingId === id) startCreate();
-    load();
+    if (categories.length === 1 && page > 1) setPage((p) => p - 1);
+    else load();
   };
 
   return (
@@ -284,7 +298,7 @@ function AdminCategoriesPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(cat.id)}
+                        onClick={() => setDeletingCategory(cat)}
                         className="flex h-8 w-8 items-center justify-center rounded-full border border-danger-500/30 text-danger-500 transition hover:bg-danger-50"
                         aria-label="حذف"
                       >
@@ -298,6 +312,24 @@ function AdminCategoriesPage() {
           </tbody>
         </table>
       </div>
+
+      <AdminPagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
+
+      <ConfirmModal
+        isOpen={!!deletingCategory}
+        title="حذف دسته‌بندی"
+        description={
+          deletingCategory
+            ? `آیا مطمئنید می‌خواهید دسته‌بندی «${deletingCategory.title}» و همه محصولات آن را حذف کنید؟`
+            : undefined
+        }
+        confirmLabel="بله، حذف شود"
+        cancelLabel="انصراف"
+        onConfirm={() => {
+          if (deletingCategory) handleDelete(deletingCategory.id);
+        }}
+        onClose={() => setDeletingCategory(null)}
+      />
     </div>
   );
 }
