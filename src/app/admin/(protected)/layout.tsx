@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ChevronRight,
   LayoutDashboard,
   LogOut,
   Package,
@@ -24,6 +26,8 @@ const NAV_ITEMS = [
   { href: "/admin/settings", exact: false, label: "تنظیمات", icon: Settings },
 ];
 
+const SIDEBAR_COLLAPSED_KEY = "flourish-admin-sidebar-collapsed";
+
 function isActivePath(pathname: string, href: string, exact: boolean) {
   return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -32,6 +36,19 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
   const { admin, isAuthenticated, isLoading, logout } = useAdminAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true");
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -53,12 +70,52 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
   }
 
   return (
-    <div dir="rtl" className="min-h-svh bg-cream text-cocoa-900">
-      <div className="mx-auto flex min-h-svh max-w-7xl">
-        <aside className="hidden w-64 shrink-0 flex-col gap-1 border-l border-sand-100 bg-white p-4 md:flex">
-          <div className="mb-4 px-2 py-2">
-            <p className="font-display text-lg font-bold text-cocoa-900">پنل ادمین فلوریش</p>
-            <p className="mt-0.5 text-xs text-cocoa-500">{admin?.name}</p>
+    <div dir="rtl" className="relative min-h-svh overflow-x-clip bg-cream text-cocoa-900">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
+        style={{
+          backgroundImage: "url(/assets/logo.png)",
+          backgroundRepeat: "repeat",
+          backgroundSize: "100px 100px",
+        }}
+      />
+
+      <div className="relative z-10 mx-auto flex min-h-svh max-w-7xl">
+        <aside
+          className={`relative hidden shrink-0 flex-col gap-1 border-l border-white/40 bg-white/80 py-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_30px_60px_-30px_rgba(74,44,18,0.35)] backdrop-blur-2xl backdrop-saturate-150 transition-[width] duration-300 md:flex ${
+            collapsed ? "w-20 px-2" : "w-64 px-4"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "باز کردن سایدبار" : "جمع کردن سایدبار"}
+            className={`absolute top-8 -left-3.5 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-white/40 bg-white text-cocoa-700 shadow-[0_10px_20px_-8px_rgba(74,44,18,0.4)] transition hover:text-sand-500 ${
+              collapsed ? "rotate-180" : ""
+            }`}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+
+          <div
+            className={`mb-4 flex items-center gap-2 py-2 ${collapsed ? "justify-center px-0" : "px-2"}`}
+          >
+            <Image
+              src="/assets/textLogo.png"
+              alt="لوگوی فلوریش"
+              width={112}
+              height={112}
+              className="h-10 w-10 shrink-0 object-contain"
+            />
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="truncate font-display text-sm font-bold text-cocoa-900">
+                  پنل ادمین فلوریش
+                </p>
+                <p className="truncate text-xs text-cocoa-500">{admin?.name}</p>
+              </div>
+            )}
           </div>
 
           <nav className="flex flex-1 flex-col gap-1">
@@ -68,12 +125,13 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center justify-between gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-bold transition ${
-                    isActive ? "bg-sand-50 text-sand-500" : "text-cocoa-700 hover:bg-sand-50/60"
-                  }`}
+                  title={collapsed ? label : undefined}
+                  className={`flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-bold transition ${
+                    collapsed ? "justify-center" : "justify-between"
+                  } ${isActive ? "bg-sand-50 text-sand-500" : "text-cocoa-700 hover:bg-sand-50/60"}`}
                 >
-                  {label}
-                  <Icon className="h-4.5 w-4.5" />
+                  {!collapsed && label}
+                  <Icon className="h-4.5 w-4.5 shrink-0" />
                 </Link>
               );
             })}
@@ -82,16 +140,28 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
           <button
             type="button"
             onClick={handleLogout}
-            className="flex items-center justify-between gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-bold text-danger-500 transition hover:bg-danger-50"
+            title={collapsed ? "خروج" : undefined}
+            className={`flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-bold text-danger-500 transition hover:bg-danger-50 ${
+              collapsed ? "justify-center" : "justify-between"
+            }`}
           >
-            خروج
-            <LogOut className="h-4.5 w-4.5" />
+            {!collapsed && "خروج"}
+            <LogOut className="h-4.5 w-4.5 shrink-0" />
           </button>
         </aside>
 
         <div className="flex-1 overflow-x-hidden">
-          <header className="flex items-center justify-between gap-3 border-b border-sand-100 bg-white px-4 py-3 md:hidden">
-            <span className="font-display text-base font-bold text-cocoa-900">پنل ادمین</span>
+          <header className="flex items-center justify-between gap-3 border-b border-sand-100 bg-white/80 px-4 py-3 backdrop-blur-xl md:hidden">
+            <div className="flex items-center gap-2">
+              <Image
+                src="/assets/textLogo.png"
+                alt="لوگوی فلوریش"
+                width={112}
+                height={112}
+                className="h-8 w-8 object-contain"
+              />
+              <span className="font-display text-base font-bold text-cocoa-900">پنل ادمین</span>
+            </div>
             <button
               type="button"
               onClick={handleLogout}
@@ -101,7 +171,7 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
             </button>
           </header>
 
-          <nav className="flex gap-1 overflow-x-auto border-b border-sand-100 bg-white px-3 py-2 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <nav className="flex gap-1 overflow-x-auto border-b border-sand-100 bg-white/80 px-3 py-2 backdrop-blur-xl md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NAV_ITEMS.map(({ href, exact, label }) => {
               const isActive = isActivePath(pathname, href, exact);
               return (
