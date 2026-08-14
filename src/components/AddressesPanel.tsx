@@ -53,7 +53,14 @@ function AddressesPanel() {
               className="flex items-start justify-between gap-3 rounded-2xl border border-sand-100 bg-white p-4"
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-cocoa-900">{item.title || "بدون عنوان"}</p>
+                <p className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
+                  {item.title || "بدون عنوان"}
+                  {item.isDefault && (
+                    <span className="rounded-full bg-sand-50 px-2 py-0.5 text-[11px] font-semibold text-sand-500">
+                      پیش‌فرض
+                    </span>
+                  )}
+                </p>
                 <p className="mt-0.5 text-sm text-cocoa-700">
                   {item.address}
                   {item.details && ` — ${item.details}`}
@@ -77,8 +84,9 @@ function AddressesPanel() {
                 <button
                   type="button"
                   aria-label="حذف آدرس"
+                  disabled={item.isDefault || addresses.length <= 1}
                   onClick={() => removeAddress(item.id)}
-                  className="text-cocoa-400 transition hover:text-danger-500"
+                  className="text-cocoa-400 transition hover:text-danger-500 disabled:pointer-events-none disabled:opacity-30"
                 >
                   <Trash2 className="h-4.5 w-4.5" />
                 </button>

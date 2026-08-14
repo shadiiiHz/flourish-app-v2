@@ -62,6 +62,7 @@ const addressSchema = z.object({
   phone: z.string().optional(),
   lat: z.number().optional(),
   lng: z.number().optional(),
+  isDefault: z.boolean().optional(),
 });
 
 customersRouter.get(
@@ -83,8 +84,20 @@ customersRouter.post(
       res.status(400).json({ error: "اطلاعات آدرس معتبر نیست" });
       return;
     }
-    const address = await prisma.address.create({
-      data: { ...parsed.data, customerId: req.customer!.sub },
+    const customerId = req.customer!.sub;
+    const { isDefault, ...data } = parsed.data;
+    const address = await prisma.$transaction(async (tx) => {
+      const existingCount = await tx.address.count({ where: { customerId } });
+      const willBeDefault = existingCount === 0 || !!isDefault;
+      if (willBeDefault) {
+        await tx.address.updateMany({
+          where: { customerId, isDefault: true },
+          data: { isDefault: false },
+        });
+      }
+      return tx.address.create({
+        data: { ...data, isDefault: willBeDefault, customerId },
+      });
     });
     res.status(201).json(address);
   }),
@@ -98,15 +111,28 @@ customersRouter.put(
       res.status(400).json({ error: "اطلاعات آدرس معتبر نیست" });
       return;
     }
-    const { count } = await prisma.address.updateMany({
-      where: { id: req.params.id, customerId: req.customer!.sub },
-      data: parsed.data,
+    const customerId = req.customer!.sub;
+    const { isDefault, ...data } = parsed.data;
+    const address = await prisma.$transaction(async (tx) => {
+      const totalCount = await tx.address.count({ where: { customerId } });
+      const willBeDefault = totalCount === 1 || !!isDefault;
+      if (willBeDefault) {
+        await tx.address.updateMany({
+          where: { customerId, isDefault: true, NOT: { id: req.params.id } },
+          data: { isDefault: false },
+        });
+      }
+      const { count } = await tx.address.updateMany({
+        where: { id: req.params.id, customerId },
+        data: { ...data, isDefault: willBeDefault },
+      });
+      if (count === 0) return null;
+      return tx.address.findUnique({ where: { id: req.params.id } });
     });
-    if (count === 0) {
+    if (!address) {
       res.status(404).json({ error: "آدرس یافت نشد" });
       return;
     }
-    const address = await prisma.address.findUnique({ where: { id: req.params.id } });
     res.json(address);
   }),
 );
@@ -114,11 +140,28 @@ customersRouter.put(
 customersRouter.delete(
   "/me/addresses/:id",
   asyncHandler(async (req, res) => {
-    const { count } = await prisma.address.deleteMany({
-      where: { id: req.params.id, customerId: req.customer!.sub },
+    const customerId = req.customer!.sub;
+    const result = await prisma.$transaction(async (tx) => {
+      const target = await tx.address.findFirst({
+        where: { id: req.params.id, customerId },
+      });
+      if (!target) return "not-found" as const;
+      if (target.isDefault) return "is-default" as const;
+      const totalCount = await tx.address.count({ where: { customerId } });
+      if (totalCount <= 1) return "last" as const;
+      await tx.address.delete({ where: { id: target.id } });
+      return "deleted" as const;
     });
-    if (count === 0) {
+    if (result === "not-found") {
       res.status(404).json({ error: "آدرس یافت نشد" });
+      return;
+    }
+    if (result === "is-default") {
+      res.status(409).json({ error: "آدرس پیش‌فرض قابل حذف نیست" });
+      return;
+    }
+    if (result === "last") {
+      res.status(409).json({ error: "حداقل یک آدرس باید ثبت باشد" });
       return;
     }
     res.status(204).end();

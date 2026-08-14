@@ -251,6 +251,7 @@ export interface ApiAddress {
   phone?: string | null;
   lat?: number | null;
   lng?: number | null;
+  isDefault?: boolean;
 }
 
 export interface AddressPayload {
@@ -260,6 +261,7 @@ export interface AddressPayload {
   phone?: string;
   lat?: number;
   lng?: number;
+  isDefault?: boolean;
 }
 
 export function getMyAddresses() {

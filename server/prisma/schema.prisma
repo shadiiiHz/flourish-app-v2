@@ -93,6 +93,7 @@ model Address {
   phone      String?
   lat        Float?
   lng        Float?
+  isDefault  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

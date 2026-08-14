@@ -24,6 +24,7 @@ export interface Address {
   title?: string;
   lng?: number;
   lat?: number;
+  isDefault?: boolean;
 }
 
 interface AddressContextValue {
@@ -45,6 +46,7 @@ function mapAddress(a: ApiAddress): Address {
     title: a.title ?? undefined,
     lat: a.lat ?? undefined,
     lng: a.lng ?? undefined,
+    isDefault: a.isDefault ?? false,
   };
 }
 
@@ -68,21 +70,42 @@ export function AddressProvider({ children }: { children: ReactNode }) {
   const addAddress = (data: Omit<Address, "id">) => {
     if (!isAuthenticated) return;
     createMyAddress(data)
-      .then((created) => setAddresses((prev) => [...prev, mapAddress(created)]))
+      .then((created) => {
+        const mapped = mapAddress(created);
+        setAddresses((prev) => [
+          ...(mapped.isDefault ? prev.map((a) => ({ ...a, isDefault: false })) : prev),
+          mapped,
+        ]);
+      })
       .catch(() => notify("ثبت آدرس با خطا مواجه شد"));
   };
 
   const updateAddress = (id: string, data: Omit<Address, "id">) => {
     if (!isAuthenticated) return;
     updateMyAddress(id, data)
-      .then((updated) =>
-        setAddresses((prev) => prev.map((a) => (a.id === id ? mapAddress(updated) : a))),
-      )
+      .then((updated) => {
+        const mapped = mapAddress(updated);
+        setAddresses((prev) =>
+          prev.map((a) => {
+            if (a.id === id) return mapped;
+            return mapped.isDefault ? { ...a, isDefault: false } : a;
+          }),
+        );
+      })
       .catch(() => notify("ویرایش آدرس با خطا مواجه شد"));
   };
 
   const removeAddress = (id: string) => {
     if (!isAuthenticated) return;
+    const target = addresses.find((a) => a.id === id);
+    if (target?.isDefault) {
+      notify("آدرس پیش‌فرض قابل حذف نیست");
+      return;
+    }
+    if (addresses.length <= 1) {
+      notify("حداقل یک آدرس باید ثبت باشد");
+      return;
+    }
     const previous = addresses;
     setAddresses((prev) => prev.filter((a) => a.id !== id));
     deleteMyAddress(id).catch(() => {

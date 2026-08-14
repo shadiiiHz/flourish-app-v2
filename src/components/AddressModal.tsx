@@ -38,11 +38,13 @@ interface AddressModalProps {
 }
 
 function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
-  const { addAddress, updateAddress } = useAddresses();
+  const { addresses, addAddress, updateAddress } = useAddresses();
+  const isOnlyAddress = editingAddress ? addresses.length === 1 : addresses.length === 0;
   const [address, setAddress] = useState("");
   const [details, setDetails] = useState("");
   const [phone, setPhone] = useState("");
   const [title, setTitle] = useState("");
+  const [isDefault, setIsDefault] = useState(true);
   const [location, setLocation] = useState<PickedLocation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -62,6 +64,7 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
       setDetails(editingAddress?.details ?? "");
       setPhone(editingAddress?.phone ?? "");
       setTitle(editingAddress?.title ?? "");
+      setIsDefault(true);
       setLocation(
         editingAddress?.lng !== undefined && editingAddress?.lat !== undefined
           ? { lng: editingAddress.lng, lat: editingAddress.lat }
@@ -103,6 +106,7 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
       title: title.trim() || undefined,
       lng: location?.lng,
       lat: location?.lat,
+      isDefault: isOnlyAddress || isDefault,
     };
     if (editingAddress) updateAddress(editingAddress.id, data);
     else addAddress(data);
@@ -203,6 +207,17 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
                       className="w-full rounded-2xl border border-cocoa-900/10 bg-white px-4 py-3.5 text-right text-base text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25"
                     />
                   </FieldShell>
+
+                  <label className="flex w-fit items-center gap-2 text-sm font-semibold text-cocoa-900 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60">
+                    <input
+                      type="checkbox"
+                      checked={isOnlyAddress || isDefault}
+                      disabled={isOnlyAddress}
+                      onChange={(e) => setIsDefault(e.target.checked)}
+                      className="h-4.5 w-4.5 rounded border-cocoa-900/20 accent-sand-500 focus:ring-2 focus:ring-sand-400/25"
+                    />
+                    پیش‌فرض
+                  </label>
                 </div>
 
                 <div className="border-t border-sand-50 p-5 sm:p-6">

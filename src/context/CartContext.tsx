@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -64,11 +65,22 @@ function loadInitialLines(): CartLine[] {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, openAuth } = useAuth();
-  const [lines, setLines] = useState<CartLine[]>(loadInitialLines);
+  // Starts empty (matching SSR output) and loads localStorage after mount
+  // so the client's first render can't mismatch the server-rendered HTML.
+  const [lines, setLines] = useState<CartLine[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const skipNextPersist = useRef(true);
 
   useEffect(() => {
+    setLines(loadInitialLines());
+  }, []);
+
+  useEffect(() => {
+    if (skipNextPersist.current) {
+      skipNextPersist.current = false;
+      return;
+    }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
   }, [lines]);
 
