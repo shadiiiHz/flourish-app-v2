@@ -37,7 +37,7 @@ adminProductsRouter.get(
     const pagination = parsePagination(req);
     const [products, total] = await prisma.$transaction([
       prisma.product.findMany({
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         include: { variants: true, category: true },
         skip: pagination.skip,
         take: pagination.take,

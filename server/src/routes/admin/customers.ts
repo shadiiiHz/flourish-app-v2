@@ -11,7 +11,7 @@ adminCustomersRouter.get(
     const pagination = parsePagination(req);
     const [customers, total] = await prisma.$transaction([
       prisma.customer.findMany({
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         include: { _count: { select: { orders: true } } },
         skip: pagination.skip,
         take: pagination.take,

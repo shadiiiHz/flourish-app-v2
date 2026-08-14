@@ -20,7 +20,7 @@ adminCategoriesRouter.get(
   asyncHandler(async (req, res) => {
     if (req.query.all === "true") {
       const categories = await prisma.category.findMany({
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         include: { _count: { select: { products: true } } },
       });
       res.json(categories);
@@ -30,7 +30,7 @@ adminCategoriesRouter.get(
     const pagination = parsePagination(req);
     const [categories, total] = await prisma.$transaction([
       prisma.category.findMany({
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         include: { _count: { select: { products: true } } },
         skip: pagination.skip,
         take: pagination.take,

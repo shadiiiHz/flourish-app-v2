@@ -29,7 +29,7 @@ adminOrdersRouter.get(
       prisma.order.findMany({
         where,
         include: { items: true, customer: true },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: pagination.skip,
         take: pagination.take,
       }),
