@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
-import { parsePagination, paginatedResult } from "../../lib/pagination.js";
+import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 
 export const adminCategoriesRouter = Router();
 
@@ -27,15 +27,26 @@ adminCategoriesRouter.get(
       return;
     }
 
+    const search = parseSearch(req);
+    const where = search
+      ? {
+          OR: [
+            { title: { contains: search, mode: "insensitive" as const } },
+            { slug: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : undefined;
+
     const pagination = parsePagination(req);
     const [categories, total] = await prisma.$transaction([
       prisma.category.findMany({
+        where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         include: { _count: { select: { products: true } } },
         skip: pagination.skip,
         take: pagination.take,
       }),
-      prisma.category.count(),
+      prisma.category.count({ where }),
     ]);
     res.json(paginatedResult(categories, total, pagination));
   }),

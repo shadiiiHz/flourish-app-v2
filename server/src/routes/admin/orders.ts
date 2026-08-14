@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
-import { parsePagination, paginatedResult } from "../../lib/pagination.js";
+import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 
 export const adminOrdersRouter = Router();
 
@@ -19,10 +19,22 @@ adminOrdersRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
-    const where =
-      status && (ORDER_STATUSES as readonly string[]).includes(status)
-        ? { status: status as (typeof ORDER_STATUSES)[number] }
-        : undefined;
+    const search = parseSearch(req);
+
+    const conditions = [];
+    if (status && (ORDER_STATUSES as readonly string[]).includes(status)) {
+      conditions.push({ status: status as (typeof ORDER_STATUSES)[number] });
+    }
+    if (search) {
+      conditions.push({
+        OR: [
+          { customerName: { contains: search, mode: "insensitive" as const } },
+          { customerPhone: { contains: search, mode: "insensitive" as const } },
+          { id: { contains: search, mode: "insensitive" as const } },
+        ],
+      });
+    }
+    const where = conditions.length > 0 ? { AND: conditions } : undefined;
 
     const pagination = parsePagination(req);
     const [orders, total] = await prisma.$transaction([

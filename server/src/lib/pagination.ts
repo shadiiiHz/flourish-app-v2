@@ -19,6 +19,10 @@ export function parsePagination(req: Request, defaultPageSize = DEFAULT_PAGE_SIZ
   return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize };
 }
 
+export function parseSearch(req: Request): string {
+  return typeof req.query.search === "string" ? req.query.search.trim() : "";
+}
+
 export interface PaginatedResult<T> {
   items: T[];
   total: number;

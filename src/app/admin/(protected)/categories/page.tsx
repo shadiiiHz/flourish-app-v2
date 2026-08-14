@@ -12,6 +12,7 @@ import {
   apiUploadUrl,
 } from "@/lib/api";
 import AdminPagination from "@/components/AdminPagination";
+import AdminSearchInput from "@/components/AdminSearchInput";
 import ConfirmModal from "@/components/ConfirmModal";
 import type { AdminCategory, CategoryTabId } from "@/types/admin";
 
@@ -45,10 +46,12 @@ function AdminCategoriesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<AdminCategory | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchCategories = () =>
-    adminGetCategories(page, PAGE_SIZE).then((res) => {
+    adminGetCategories(page, PAGE_SIZE, debouncedSearch).then((res) => {
       setCategories(res.items);
       setTotalPages(res.totalPages);
       setTotal(res.total);
@@ -60,9 +63,18 @@ function AdminCategoriesPage() {
   };
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
     setLoading(true);
     fetchCategories().finally(() => setLoading(false));
-  }, [page]);
+  }, [page, debouncedSearch]);
 
   const startCreate = () => {
     setEditingId(null);
@@ -247,7 +259,11 @@ function AdminCategoriesPage() {
         </button>
       </form>
 
-      <div className="mt-6 overflow-x-auto rounded-[1.5rem] border border-sand-100 bg-white">
+      <div className="mt-6 flex justify-end">
+        <AdminSearchInput value={search} onChange={setSearch} placeholder="جستجو در عنوان یا اسلاگ…" />
+      </div>
+
+      <div className="mt-3 overflow-x-auto rounded-[1.5rem] border border-sand-100 bg-white">
         <table className="w-full min-w-[640px] text-right text-sm">
           <thead className="border-b border-sand-100 text-xs font-bold text-cocoa-500">
             <tr>

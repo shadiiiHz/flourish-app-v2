@@ -403,10 +403,10 @@ export interface Paginated<T> {
 /* Admin catalog management                                            */
 /* ------------------------------------------------------------------ */
 
-export function adminGetCategories(page = 1, pageSize = 20) {
-  return apiFetch<Paginated<AdminCategory>>(
-    `/api/admin/categories?page=${page}&pageSize=${pageSize}`,
-  );
+export function adminGetCategories(page = 1, pageSize = 20, search = "") {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  return apiFetch<Paginated<AdminCategory>>(`/api/admin/categories?${params.toString()}`);
 }
 
 /** Unpaginated — for populating dropdowns (e.g. the product form's category select). */
@@ -432,8 +432,10 @@ export function adminDeleteCategory(id: string) {
   return apiFetch(`/api/admin/categories/${id}`, { method: "DELETE" });
 }
 
-export function adminGetProducts(page = 1, pageSize = 20) {
-  return apiFetch<Paginated<AdminProduct>>(`/api/admin/products?page=${page}&pageSize=${pageSize}`);
+export function adminGetProducts(page = 1, pageSize = 20, search = "") {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  return apiFetch<Paginated<AdminProduct>>(`/api/admin/products?${params.toString()}`);
 }
 
 export function adminCreateProduct(payload: Record<string, unknown>) {
@@ -467,9 +469,15 @@ export function adminUploadImage(file: File) {
 /* Admin orders / customers                                            */
 /* ------------------------------------------------------------------ */
 
-export function adminGetOrders(status?: OrderStatus | "all", page = 1, pageSize = 20) {
+export function adminGetOrders(
+  status?: OrderStatus | "all",
+  page = 1,
+  pageSize = 20,
+  search = "",
+) {
   const params = new URLSearchParams();
   if (status && status !== "all") params.set("status", status);
+  if (search) params.set("search", search);
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
   return apiFetch<Paginated<AdminOrder>>(`/api/admin/orders?${params.toString()}`);
@@ -482,8 +490,10 @@ export function adminUpdateOrderStatus(id: string, status: OrderStatus) {
   });
 }
 
-export function adminGetCustomers(page = 1, pageSize = 20) {
-  return apiFetch<Paginated<AdminCustomer>>(`/api/admin/customers?page=${page}&pageSize=${pageSize}`);
+export function adminGetCustomers(page = 1, pageSize = 20, search = "") {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  return apiFetch<Paginated<AdminCustomer>>(`/api/admin/customers?${params.toString()}`);
 }
 
 export function adminGetCustomer(id: string) {

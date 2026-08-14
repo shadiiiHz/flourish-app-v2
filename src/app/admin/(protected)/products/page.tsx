@@ -13,6 +13,7 @@ import {
   apiUploadUrl,
 } from "@/lib/api";
 import AdminPagination from "@/components/AdminPagination";
+import AdminSearchInput from "@/components/AdminSearchInput";
 import ConfirmModal from "@/components/ConfirmModal";
 import type { AdminCategory, AdminProduct, AdminVariant } from "@/types/admin";
 
@@ -63,16 +64,20 @@ function AdminProductsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<AdminProduct | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAll = () =>
-    Promise.all([adminGetProducts(page, PAGE_SIZE), adminGetAllCategories()]).then(([p, c]) => {
-      setProducts(p.items);
-      setTotalPages(p.totalPages);
-      setTotal(p.total);
-      setCategories(c);
-      setForm((f) => (f.categoryId ? f : { ...f, categoryId: c[0]?.id ?? "" }));
-    });
+    Promise.all([adminGetProducts(page, PAGE_SIZE, debouncedSearch), adminGetAllCategories()]).then(
+      ([p, c]) => {
+        setProducts(p.items);
+        setTotalPages(p.totalPages);
+        setTotal(p.total);
+        setCategories(c);
+        setForm((f) => (f.categoryId ? f : { ...f, categoryId: c[0]?.id ?? "" }));
+      },
+    );
 
   const load = () => {
     setLoading(true);
@@ -80,9 +85,18 @@ function AdminProductsPage() {
   };
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
     setLoading(true);
     fetchAll().finally(() => setLoading(false));
-  }, [page]);
+  }, [page, debouncedSearch]);
 
   const startCreate = () => {
     setEditingId(null);
@@ -431,7 +445,15 @@ function AdminProductsPage() {
         </button>
       </form>
 
-      <div className="mt-6 overflow-x-auto rounded-[1.5rem] border border-sand-100 bg-white">
+      <div className="mt-6 flex justify-end">
+        <AdminSearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="جستجو در عنوان، توضیحات یا دسته‌بندی…"
+        />
+      </div>
+
+      <div className="mt-3 overflow-x-auto rounded-[1.5rem] border border-sand-100 bg-white">
         <table className="w-full min-w-[720px] text-right text-sm">
           <thead className="border-b border-sand-100 text-xs font-bold text-cocoa-500">
             <tr>

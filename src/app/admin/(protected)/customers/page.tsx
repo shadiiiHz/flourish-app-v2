@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { adminGetCustomer, adminGetCustomers } from "@/lib/api";
 import AdminPagination from "@/components/AdminPagination";
+import AdminSearchInput from "@/components/AdminSearchInput";
 import { ORDER_STATUS_LABELS, type AdminCustomer } from "@/types/admin";
 
 const PAGE_SIZE = 10;
@@ -16,17 +17,28 @@ function AdminCustomersPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AdminCustomer | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     setLoading(true);
-    adminGetCustomers(page, PAGE_SIZE)
+    adminGetCustomers(page, PAGE_SIZE, debouncedSearch)
       .then((res) => {
         setCustomers(res.items);
         setTotalPages(res.totalPages);
         setTotal(res.total);
       })
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, debouncedSearch]);
 
   const toggleExpand = async (customer: AdminCustomer) => {
     if (expandedId === customer.id) {
@@ -42,7 +54,11 @@ function AdminCustomersPage() {
     <div>
       <h1 className="font-display text-xl font-bold text-cocoa-900">مشتریان</h1>
 
-      <div className="mt-4 overflow-x-auto rounded-[1.5rem] border border-sand-100 bg-white">
+      <div className="mt-4 flex justify-end">
+        <AdminSearchInput value={search} onChange={setSearch} placeholder="جستجو در نام یا موبایل…" />
+      </div>
+
+      <div className="mt-3 overflow-x-auto rounded-[1.5rem] border border-sand-100 bg-white">
         <table className="w-full min-w-[560px] text-right text-sm">
           <thead className="border-b border-sand-100 text-xs font-bold text-cocoa-500">
             <tr>

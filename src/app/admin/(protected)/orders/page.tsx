@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ApiError, adminGetOrders, adminUpdateOrderStatus } from "@/lib/api";
 import AdminPagination from "@/components/AdminPagination";
+import AdminSearchInput from "@/components/AdminSearchInput";
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -33,17 +34,28 @@ function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     setLoading(true);
-    adminGetOrders(statusFilter, page, PAGE_SIZE)
+    adminGetOrders(statusFilter, page, PAGE_SIZE, debouncedSearch)
       .then((res) => {
         setOrders(res.items);
         setTotalPages(res.totalPages);
         setTotal(res.total);
       })
       .finally(() => setLoading(false));
-  }, [statusFilter, page]);
+  }, [statusFilter, page, debouncedSearch]);
 
   const updateStatus = async (id: string, status: OrderStatus) => {
     setError(null);
@@ -74,6 +86,14 @@ function AdminOrdersPage() {
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <AdminSearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="جستجو در نام، موبایل یا شماره سفارش…"
+        />
       </div>
 
       {error && <p className="mt-3 text-xs font-semibold text-danger-500">{error}</p>}
