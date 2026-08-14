@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Bell,
   Camera,
   KeyRound,
   Landmark,
@@ -24,13 +23,7 @@ import AddressesPanel from "@/components/AddressesPanel";
 import ChangePasswordPanel from "@/components/ChangePasswordPanel";
 import Preloader from "@/components/Preloader";
 
-type ProfileTab =
-  | "info"
-  | "orders"
-  | "addresses"
-  | "transactions"
-  | "password"
-  | "notifications";
+type ProfileTab = "info" | "orders" | "addresses" | "transactions" | "password";
 
 const TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
   { id: "orders", label: "سفارش‌های من", icon: ShoppingBag },
@@ -38,7 +31,6 @@ const TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
   { id: "transactions", label: "تراکنش‌ها", icon: Landmark },
   { id: "info", label: "اطلاعات من", icon: User },
   { id: "password", label: "تغییر کلمه عبور", icon: KeyRound },
-  { id: "notifications", label: "تنظیمات اعلان", icon: Bell },
 ];
 
 function GlassCard({ children }: { children: ReactNode }) {
@@ -53,7 +45,9 @@ function PlaceholderPanel({ label }: { label: string }) {
   return (
     <GlassCard>
       <h2 className="font-display text-lg font-bold text-cocoa-900">{label}</h2>
-      <p className="mt-3 text-sm text-cocoa-500">این بخش به‌زودی تکمیل می‌شود.</p>
+      <p className="mt-3 text-sm text-cocoa-500">
+        این بخش به‌زودی تکمیل می‌شود.
+      </p>
     </GlassCard>
   );
 }
@@ -72,16 +66,23 @@ function OrdersPanel() {
 
   return (
     <GlassCard>
-      <h2 className="font-display text-lg font-bold text-cocoa-900">سفارش‌های من</h2>
+      <h2 className="font-display text-lg font-bold text-cocoa-900">
+        سفارش‌های من
+      </h2>
 
       {loading ? (
         <Preloader fullScreen={false} />
       ) : orders.length === 0 ? (
-        <p className="mt-3 text-sm text-cocoa-500">هنوز سفارشی ثبت نکرده‌اید.</p>
+        <p className="mt-3 text-sm text-cocoa-500">
+          هنوز سفارشی ثبت نکرده‌اید.
+        </p>
       ) : (
         <div className="mt-4 flex flex-col gap-3">
           {orders.map((order) => (
-            <div key={order.id} className="rounded-2xl border border-sand-100 p-4">
+            <div
+              key={order.id}
+              className="rounded-2xl border border-sand-100 p-4"
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-cocoa-500">
                   {new Date(order.createdAt).toLocaleDateString("fa-IR")}
@@ -92,14 +93,19 @@ function OrdersPanel() {
               </div>
               <div className="mt-2.5 flex flex-col gap-1">
                 {order.items.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between text-sm">
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between text-sm"
+                  >
                     <span className="text-cocoa-700">
                       {item.title}
-                      {item.variantTitle ? ` (${item.variantTitle})` : ""} ×{" "}
-                      {item.quantity.toLocaleString("fa-IR")}
+                      {item.variantTitle
+                        ? ` (${item.variantTitle})`
+                        : ""} × {item.quantity.toLocaleString("fa-IR")}
                     </span>
                     <span className="font-semibold text-cocoa-900">
-                      {(item.price * item.quantity).toLocaleString("fa-IR")} تومان
+                      {(item.price * item.quantity).toLocaleString("fa-IR")}{" "}
+                      تومان
                     </span>
                   </div>
                 ))}
@@ -118,7 +124,13 @@ function OrdersPanel() {
   );
 }
 
-function InfoField({ label, children }: { label: string; children: ReactNode }) {
+function InfoField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <div className="relative">
       <span className="absolute -top-2.5 right-4 z-10 bg-white/95 px-2 text-xs font-semibold text-sand-500">
@@ -161,7 +173,10 @@ function ProfileInfoPanel() {
 
   return (
     <GlassCard>
-      <form onSubmit={handleSubmit} className="flex flex-col items-center gap-6">
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col items-center gap-6"
+      >
         <div className="flex flex-col items-center gap-2">
           <button
             type="button"
@@ -169,7 +184,11 @@ function ProfileInfoPanel() {
             className="flex h-24 w-24 flex-col items-center justify-center gap-1 overflow-hidden rounded-full border-2 border-dashed border-cocoa-900/15 bg-sand-50/60 text-cocoa-500 transition hover:border-sand-400 hover:bg-sand-50"
           >
             {avatar ? (
-              <img src={avatar} alt="آواتار" className="h-full w-full object-cover" />
+              <img
+                src={avatar}
+                alt="آواتار"
+                className="h-full w-full object-cover"
+              />
             ) : (
               <>
                 <Camera className="h-5 w-5" />
@@ -219,7 +238,9 @@ function ProfileInfoPanel() {
             />
           </InfoField>
           {phoneError && (
-            <p className="-mt-2 text-xs font-semibold text-danger-500">{phoneError}</p>
+            <p className="-mt-2 text-xs font-semibold text-danger-500">
+              {phoneError}
+            </p>
           )}
 
           <InfoField label="ایمیل (اختیاری)">
@@ -330,7 +351,10 @@ function SidebarDrawer({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
     >
-      <div className="absolute inset-0 bg-cocoa-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-cocoa-900/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
       <motion.div
         role="dialog"
@@ -343,7 +367,10 @@ function SidebarDrawer({
         className="relative flex h-full w-full max-w-xs flex-col overflow-y-auto border-r border-white/40 bg-white p-3 shadow-[0_40px_80px_-30px_rgba(74,44,18,0.55)]"
       >
         <div className="flex items-center justify-between gap-3 px-2 pb-2">
-          <h2 id="profile-drawer-title" className="font-display text-base font-bold text-cocoa-900">
+          <h2
+            id="profile-drawer-title"
+            className="font-display text-base font-bold text-cocoa-900"
+          >
             حساب کاربری
           </h2>
           <button
@@ -402,7 +429,8 @@ function ProfilePageContent() {
     else router.push(`${pathname}?tab=${tab}`, { scroll: false });
   };
 
-  const activeLabel = TABS.find((t) => t.id === activeTab)?.label ?? "اطلاعات من";
+  const activeLabel =
+    TABS.find((t) => t.id === activeTab)?.label ?? "اطلاعات من";
 
   if (isLoading) return <Preloader />;
   if (!isAuthenticated) return null;
@@ -418,21 +446,28 @@ function ProfilePageContent() {
           <Menu className="h-4.5 w-4.5 text-sand-500" />
           {activeLabel}
         </span>
-        <span className="text-xs font-semibold text-cocoa-500">حساب کاربری</span>
+        <span className="text-xs font-semibold text-cocoa-500">
+          حساب کاربری
+        </span>
       </button>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-[260px_1fr] md:gap-6">
         <aside className="hidden h-fit rounded-[2rem] border border-white/40 bg-white/80 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_30px_60px_-30px_rgba(74,44,18,0.35)] backdrop-blur-2xl backdrop-saturate-150 md:block">
-          <SidebarNav activeTab={activeTab} onSelect={selectTab} onLogout={logout} />
+          <SidebarNav
+            activeTab={activeTab}
+            onSelect={selectTab}
+            onLogout={logout}
+          />
         </aside>
 
         <div>
           {activeTab === "info" && <ProfileInfoPanel />}
           {activeTab === "orders" && <OrdersPanel />}
           {activeTab === "addresses" && <AddressesPanel />}
-          {activeTab === "transactions" && <PlaceholderPanel label="تراکنش‌ها" />}
+          {activeTab === "transactions" && (
+            <PlaceholderPanel label="تراکنش‌ها" />
+          )}
           {activeTab === "password" && <ChangePasswordPanel />}
-          {activeTab === "notifications" && <PlaceholderPanel label="تنظیمات اعلان" />}
         </div>
       </div>
 
