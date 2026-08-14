@@ -70,7 +70,7 @@ customersRouter.get(
   asyncHandler(async (req, res) => {
     const addresses = await prisma.address.findMany({
       where: { customerId: req.customer!.sub },
-      orderBy: { createdAt: "asc" },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     });
     res.json(addresses);
   }),

@@ -37,6 +37,10 @@ interface AddressContextValue {
 
 const AddressContext = createContext<AddressContextValue | null>(null);
 
+function sortAddresses(list: Address[]): Address[] {
+  return [...list].sort((a, b) => Number(!!b.isDefault) - Number(!!a.isDefault));
+}
+
 function mapAddress(a: ApiAddress): Address {
   return {
     id: a.id,
@@ -62,7 +66,7 @@ export function AddressProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(true);
     getMyAddresses()
-      .then((data) => setAddresses(data.map(mapAddress)))
+      .then((data) => setAddresses(sortAddresses(data.map(mapAddress))))
       .catch(() => setAddresses([]))
       .finally(() => setIsLoading(false));
   }, [isAuthenticated]);
@@ -72,10 +76,12 @@ export function AddressProvider({ children }: { children: ReactNode }) {
     createMyAddress(data)
       .then((created) => {
         const mapped = mapAddress(created);
-        setAddresses((prev) => [
-          ...(mapped.isDefault ? prev.map((a) => ({ ...a, isDefault: false })) : prev),
-          mapped,
-        ]);
+        setAddresses((prev) =>
+          sortAddresses([
+            ...(mapped.isDefault ? prev.map((a) => ({ ...a, isDefault: false })) : prev),
+            mapped,
+          ]),
+        );
       })
       .catch(() => notify("ثبت آدرس با خطا مواجه شد"));
   };
@@ -86,10 +92,12 @@ export function AddressProvider({ children }: { children: ReactNode }) {
       .then((updated) => {
         const mapped = mapAddress(updated);
         setAddresses((prev) =>
-          prev.map((a) => {
-            if (a.id === id) return mapped;
-            return mapped.isDefault ? { ...a, isDefault: false } : a;
-          }),
+          sortAddresses(
+            prev.map((a) => {
+              if (a.id === id) return mapped;
+              return mapped.isDefault ? { ...a, isDefault: false } : a;
+            }),
+          ),
         );
       })
       .catch(() => notify("ویرایش آدرس با خطا مواجه شد"));
