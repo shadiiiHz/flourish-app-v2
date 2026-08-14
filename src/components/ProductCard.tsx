@@ -33,8 +33,9 @@ function ProductCard({
       setVariantModalOpen(true);
       return;
     }
-    addToCart(item);
-    notify(`${item.title} به سبد اضافه شد`);
+    if (addToCart(item)) {
+      notify(`${item.title} به سبد اضافه شد`);
+    }
   };
 
   return (

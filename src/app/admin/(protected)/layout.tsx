@@ -43,7 +43,7 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
   };
 
   if (isLoading) {
-    return <Preloader label="در حال بررسی نشست ادمین…" />;
+    return <Preloader label="" />;
   }
 
   if (!isAuthenticated) {

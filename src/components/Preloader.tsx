@@ -9,7 +9,7 @@ interface PreloaderProps {
   className?: string;
 }
 
-function Preloader({ label = "در حال بارگذاری…", fullScreen = true, className = "" }: PreloaderProps) {
+function Preloader({ label = "", fullScreen = true, className = "" }: PreloaderProps) {
   return (
     <div
       role="status"

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { getDiscountedPrice, type MenuItem, type MenuItemVariant } from "../config/siteConfig";
+import { useAuth } from "./AuthContext";
 
 export interface CartLine {
   key: string;
@@ -33,7 +34,7 @@ interface CartContextValue {
   closeCart: () => void;
   lineKeyFor: (itemId: string, variantId?: string) => string;
   getQuantity: (itemId: string, variantId?: string) => number;
-  addToCart: (item: MenuItem, variant?: MenuItemVariant, quantity?: number) => void;
+  addToCart: (item: MenuItem, variant?: MenuItemVariant, quantity?: number) => boolean;
   setQuantity: (key: string, quantity: number) => void;
   removeLine: (key: string) => void;
   clearCart: () => void;
@@ -62,6 +63,7 @@ function loadInitialLines(): CartLine[] {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated, openAuth } = useAuth();
   const [lines, setLines] = useState<CartLine[]>(loadInitialLines);
   const [isOpen, setIsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -84,6 +86,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const addToCart = (item: MenuItem, variant?: MenuItemVariant, quantity = 1) => {
+    if (!isAuthenticated) {
+      openAuth();
+      return false;
+    }
+
     const key = lineKeyFor(item.id, variant?.id);
     const basePrice = variant ? variant.price : item.price;
     const price = getDiscountedPrice(basePrice, item.discountPercent);
@@ -118,6 +125,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       };
       return [...prev, newLine];
     });
+
+    return true;
   };
 
   const setQuantity = (key: string, quantity: number) => {
