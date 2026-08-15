@@ -6,7 +6,7 @@ import { CUSTOMER_COOKIE_NAME, signCustomerToken } from "../lib/auth.js";
 import { env } from "../lib/env.js";
 import { loginOtpStore, passwordChangeOtpStore } from "../lib/otpStore.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
-import { sendOtpSms } from "../lib/sms.js";
+import { sendSms } from "../lib/sms.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 
 export const customerAuthRouter = Router();
@@ -16,12 +16,12 @@ export const customerAuthRouter = Router();
  * falls back to logging + returning the code in the response, same as the
  * old fully-simulated demo flow (useful for local dev without SMS credit).
  */
-async function deliverOtp(phone: string, code: string): Promise<{ code?: string }> {
+async function deliverOtp(phone: string, code: string, message: string): Promise<{ code?: string }> {
   if (!env.melipayamakApiKey) {
     console.info(`[Flourish] کد شبیه‌سازی‌شده برای ${phone}: ${code}`);
     return { code };
   }
-  await sendOtpSms(phone, code);
+  await sendSms(phone, message);
   return {};
 }
 
@@ -65,7 +65,7 @@ customerAuthRouter.post(
     }
     const { phone } = parsed.data;
     const code = loginOtpStore.generate(phone, undefined);
-    const result = await deliverOtp(phone, code);
+    const result = await deliverOtp(phone, code, `کد ورود شما به فلوریش: ${code}`);
     res.json(result);
   }),
 );
@@ -154,7 +154,11 @@ customerAuthRouter.post(
     }
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
     const code = passwordChangeOtpStore.generate(req.customer!.sub, { passwordHash });
-    const result = await deliverOtp(req.customer!.phone, code);
+    const result = await deliverOtp(
+      req.customer!.phone,
+      code,
+      `کد تایید تغییر رمز عبور فلوریش: ${code}`,
+    );
     res.json(result);
   }),
 );

@@ -15,7 +15,7 @@ export const env = {
   adminSeedPassword: process.env.ADMIN_SEED_PASSWORD,
   adminSeedName: process.env.ADMIN_SEED_NAME ?? "مدیر فلوریش",
   melipayamakApiKey: process.env.MELIPAYAMAK_API_KEY,
-  melipayamakOtpBodyId: process.env.MELIPAYAMAK_OTP_BODY_ID,
+  melipayamakSender: process.env.MELIPAYAMAK_SENDER,
   zarinpalMerchantId: process.env.ZARINPAL_MERCHANT_ID,
   zarinpalSandbox: process.env.ZARINPAL_SANDBOX === "true",
   apiUrl: process.env.API_URL ?? `http://localhost:${Number(process.env.PORT ?? 4000)}`,
