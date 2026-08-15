@@ -20,8 +20,11 @@ import {
   type QueryType,
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
+import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 import ConfirmModal from "@/components/ConfirmModal";
 import type { AdminCategory, AdminProduct, AdminVariant } from "@/types/admin";
+
+type WeightUnit = "گرم" | "کیلوگرم";
 
 interface FormValues {
   categoryId: string;
@@ -29,7 +32,8 @@ interface FormValues {
   description: string;
   price: string;
   images: string[];
-  weight: string;
+  weightValue: string;
+  weightUnit: WeightUnit;
   ingredients: string;
   servingSize: string;
   discountPercent: string;
@@ -43,25 +47,41 @@ const EMPTY_FORM: FormValues = {
   categoryId: "",
   title: "",
   description: "",
-  price: "0",
+  price: "",
   images: [],
-  weight: "",
+  weightValue: "",
+  weightUnit: "گرم",
   ingredients: "",
   servingSize: "",
   discountPercent: "",
   stock: "",
   isNew: false,
-  sortOrder: "0",
+  sortOrder: "",
   variants: [],
 };
+
+function parseWeight(weight: string | null | undefined): { weightValue: string; weightUnit: WeightUnit } {
+  if (!weight) return { weightValue: "", weightUnit: "گرم" };
+  const match = weight.match(/[\d.]+/);
+  return { weightValue: match ? match[0] : "", weightUnit: weight.includes("کیلو") ? "کیلوگرم" : "گرم" };
+}
 
 const validationSchema = Yup.object({
   categoryId: Yup.string().required("ابتدا یک دسته‌بندی ایجاد کنید"),
   title: Yup.string().trim().required("عنوان الزامی است"),
-  description: Yup.string(),
+  description: Yup.string().trim().required("توضیحات الزامی است"),
   price: Yup.number()
+    .transform((v, orig) => (orig === "" ? undefined : v))
     .typeError("قیمت باید عدد باشد")
-    .min(0, "قیمت نمی‌تواند منفی باشد"),
+    .min(0, "قیمت نمی‌تواند منفی باشد")
+    .required("قیمت الزامی است"),
+  weightValue: Yup.number()
+    .typeError("وزن باید عدد باشد")
+    .min(0, "وزن نمی‌تواند منفی باشد")
+    .nullable()
+    .transform((v, orig) => (orig === "" ? null : v)),
+  ingredients: Yup.string().trim().required("ترکیبات الزامی است"),
+  servingSize: Yup.string().trim().required("مناسب برای الزامی است"),
   discountPercent: Yup.number()
     .typeError("درصد تخفیف باید عدد باشد")
     .min(0, "حداقل صفر")
@@ -153,7 +173,7 @@ function AdminProductsPage() {
           description: values.description.trim(),
           price: Number(values.price) || 0,
           images: values.images,
-          weight: values.weight.trim() || undefined,
+          weight: values.weightValue.trim() ? `${values.weightValue.trim()} ${values.weightUnit}` : undefined,
           ingredients: values.ingredients.trim() || undefined,
           servingSize: values.servingSize.trim() || undefined,
           discountPercent: values.discountPercent
@@ -208,7 +228,7 @@ function AdminProductsPage() {
         description: p.description,
         price: String(p.price),
         images: p.images,
-        weight: p.weight ?? "",
+        ...parseWeight(p.weight),
         ingredients: p.ingredients ?? "",
         servingSize: p.servingSize ?? "",
         discountPercent:
@@ -424,20 +444,28 @@ function AdminProductsPage() {
               name="description"
               value={formik.values.description}
               onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               rows={2}
               className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
             />
+            {formik.touched.description && formik.errors.description && (
+              <p className="mt-1 text-xs font-semibold text-danger-500">
+                {formik.errors.description}
+              </p>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-cocoa-600">
               قیمت (تومان)
             </label>
             <input
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
+              dir="ltr"
+              placeholder="0"
               name="price"
-              value={formik.values.price}
-              onChange={formik.handleChange}
+              value={formatThousands(formik.values.price)}
+              onChange={(e) => formik.setFieldValue("price", digitsOnly(e.target.value))}
               onBlur={formik.handleBlur}
               className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
             />
@@ -492,12 +520,31 @@ function AdminProductsPage() {
             <label className="mb-1 block text-xs font-semibold text-cocoa-600">
               وزن
             </label>
-            <input
-              name="weight"
-              value={formik.values.weight}
-              onChange={formik.handleChange}
-              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
-            />
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={0}
+                name="weightValue"
+                value={formik.values.weightValue}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+              />
+              <select
+                name="weightUnit"
+                value={formik.values.weightUnit}
+                onChange={formik.handleChange}
+                className="shrink-0 rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+              >
+                <option value="گرم">گرم</option>
+                <option value="کیلوگرم">کیلوگرم</option>
+              </select>
+            </div>
+            {formik.touched.weightValue && formik.errors.weightValue && (
+              <p className="mt-1 text-xs font-semibold text-danger-500">
+                {formik.errors.weightValue}
+              </p>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-cocoa-600">
@@ -507,8 +554,14 @@ function AdminProductsPage() {
               name="ingredients"
               value={formik.values.ingredients}
               onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
             />
+            {formik.touched.ingredients && formik.errors.ingredients && (
+              <p className="mt-1 text-xs font-semibold text-danger-500">
+                {formik.errors.ingredients}
+              </p>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-cocoa-600">
@@ -518,8 +571,14 @@ function AdminProductsPage() {
               name="servingSize"
               value={formik.values.servingSize}
               onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
             />
+            {formik.touched.servingSize && formik.errors.servingSize && (
+              <p className="mt-1 text-xs font-semibold text-danger-500">
+                {formik.errors.servingSize}
+              </p>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-cocoa-600">
@@ -527,6 +586,7 @@ function AdminProductsPage() {
             </label>
             <input
               type="number"
+              placeholder="0"
               name="sortOrder"
               value={formik.values.sortOrder}
               onChange={formik.handleChange}
@@ -545,7 +605,7 @@ function AdminProductsPage() {
               name="isNew"
               checked={formik.values.isNew}
               onChange={formik.handleChange}
-              className="h-4 w-4 rounded border-cocoa-900/20"
+              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
             />
             نمایش در «آیتم‌های جدید»
           </label>
@@ -625,20 +685,40 @@ function AdminProductsPage() {
                   className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                 />
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  dir="ltr"
                   placeholder="قیمت"
-                  value={v.price}
+                  value={formatThousands(String(v.price))}
                   onChange={(e) =>
-                    updateVariant(i, { price: Number(e.target.value) })
+                    updateVariant(i, { price: Number(digitsOnly(e.target.value)) || 0 })
                   }
                   className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                 />
-                <input
-                  placeholder="وزن"
-                  value={v.weight ?? ""}
-                  onChange={(e) => updateVariant(i, { weight: e.target.value })}
-                  className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
-                />
+                <div className="flex gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="وزن"
+                    value={parseWeight(v.weight).weightValue}
+                    onChange={(e) => {
+                      const unit = parseWeight(v.weight).weightUnit;
+                      updateVariant(i, { weight: e.target.value ? `${e.target.value} ${unit}` : "" });
+                    }}
+                    className="w-full rounded-lg border border-cocoa-900/10 px-2 py-2 text-xs outline-none focus:border-sand-400"
+                  />
+                  <select
+                    value={parseWeight(v.weight).weightUnit}
+                    onChange={(e) => {
+                      const value = parseWeight(v.weight).weightValue;
+                      updateVariant(i, { weight: value ? `${value} ${e.target.value}` : "" });
+                    }}
+                    className="shrink-0 rounded-lg border border-cocoa-900/10 px-1.5 py-2 text-xs outline-none focus:border-sand-400"
+                  >
+                    <option value="گرم">گرم</option>
+                    <option value="کیلوگرم">کیلوگرم</option>
+                  </select>
+                </div>
                 <button
                   type="button"
                   onClick={() => removeVariant(i)}

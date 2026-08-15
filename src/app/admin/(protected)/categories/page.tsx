@@ -42,15 +42,17 @@ const EMPTY_FORM: FormValues = {
   title: "",
   image: "",
   note: "",
-  sortOrder: "0",
+  sortOrder: "",
 };
+
+/** Categories no longer take a manual slug — a valid, unique one is generated from the group on create. */
+function generateSlug(tab: CategoryTabId) {
+  const random = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  return `${tab}-${random}`;
+}
 
 const validationSchema = Yup.object({
   title: Yup.string().trim().required("عنوان الزامی است"),
-  slug: Yup.string()
-    .trim()
-    .required("اسلاگ الزامی است")
-    .matches(/^[a-z0-9-]+$/, "فقط حروف انگلیسی کوچک، عدد و خط تیره مجاز است"),
   tab: Yup.mixed<CategoryTabId>().oneOf(["bakery", "drinks"]).required(),
   note: Yup.string(),
   image: Yup.string(),
@@ -112,7 +114,7 @@ function AdminCategoriesPage() {
       setError(null);
       try {
         const payload = {
-          slug: values.slug.trim(),
+          slug: editingId ? values.slug : generateSlug(values.tab),
           tab: values.tab,
           title: values.title.trim(),
           image: values.image || undefined,
@@ -287,24 +289,6 @@ function AdminCategoriesPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-cocoa-600">
-              اسلاگ (شناسه یکتا)
-            </label>
-            <input
-              name="slug"
-              dir="ltr"
-              value={formik.values.slug}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
-            />
-            {formik.touched.slug && formik.errors.slug && (
-              <p className="mt-1 text-xs font-semibold text-danger-500">
-                {formik.errors.slug}
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-cocoa-600">
               گروه
             </label>
             <select
@@ -323,6 +307,7 @@ function AdminCategoriesPage() {
             </label>
             <input
               type="number"
+              placeholder="0"
               name="sortOrder"
               value={formik.values.sortOrder}
               onChange={formik.handleChange}

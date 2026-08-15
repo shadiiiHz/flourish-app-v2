@@ -5,6 +5,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Truck } from "lucide-react";
 import { ApiError, adminGetSettings, adminUpdateSettings } from "@/lib/api";
+import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 
 interface FormValues {
   shippingCostUpTo5Km: string;
@@ -85,11 +86,12 @@ function AdminSettingsPage() {
                 هزینه ارسال تا ۵ کیلومتر (تومان)
               </label>
               <input
-                type="number"
-                min={0}
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
                 name="shippingCostUpTo5Km"
-                value={formik.values.shippingCostUpTo5Km}
-                onChange={formik.handleChange}
+                value={formatThousands(formik.values.shippingCostUpTo5Km)}
+                onChange={(e) => formik.setFieldValue("shippingCostUpTo5Km", digitsOnly(e.target.value))}
                 onBlur={formik.handleBlur}
                 className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
               />
@@ -104,11 +106,12 @@ function AdminSettingsPage() {
                 هزینه ارسال بیشتر از ۵ کیلومتر (تومان)
               </label>
               <input
-                type="number"
-                min={0}
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
                 name="shippingCostOver5Km"
-                value={formik.values.shippingCostOver5Km}
-                onChange={formik.handleChange}
+                value={formatThousands(formik.values.shippingCostOver5Km)}
+                onChange={(e) => formik.setFieldValue("shippingCostOver5Km", digitsOnly(e.target.value))}
                 onBlur={formik.handleBlur}
                 className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
               />
