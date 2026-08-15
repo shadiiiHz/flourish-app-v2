@@ -9,6 +9,7 @@ export const adminProductsRouter = Router();
 const variantSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1),
+  description: z.string().optional(),
   price: z.number().int().nonnegative(),
   weight: z.string().optional(),
   stock: z.number().int().nonnegative().optional(),

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Minus, Plus, X } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { getDiscountedPrice, type MenuItem } from "../config/siteConfig";
+import MarqueeText from "./MarqueeText";
 
 const placeholder = "/assets/placeholder.png";
 
@@ -106,6 +107,7 @@ function CartVariantModal({
               : variant.price;
             const outOfStock = variant.stock === 0;
             const atMax = variant.stock !== undefined && quantity >= variant.stock;
+            const variantDescription = variant.description || item.description;
 
             return (
               <div
@@ -129,8 +131,13 @@ function CartVariantModal({
                   <h4 className="truncate text-sm font-bold text-cocoa-900 sm:text-base">
                     {variant.title}
                   </h4>
-                  {item.description && (
-                    <p className="line-clamp-1 text-xs text-cocoa-500">{item.description}</p>
+                  {(variantDescription || variant.weight) && (
+                    <MarqueeText
+                      text={[variantDescription, variant.weight && `وزن: ${variant.weight}`]
+                        .filter(Boolean)
+                        .join("، ")}
+                      className="text-xs text-cocoa-500"
+                    />
                   )}
                   <p className="mt-1 flex items-baseline gap-1.5">
                     {hasDiscount && (

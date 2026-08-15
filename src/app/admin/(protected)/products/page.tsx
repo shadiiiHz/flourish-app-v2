@@ -186,6 +186,7 @@ function AdminProductsPage() {
             .filter((v) => v.title.trim())
             .map((v) => ({
               title: v.title.trim(),
+              description: v.description?.trim() || undefined,
               price: Number(v.price) || 0,
               weight: v.weight || undefined,
               stock:
@@ -264,7 +265,7 @@ function AdminProductsPage() {
   const addVariant = () => {
     formik.setFieldValue("variants", [
       ...formik.values.variants,
-      { title: "", price: 0 },
+      { title: "", description: "", price: 0 },
     ]);
   };
 
@@ -676,57 +677,65 @@ function AdminProductsPage() {
             {formik.values.variants.map((v, i) => (
               <div
                 key={i}
-                className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2 rounded-xl border border-sand-100 p-2.5"
+                className="flex flex-col gap-2 rounded-xl border border-sand-100 p-2.5"
               >
-                <input
-                  placeholder="عنوان"
-                  value={v.title}
-                  onChange={(e) => updateVariant(i, { title: e.target.value })}
-                  className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
-                />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  placeholder="قیمت"
-                  value={formatThousands(String(v.price))}
-                  onChange={(e) =>
-                    updateVariant(i, { price: Number(digitsOnly(e.target.value)) || 0 })
-                  }
-                  className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
-                />
-                <div className="flex gap-1">
+                <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2">
                   <input
-                    type="number"
-                    min={0}
-                    placeholder="وزن"
-                    value={parseWeight(v.weight).weightValue}
-                    onChange={(e) => {
-                      const unit = parseWeight(v.weight).weightUnit;
-                      updateVariant(i, { weight: e.target.value ? `${e.target.value} ${unit}` : "" });
-                    }}
-                    className="w-full rounded-lg border border-cocoa-900/10 px-2 py-2 text-xs outline-none focus:border-sand-400"
+                    placeholder="عنوان"
+                    value={v.title}
+                    onChange={(e) => updateVariant(i, { title: e.target.value })}
+                    className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                   />
-                  <select
-                    value={parseWeight(v.weight).weightUnit}
-                    onChange={(e) => {
-                      const value = parseWeight(v.weight).weightValue;
-                      updateVariant(i, { weight: value ? `${value} ${e.target.value}` : "" });
-                    }}
-                    className="shrink-0 rounded-lg border border-cocoa-900/10 px-1.5 py-2 text-xs outline-none focus:border-sand-400"
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    placeholder="قیمت"
+                    value={formatThousands(String(v.price))}
+                    onChange={(e) =>
+                      updateVariant(i, { price: Number(digitsOnly(e.target.value)) || 0 })
+                    }
+                    className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                  />
+                  <div className="flex gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="وزن"
+                      value={parseWeight(v.weight).weightValue}
+                      onChange={(e) => {
+                        const unit = parseWeight(v.weight).weightUnit;
+                        updateVariant(i, { weight: e.target.value ? `${e.target.value} ${unit}` : "" });
+                      }}
+                      className="w-full rounded-lg border border-cocoa-900/10 px-2 py-2 text-xs outline-none focus:border-sand-400"
+                    />
+                    <select
+                      value={parseWeight(v.weight).weightUnit}
+                      onChange={(e) => {
+                        const value = parseWeight(v.weight).weightValue;
+                        updateVariant(i, { weight: value ? `${value} ${e.target.value}` : "" });
+                      }}
+                      className="shrink-0 rounded-lg border border-cocoa-900/10 px-1.5 py-2 text-xs outline-none focus:border-sand-400"
+                    >
+                      <option value="گرم">گرم</option>
+                      <option value="کیلوگرم">کیلوگرم</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeVariant(i)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-danger-500 transition hover:bg-danger-50"
+                    aria-label="حذف نوع"
                   >
-                    <option value="گرم">گرم</option>
-                    <option value="کیلوگرم">کیلوگرم</option>
-                  </select>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeVariant(i)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-danger-500 transition hover:bg-danger-50"
-                  aria-label="حذف نوع"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <input
+                  placeholder="توضیحات این نوع (اختیاری)"
+                  value={v.description ?? ""}
+                  onChange={(e) => updateVariant(i, { description: e.target.value })}
+                  className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                />
               </div>
             ))}
           </div>

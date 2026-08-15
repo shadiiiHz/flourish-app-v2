@@ -6,6 +6,7 @@ import { AnimatePresence } from "framer-motion";
 import ProductImageSlider from "./ProductImageSlider";
 import ProductModal from "./ProductModal";
 import CartVariantModal from "./CartVariantModal";
+import MarqueeText from "./MarqueeText";
 import { useCart } from "../context/CartContext";
 import { getDiscountedPrice, type MenuItem } from "../config/siteConfig";
 
@@ -57,8 +58,8 @@ function ProductCard({
           />
         </div>
 
-        <div className="flex flex-1 flex-col justify-between gap-1 p-3 sm:gap-0 sm:p-0">
-          <div className="flex flex-col gap-1 sm:px-3 sm:pt-3">
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 p-3 sm:gap-0 sm:p-0">
+          <div className="flex min-w-0 flex-col gap-1 sm:px-3 sm:pt-3">
             <h3
               onClick={() => setOpen(true)}
               role="button"
@@ -73,9 +74,7 @@ function ProductCard({
             >
               {item.title}
             </h3>
-            <p className="line-clamp-2 text-xs text-cocoa-500 sm:truncate">
-              {item.description}
-            </p>
+            <MarqueeText text={item.description} className="text-xs text-cocoa-500" />
           </div>
 
           <div className="flex items-center justify-between pt-2 sm:px-3 sm:pb-3 sm:pt-2 sm:pb-4">

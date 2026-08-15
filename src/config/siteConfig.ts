@@ -15,6 +15,7 @@ export interface CategoryTab {
 export interface MenuItemVariant {
   id: string
   title: string
+  description?: string
   price: number
   weight?: string
   stock?: number

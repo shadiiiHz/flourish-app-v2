@@ -19,6 +19,7 @@ export interface AdminCategory {
 export interface AdminVariant {
   id?: string;
   title: string;
+  description?: string | null;
   price: number;
   weight?: string | null;
   stock?: number | null;

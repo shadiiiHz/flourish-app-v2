@@ -79,6 +79,7 @@ export const CATEGORY_TABS: CategoryTab[] = [
 interface ApiVariant {
   id: string;
   title: string;
+  description?: string | null;
   price: number;
   weight?: string | null;
   stock?: number | null;
@@ -117,6 +118,7 @@ function mapVariant(v: ApiVariant): MenuItemVariant {
   return {
     id: v.id,
     title: v.title,
+    description: v.description ?? undefined,
     price: v.price,
     weight: v.weight ?? undefined,
     stock: v.stock ?? undefined,
