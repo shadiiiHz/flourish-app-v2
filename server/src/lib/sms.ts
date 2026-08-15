@@ -1,36 +1,47 @@
 import { env } from "./env.js";
 
+interface MeliPayamakSharedResponse {
+  recId?: number;
+  status?: string;
+}
+
 /**
- * Sends an SMS via MeliPayamak's console REST API
- * (https://console.melipayamak.com/api/send/simple/{apikey}).
- * Only called when MELIPAYAMAK_API_KEY is configured — see customerAuth.ts
- * for the dev-mode fallback used when it isn't.
+ * Sends the OTP code via MeliPayamak's pattern ("shared body") API
+ * (https://console.melipayamak.com/api/send/shared/{apikey}), filling the
+ * pre-approved template (MELIPAYAMAK_OTP_BODY_ID) with the code as its only
+ * argument. Pattern-based sends are used instead of free-text SMS because
+ * carriers are far more likely to filter/block plain-text OTP messages sent
+ * from a shared line. Only called when MELIPAYAMAK_API_KEY is configured —
+ * see customerAuth.ts for the dev-mode fallback used when it isn't.
  */
-export async function sendSms(to: string, text: string): Promise<void> {
+export async function sendOtpSms(to: string, code: string): Promise<void> {
   const res = await fetch(
-    `https://console.melipayamak.com/api/send/simple/${env.melipayamakApiKey}`,
+    `https://console.melipayamak.com/api/send/shared/${env.melipayamakApiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: env.melipayamakSender, to, text }),
+      body: JSON.stringify({ bodyId: env.melipayamakOtpBodyId, to, args: [code] }),
     },
   );
   const body = await res.text();
 
   if (!res.ok) {
-    console.error(`MeliPayamak request failed for ${to}: HTTP ${res.status} — ${body}`);
-    throw new Error(`MeliPayamak request failed with status ${res.status}`);
+    console.error(`MeliPayamak OTP request failed for ${to}: HTTP ${res.status} — ${body}`);
+    throw new Error(`MeliPayamak OTP request failed with status ${res.status}`);
   }
 
-  // MeliPayamak's "simple send" API returns HTTP 200 even on failure — the
-  // actual result is a numeric message id (success) or a negative error
-  // code (e.g. invalid number, insufficient credit, unapproved sender) in
-  // the body. Log it either way so a silent per-number failure is visible.
-  const resultCode = Number(body.trim().replace(/^"|"$/g, ""));
-  if (Number.isFinite(resultCode) && resultCode < 0) {
-    console.error(`MeliPayamak rejected SMS to ${to}: code ${resultCode} — ${body}`);
-    throw new Error(`MeliPayamak rejected the SMS (code ${resultCode})`);
+  let parsed: MeliPayamakSharedResponse;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    console.error(`MeliPayamak OTP response for ${to} was not JSON: ${body}`);
+    throw new Error("MeliPayamak returned an unexpected OTP response");
   }
 
-  console.info(`MeliPayamak SMS to ${to}: ${body}`);
+  if (!parsed.recId) {
+    console.error(`MeliPayamak rejected OTP SMS to ${to}: ${parsed.status ?? body}`);
+    throw new Error(`MeliPayamak rejected the OTP SMS: ${parsed.status ?? "unknown error"}`);
+  }
+
+  console.info(`MeliPayamak OTP SMS to ${to}: recId ${parsed.recId}`);
 }
