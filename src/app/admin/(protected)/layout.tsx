@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import Preloader from "@/components/Preloader";
+import MuiAdminProvider from "@/components/admin/MuiAdminProvider";
 
 const NAV_ITEMS = [
   { href: "/admin", exact: true, label: "داشبورد", icon: LayoutDashboard },
@@ -70,6 +71,7 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
   }
 
   return (
+    <MuiAdminProvider>
     <div dir="rtl" className="relative min-h-svh overflow-x-clip bg-cream text-cocoa-900">
       <div
         aria-hidden="true"
@@ -194,5 +196,6 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
         </div>
       </div>
     </div>
+    </MuiAdminProvider>
   );
 }
