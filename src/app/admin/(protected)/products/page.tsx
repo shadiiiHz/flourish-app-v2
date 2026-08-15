@@ -14,6 +14,7 @@ import {
   adminUpdateProduct,
   adminUploadImage,
   apiUploadUrl,
+  revalidateCatalog,
 } from "@/lib/api";
 import {
   CustomDataGrid,
@@ -60,16 +61,10 @@ const EMPTY_FORM: FormValues = {
   variants: [],
 };
 
-function parseWeight(weight: string | null | undefined): {
-  weightValue: string;
-  weightUnit: WeightUnit;
-} {
+function parseWeight(weight: string | null | undefined): { weightValue: string; weightUnit: WeightUnit } {
   if (!weight) return { weightValue: "", weightUnit: "گرم" };
   const match = weight.match(/[\d.]+/);
-  return {
-    weightValue: match ? match[0] : "",
-    weightUnit: weight.includes("کیلو") ? "کیلوگرم" : "گرم",
-  };
+  return { weightValue: match ? match[0] : "", weightUnit: weight.includes("کیلو") ? "کیلوگرم" : "گرم" };
 }
 
 const validationSchema = Yup.object({
@@ -212,6 +207,7 @@ function AdminProductsPage() {
         }
         startCreate();
         load();
+        revalidateCatalog();
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "خطا در ذخیره‌سازی");
       } finally {
@@ -294,9 +290,14 @@ function AdminProductsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await adminDeleteProduct(id);
-    if (editingId === id) startCreate();
-    load();
+    try {
+      await adminDeleteProduct(id);
+      if (editingId === id) startCreate();
+      load();
+      revalidateCatalog();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "خطا در حذف محصول");
+    }
   };
 
   const categoryTitleById = useMemo(
@@ -474,9 +475,7 @@ function AdminProductsPage() {
               placeholder="0"
               name="price"
               value={formatThousands(formik.values.price)}
-              onChange={(e) =>
-                formik.setFieldValue("price", digitsOnly(e.target.value))
-              }
+              onChange={(e) => formik.setFieldValue("price", digitsOnly(e.target.value))}
               onBlur={formik.handleBlur}
               className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
             />
@@ -693,20 +692,17 @@ function AdminProductsPage() {
                   <input
                     placeholder="عنوان"
                     value={v.title}
-                    onChange={(e) =>
-                      updateVariant(i, { title: e.target.value })
-                    }
+                    onChange={(e) => updateVariant(i, { title: e.target.value })}
                     className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                   />
                   <input
                     type="text"
                     inputMode="numeric"
+                    dir="ltr"
                     placeholder="قیمت"
                     value={v.price ? formatThousands(String(v.price)) : ""}
                     onChange={(e) =>
-                      updateVariant(i, {
-                        price: Number(digitsOnly(e.target.value)) || 0,
-                      })
+                      updateVariant(i, { price: Number(digitsOnly(e.target.value)) || 0 })
                     }
                     className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                   />
@@ -718,11 +714,7 @@ function AdminProductsPage() {
                       value={parseWeight(v.weight).weightValue}
                       onChange={(e) => {
                         const unit = parseWeight(v.weight).weightUnit;
-                        updateVariant(i, {
-                          weight: e.target.value
-                            ? `${e.target.value} ${unit}`
-                            : "",
-                        });
+                        updateVariant(i, { weight: e.target.value ? `${e.target.value} ${unit}` : "" });
                       }}
                       className="w-full rounded-lg border border-cocoa-900/10 px-2 py-2 text-xs outline-none focus:border-sand-400"
                     />
@@ -730,9 +722,7 @@ function AdminProductsPage() {
                       value={parseWeight(v.weight).weightUnit}
                       onChange={(e) => {
                         const value = parseWeight(v.weight).weightValue;
-                        updateVariant(i, {
-                          weight: value ? `${value} ${e.target.value}` : "",
-                        });
+                        updateVariant(i, { weight: value ? `${value} ${e.target.value}` : "" });
                       }}
                       className="shrink-0 rounded-lg border border-cocoa-900/10 px-1.5 py-2 text-xs outline-none focus:border-sand-400"
                     >
@@ -752,9 +742,7 @@ function AdminProductsPage() {
                 <input
                   placeholder="توضیحات این نوع (اختیاری)"
                   value={v.description ?? ""}
-                  onChange={(e) =>
-                    updateVariant(i, { description: e.target.value })
-                  }
+                  onChange={(e) => updateVariant(i, { description: e.target.value })}
                   className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                 />
               </div>
@@ -805,9 +793,7 @@ function AdminProductsPage() {
         }
         confirmLabel="بله، حذف شود"
         cancelLabel="انصراف"
-        onConfirm={() => {
-          if (deletingProduct) handleDelete(deletingProduct.id);
-        }}
+        onConfirm={() => (deletingProduct ? handleDelete(deletingProduct.id) : undefined)}
         onClose={() => setDeletingProduct(null)}
       />
     </div>

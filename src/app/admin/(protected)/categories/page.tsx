@@ -13,6 +13,7 @@ import {
   adminUpdateCategory,
   adminUploadImage,
   apiUploadUrl,
+  revalidateCatalog,
 } from "@/lib/api";
 import {
   CustomDataGrid,
@@ -128,6 +129,7 @@ function AdminCategoriesPage() {
         }
         startCreate();
         load();
+        revalidateCatalog();
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "خطا در ذخیره‌سازی");
       } finally {
@@ -170,9 +172,14 @@ function AdminCategoriesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await adminDeleteCategory(id);
-    if (editingId === id) startCreate();
-    load();
+    try {
+      await adminDeleteCategory(id);
+      if (editingId === id) startCreate();
+      load();
+      revalidateCatalog();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "خطا در حذف دسته‌بندی");
+    }
   };
 
   const columns = useMemo<GridColDef<AdminCategory>[]>(
@@ -409,9 +416,7 @@ function AdminCategoriesPage() {
         }
         confirmLabel="بله، حذف شود"
         cancelLabel="انصراف"
-        onConfirm={() => {
-          if (deletingCategory) handleDelete(deletingCategory.id);
-        }}
+        onConfirm={() => (deletingCategory ? handleDelete(deletingCategory.id) : undefined)}
         onClose={() => setDeletingCategory(null)}
       />
     </div>

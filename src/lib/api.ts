@@ -148,7 +148,7 @@ const CATALOG_REVALIDATE_SECONDS = 60;
 
 export async function getCatalog(): Promise<Record<CategoryTabId, Category[]>> {
   const data = await apiFetch<ApiCategory[]>("/api/categories", {
-    next: { revalidate: CATALOG_REVALIDATE_SECONDS },
+    next: { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] },
   });
   const grouped: Record<CategoryTabId, Category[]> = { bakery: [], drinks: [] };
   for (const cat of data) {
@@ -165,9 +165,23 @@ export async function getCatalog(): Promise<Record<CategoryTabId, Category[]>> {
 
 export async function getNewProducts(): Promise<MenuItem[]> {
   const data = await apiFetch<ApiNewProduct[]>("/api/products/new", {
-    next: { revalidate: CATALOG_REVALIDATE_SECONDS },
+    next: { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] },
   });
   return data.map((p) => mapProduct(p, p.category.title));
+}
+
+/**
+ * Purges the public catalog cache right away instead of waiting out
+ * CATALOG_REVALIDATE_SECONDS. Best-effort: admin mutations already succeeded
+ * by the time this runs, so a failure here just means the storefront falls
+ * back to the timed revalidation.
+ */
+export function revalidateCatalog(): Promise<void> {
+  const secret = process.env.NEXT_PUBLIC_REVALIDATE_SECRET;
+  if (!secret) return Promise.resolve();
+  return fetch(`/api/revalidate?secret=${encodeURIComponent(secret)}`, { method: "POST" })
+    .then(() => undefined)
+    .catch(() => undefined);
 }
 
 /* ------------------------------------------------------------------ */
