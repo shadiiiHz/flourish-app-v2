@@ -52,7 +52,15 @@ adminAuthRouter.post(
 );
 
 adminAuthRouter.post("/logout", (_req, res) => {
-  res.clearCookie(ADMIN_COOKIE_NAME, { path: "/" });
+  // clearCookie's Set-Cookie must match the sameSite/secure the cookie was
+  // set with, or cross-origin browsers silently ignore it and the session
+  // cookie never actually clears — see cookieOptions above.
+  res.clearCookie(ADMIN_COOKIE_NAME, {
+    httpOnly: cookieOptions.httpOnly,
+    sameSite: cookieOptions.sameSite,
+    secure: cookieOptions.secure,
+    path: cookieOptions.path,
+  });
   res.status(204).end();
 });
 
