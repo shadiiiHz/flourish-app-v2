@@ -2,19 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Eye } from "lucide-react";
-import type { GridColDef } from "@mui/x-data-grid";
+import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import { ApiError, adminGetOrders, adminUpdateOrderStatus } from "@/lib/api";
+import {
+  ApiError,
+  adminBulkDeleteOrders,
+  adminGetOrders,
+  adminUpdateOrderStatus,
+} from "@/lib/api";
 import {
   CustomDataGrid,
+  resolveSelectedRowIds,
   type QueryType,
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
+import ConfirmModal from "@/components/ConfirmModal";
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -44,6 +51,18 @@ function AdminOrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>(
+    { type: "include", ids: new Set() },
+  );
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const selectedIds = useMemo(
+    () =>
+      resolveSelectedRowIds(
+        selectionModel,
+        orders.map((o) => o.id),
+      ),
+    [selectionModel, orders],
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
@@ -54,7 +73,7 @@ function AdminOrdersPage() {
     setPage(1);
   }, [debouncedSearch]);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true);
     adminGetOrders(statusFilter, page, pageSize, debouncedSearch)
       .then((res) => {
@@ -64,11 +83,30 @@ function AdminOrdersPage() {
       .finally(() => setLoading(false));
   }, [statusFilter, page, pageSize, debouncedSearch]);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    setSelectionModel({ type: "include", ids: new Set() });
+  }, [statusFilter, page, pageSize, debouncedSearch]);
+
   const handleQueryChange = useCallback((query: QueryType) => {
     setPage(query.page + 1);
     setPageSize(query.pageSize);
     setSearch((query.filterModel?.quickFilterValues ?? []).join(" "));
   }, []);
+
+  const handleBulkDelete = async () => {
+    setError(null);
+    try {
+      await adminBulkDeleteOrders(selectedIds);
+      setSelectionModel({ type: "include", ids: new Set() });
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "خطا در حذف گروهی");
+    }
+  };
 
   const updateStatus = async (id: string, status: OrderStatus) => {
     setError(null);
@@ -213,6 +251,12 @@ function AdminOrdersPage() {
           filterMode="client"
           sortingMode="client"
           getRowHeight={() => 64}
+          checkboxSelection
+          rowSelectionModel={selectionModel}
+          onRowSelectionModelChange={setSelectionModel}
+          selectedCount={selectedIds.length}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
+          bulkDeleteLabel="حذف گروهی سفارش‌ها"
           sx={{ border: "none", height: 800 }}
         />
       </div>
@@ -304,6 +348,18 @@ function AdminOrdersPage() {
           </>
         )}
       </Dialog>
+
+      <ConfirmModal
+        isOpen={bulkDeleteOpen}
+        title="حذف گروهی سفارش‌ها"
+        description={`آیا مطمئنید می‌خواهید ${selectedIds.length.toLocaleString(
+          "fa-IR",
+        )} سفارش را حذف کنید؟`}
+        confirmLabel="بله، حذف شوند"
+        cancelLabel="انصراف"
+        onConfirm={handleBulkDelete}
+        onClose={() => setBulkDeleteOpen(false)}
+      />
     </div>
   );
 }

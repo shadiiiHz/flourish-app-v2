@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Pencil, Plus, Trash2, Upload, X } from "lucide-react";
-import type { GridColDef } from "@mui/x-data-grid";
+import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import {
   ApiError,
+  adminBulkDeleteProducts,
   adminCreateProduct,
   adminDeleteProduct,
   adminGetAllCategories,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/api";
 import {
   CustomDataGrid,
+  resolveSelectedRowIds,
   type QueryType,
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
@@ -123,6 +125,18 @@ function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>(
+    { type: "include", ids: new Set() },
+  );
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const selectedIds = useMemo(
+    () =>
+      resolveSelectedRowIds(
+        selectionModel,
+        products.map((p) => p.id),
+      ),
+    [selectionModel, products],
+  );
 
   const fetchAll = () =>
     Promise.all([
@@ -154,6 +168,10 @@ function AdminProductsPage() {
   useEffect(() => {
     setLoading(true);
     fetchAll().finally(() => setLoading(false));
+  }, [page, pageSize, debouncedSearch]);
+
+  useEffect(() => {
+    setSelectionModel({ type: "include", ids: new Set() });
   }, [page, pageSize, debouncedSearch]);
 
   const handleQueryChange = useCallback((query: QueryType) => {
@@ -297,6 +315,18 @@ function AdminProductsPage() {
       revalidateCatalog();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "خطا در حذف محصول");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      await adminBulkDeleteProducts(selectedIds);
+      if (editingId && selectedIds.includes(editingId)) startCreate();
+      setSelectionModel({ type: "include", ids: new Set() });
+      load();
+      revalidateCatalog();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "خطا در حذف گروهی");
     }
   };
 
@@ -779,6 +809,12 @@ function AdminProductsPage() {
           filterMode="client"
           sortingMode="client"
           getRowHeight={() => 64}
+          checkboxSelection
+          rowSelectionModel={selectionModel}
+          onRowSelectionModelChange={setSelectionModel}
+          selectedCount={selectedIds.length}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
+          bulkDeleteLabel="حذف گروهی محصولات"
           sx={{ border: "none", height: 800 }}
         />
       </div>
@@ -795,6 +831,18 @@ function AdminProductsPage() {
         cancelLabel="انصراف"
         onConfirm={() => (deletingProduct ? handleDelete(deletingProduct.id) : undefined)}
         onClose={() => setDeletingProduct(null)}
+      />
+
+      <ConfirmModal
+        isOpen={bulkDeleteOpen}
+        title="حذف گروهی محصولات"
+        description={`آیا مطمئنید می‌خواهید ${selectedIds.length.toLocaleString(
+          "fa-IR",
+        )} محصول را حذف کنید؟`}
+        confirmLabel="بله، حذف شوند"
+        cancelLabel="انصراف"
+        onConfirm={handleBulkDelete}
+        onClose={() => setBulkDeleteOpen(false)}
       />
     </div>
   );

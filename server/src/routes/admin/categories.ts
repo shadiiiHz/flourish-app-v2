@@ -6,6 +6,8 @@ import { parsePagination, parseSearch, paginatedResult } from "../../lib/paginat
 
 export const adminCategoriesRouter = Router();
 
+const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) });
+
 const categorySchema = z.object({
   slug: z.string().min(1),
   tab: z.enum(["bakery", "drinks"]),
@@ -78,6 +80,19 @@ adminCategoriesRouter.put(
       data: parsed.data,
     });
     res.json(category);
+  }),
+);
+
+adminCategoriesRouter.delete(
+  "/bulk",
+  asyncHandler(async (req, res) => {
+    const parsed = bulkDeleteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "شناسه‌های نامعتبر" });
+      return;
+    }
+    await prisma.category.deleteMany({ where: { id: { in: parsed.data.ids } } });
+    res.status(204).end();
   }),
 );
 

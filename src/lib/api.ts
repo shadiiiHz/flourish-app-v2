@@ -60,6 +60,13 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise
   return (await res.json()) as T;
 }
 
+function adminBulkDelete(resourcePath: string, ids: string[]) {
+  return apiFetch(`${resourcePath}/bulk`, {
+    method: "DELETE",
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export function apiUploadUrl(path?: string | null) {
   if (!path) return path ?? "";
   if (path.startsWith("http")) return path;
@@ -448,6 +455,10 @@ export function adminDeleteCategory(id: string) {
   return apiFetch(`/api/admin/categories/${id}`, { method: "DELETE" });
 }
 
+export function adminBulkDeleteCategories(ids: string[]) {
+  return adminBulkDelete("/api/admin/categories", ids);
+}
+
 export function adminGetProducts(page = 1, pageSize = 20, search = "") {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) params.set("search", search);
@@ -470,6 +481,10 @@ export function adminUpdateProduct(id: string, payload: Record<string, unknown>)
 
 export function adminDeleteProduct(id: string) {
   return apiFetch(`/api/admin/products/${id}`, { method: "DELETE" });
+}
+
+export function adminBulkDeleteProducts(ids: string[]) {
+  return adminBulkDelete("/api/admin/products", ids);
 }
 
 export function adminUploadImage(file: File) {
@@ -506,6 +521,10 @@ export function adminUpdateOrderStatus(id: string, status: OrderStatus) {
   });
 }
 
+export function adminBulkDeleteOrders(ids: string[]) {
+  return adminBulkDelete("/api/admin/orders", ids);
+}
+
 export function adminGetCustomers(page = 1, pageSize = 20, search = "") {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) params.set("search", search);
@@ -514,6 +533,14 @@ export function adminGetCustomers(page = 1, pageSize = 20, search = "") {
 
 export function adminGetCustomer(id: string) {
   return apiFetch<AdminCustomer>(`/api/admin/customers/${id}`);
+}
+
+export function adminDeleteCustomer(id: string) {
+  return apiFetch(`/api/admin/customers/${id}`, { method: "DELETE" });
+}
+
+export function adminBulkDeleteCustomers(ids: string[]) {
+  return adminBulkDelete("/api/admin/customers", ids);
 }
 
 /* ------------------------------------------------------------------ */

@@ -55,6 +55,8 @@ const patchSchema = z.object({
   status: z.enum(ORDER_STATUSES),
 });
 
+const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) });
+
 adminOrdersRouter.patch(
   "/:id",
   asyncHandler(async (req, res) => {
@@ -69,5 +71,18 @@ adminOrdersRouter.patch(
       include: { items: true, customer: true },
     });
     res.json(order);
+  }),
+);
+
+adminOrdersRouter.delete(
+  "/bulk",
+  asyncHandler(async (req, res) => {
+    const parsed = bulkDeleteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "شناسه‌های نامعتبر" });
+      return;
+    }
+    await prisma.order.deleteMany({ where: { id: { in: parsed.data.ids } } });
+    res.status(204).end();
   }),
 );

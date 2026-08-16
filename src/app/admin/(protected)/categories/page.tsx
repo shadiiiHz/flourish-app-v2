@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Pencil, Plus, Trash2, Upload, X } from "lucide-react";
-import type { GridColDef } from "@mui/x-data-grid";
+import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import {
   ApiError,
+  adminBulkDeleteCategories,
   adminCreateCategory,
   adminDeleteCategory,
   adminGetCategories,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/api";
 import {
   CustomDataGrid,
+  resolveSelectedRowIds,
   type QueryType,
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
@@ -76,6 +78,18 @@ function AdminCategoriesPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>(
+    { type: "include", ids: new Set() },
+  );
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const selectedIds = useMemo(
+    () =>
+      resolveSelectedRowIds(
+        selectionModel,
+        categories.map((c) => c.id),
+      ),
+    [selectionModel, categories],
+  );
 
   const fetchCategories = () =>
     adminGetCategories(page, pageSize, debouncedSearch).then((res) => {
@@ -100,6 +114,10 @@ function AdminCategoriesPage() {
   useEffect(() => {
     setLoading(true);
     fetchCategories().finally(() => setLoading(false));
+  }, [page, pageSize, debouncedSearch]);
+
+  useEffect(() => {
+    setSelectionModel({ type: "include", ids: new Set() });
   }, [page, pageSize, debouncedSearch]);
 
   const handleQueryChange = useCallback((query: QueryType) => {
@@ -179,6 +197,18 @@ function AdminCategoriesPage() {
       revalidateCatalog();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "خطا در حذف دسته‌بندی");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      await adminBulkDeleteCategories(selectedIds);
+      if (editingId && selectedIds.includes(editingId)) startCreate();
+      setSelectionModel({ type: "include", ids: new Set() });
+      load();
+      revalidateCatalog();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "خطا در حذف گروهی");
     }
   };
 
@@ -402,6 +432,12 @@ function AdminCategoriesPage() {
           filterMode="client"
           sortingMode="client"
           getRowHeight={() => 64}
+          checkboxSelection
+          rowSelectionModel={selectionModel}
+          onRowSelectionModelChange={setSelectionModel}
+          selectedCount={selectedIds.length}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
+          bulkDeleteLabel="حذف گروهی دسته‌بندی‌ها"
           sx={{ border: "none", height: 800 }}
         />
       </div>
@@ -418,6 +454,18 @@ function AdminCategoriesPage() {
         cancelLabel="انصراف"
         onConfirm={() => (deletingCategory ? handleDelete(deletingCategory.id) : undefined)}
         onClose={() => setDeletingCategory(null)}
+      />
+
+      <ConfirmModal
+        isOpen={bulkDeleteOpen}
+        title="حذف گروهی دسته‌بندی‌ها"
+        description={`آیا مطمئنید می‌خواهید ${selectedIds.length.toLocaleString(
+          "fa-IR",
+        )} دسته‌بندی و همه محصولات آن‌ها را حذف کنید؟`}
+        confirmLabel="بله، حذف شوند"
+        cancelLabel="انصراف"
+        onConfirm={handleBulkDelete}
+        onClose={() => setBulkDeleteOpen(false)}
       />
     </div>
   );
