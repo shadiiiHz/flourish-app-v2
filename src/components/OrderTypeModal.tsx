@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Clock, ShoppingBag, X } from "lucide-react";
 import { useOrderType } from "@/context/OrderTypeContext";
 import type { OrderType } from "@/types/order";
 import { generatePreorderDateOptions, generatePreorderTimeSlots } from "@/lib/preorder";
+import { useSiteStatus } from "@/context/SiteStatusContext";
 
 const DATE_OPTIONS = generatePreorderDateOptions();
 const TIME_SLOTS = generatePreorderTimeSlots();
@@ -21,6 +22,7 @@ function OrderTypeModal() {
     setInstant,
     setPreorder,
   } = useOrderType();
+  const { siteClosed } = useSiteStatus();
   const [mounted, setMounted] = useState(false);
   const [selectedType, setSelectedType] = useState<OrderType>("instant");
   const [selectedDate, setSelectedDate] = useState<string>(DATE_OPTIONS[0].iso);
@@ -38,7 +40,7 @@ function OrderTypeModal() {
   if (isModalOpen !== prevOpen) {
     setPrevOpen(isModalOpen);
     if (isModalOpen) {
-      setSelectedType(orderType);
+      setSelectedType(siteClosed ? "preorder" : orderType);
       setSelectedDate(preorder?.date ?? DATE_OPTIONS[0].iso);
       setSelectedSlot(preorder?.timeSlot ?? null);
       setError(null);
@@ -69,7 +71,7 @@ function OrderTypeModal() {
   }, [isModalOpen, closeModal]);
 
   const handleContinue = () => {
-    if (selectedType === "instant") {
+    if (selectedType === "instant" && !siteClosed) {
       setInstant();
       closeModal();
       return;
@@ -129,11 +131,17 @@ function OrderTypeModal() {
               </div>
 
               <div className="p-5 sm:p-6">
+                {siteClosed && (
+                  <p className="mb-4 rounded-xl bg-sand-50 p-3 text-center text-xs font-semibold text-sand-500">
+                    امروز فلوریش تعطیل است و فقط امکان ثبت پیش‌سفارش وجود دارد.
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
+                    disabled={siteClosed}
                     onClick={() => setSelectedType("instant")}
-                    className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-5 transition ${
+                    className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-5 transition disabled:pointer-events-none disabled:opacity-40 ${
                       selectedType === "instant"
                         ? "border-sand-400 bg-sand-50/60"
                         : "border-cocoa-900/10 bg-white"

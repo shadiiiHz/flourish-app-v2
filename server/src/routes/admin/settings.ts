@@ -9,6 +9,7 @@ export const adminSettingsRouter = Router();
 const settingsSchema = z.object({
   shippingCostUpTo5Km: z.number().int().nonnegative(),
   shippingCostOver5Km: z.number().int().nonnegative(),
+  siteClosed: z.boolean().optional(),
 });
 
 adminSettingsRouter.get(

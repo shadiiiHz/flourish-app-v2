@@ -3,16 +3,21 @@
 import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Truck } from "lucide-react";
+import { Store, Truck } from "lucide-react";
 import { ApiError, adminGetSettings, adminUpdateSettings } from "@/lib/api";
 import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 
 interface FormValues {
   shippingCostUpTo5Km: string;
   shippingCostOver5Km: string;
+  siteClosed: boolean;
 }
 
-const EMPTY_FORM: FormValues = { shippingCostUpTo5Km: "0", shippingCostOver5Km: "0" };
+const EMPTY_FORM: FormValues = {
+  shippingCostUpTo5Km: "0",
+  shippingCostOver5Km: "0",
+  siteClosed: false,
+};
 
 const validationSchema = Yup.object({
   shippingCostUpTo5Km: Yup.number()
@@ -38,6 +43,7 @@ function AdminSettingsPage() {
         await adminUpdateSettings({
           shippingCostUpTo5Km: Number(values.shippingCostUpTo5Km) || 0,
           shippingCostOver5Km: Number(values.shippingCostOver5Km) || 0,
+          siteClosed: values.siteClosed,
         });
         setSuccess(true);
       } catch (err) {
@@ -55,6 +61,7 @@ function AdminSettingsPage() {
           values: {
             shippingCostUpTo5Km: String(s.shippingCostUpTo5Km),
             shippingCostOver5Km: String(s.shippingCostOver5Km),
+            siteClosed: s.siteClosed,
           },
         }),
       )
@@ -69,6 +76,28 @@ function AdminSettingsPage() {
         onSubmit={formik.handleSubmit}
         className="mt-4 max-w-xl rounded-[1.5rem] border border-sand-100 bg-white p-5"
       >
+        <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
+          <Store className="h-4.5 w-4.5 text-sand-500" />
+          وضعیت سفارش‌گیری
+        </h2>
+        <p className="mt-1 text-xs text-cocoa-500">
+          با فعال کردن این گزینه، ثبت سفارش فوری در سایت بسته می‌شود و مشتریان فقط
+          می‌توانند پیش‌سفارش ثبت کنند. یک بنر روی همه صفحات سایت این موضوع را به
+          مشتریان اطلاع می‌دهد.
+        </p>
+        <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+          <input
+            type="checkbox"
+            name="siteClosed"
+            checked={formik.values.siteClosed}
+            onChange={formik.handleChange}
+            className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+          />
+          تعطیلی سایت — فقط امکان ثبت پیش‌سفارش
+        </label>
+
+        <div className="my-5 h-px bg-cocoa-900/10" />
+
         <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
           <Truck className="h-4.5 w-4.5 text-sand-500" />
           هزینه ارسال بر اساس فاصله از فلوریش

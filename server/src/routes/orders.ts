@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
-import { calculateShipping } from "../lib/shipping.js";
+import { calculateShipping, getSettings } from "../lib/shipping.js";
 import { requestZarinpalPayment, verifyZarinpalPayment } from "../lib/zarinpal.js";
 import { getDiscountedPrice } from "../lib/pricing.js";
 import { env } from "../lib/env.js";
@@ -39,6 +39,14 @@ ordersRouter.post(
     }
     const { addressId, customerName, note, orderType, scheduledTimeSlot } = parsed.data;
     const { sub: customerId, phone: customerPhone } = req.customer!;
+
+    const settings = await getSettings();
+    if (settings.siteClosed && orderType !== "preorder") {
+      res
+        .status(400)
+        .json({ error: "امروز فلوریش تعطیل است و فقط ثبت پیش‌سفارش امکان‌پذیر است" });
+      return;
+    }
 
     let scheduledDate: Date | undefined;
     if (orderType === "preorder") {

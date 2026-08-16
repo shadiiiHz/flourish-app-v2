@@ -12,6 +12,8 @@ import AuthToast from "@/components/AuthToast";
 import PreorderBanner from "@/components/PreorderBanner";
 import OrderTypeModal from "@/components/OrderTypeModal";
 import { useCart } from "@/context/CartContext";
+import { SiteStatusProvider } from "@/context/SiteStatusContext";
+import SiteClosedBanner from "./SiteClosedBanner";
 
 function CartOverlay() {
   const { isOpen } = useCart();
@@ -23,32 +25,41 @@ function CartOverlay() {
   );
 }
 
-export default function SiteShell({ children }: { children: ReactNode }) {
+export default function SiteShell({
+  children,
+  siteClosed = false,
+}: {
+  children: ReactNode;
+  siteClosed?: boolean;
+}) {
   return (
-    <div className="relative min-h-svh overflow-x-clip bg-cream text-cocoa-900">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
-        style={{
-          backgroundImage: "url(/assets/logo.png)",
-          backgroundRepeat: "repeat",
-          backgroundSize: "100px 100px",
-        }}
-      />
+    <SiteStatusProvider siteClosed={siteClosed}>
+      <div className="relative min-h-svh overflow-x-clip bg-cream text-cocoa-900">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
+          style={{
+            backgroundImage: "url(/assets/logo.png)",
+            backgroundRepeat: "repeat",
+            backgroundSize: "100px 100px",
+          }}
+        />
 
-      <div className="relative z-10">
-        <div id="site-header" className="sticky top-0 z-50">
-          <PreorderBanner />
-          <Header />
+        <div className="relative z-10">
+          <div id="site-header" className="sticky top-0 z-50">
+            <SiteClosedBanner />
+            <PreorderBanner />
+            <Header />
+          </div>
+          <main>{children}</main>
+          <Footer />
         </div>
-        <main>{children}</main>
-        <Footer />
+        <GoToTop />
+        <CartOverlay />
+        <AuthModal />
+        <AuthToast />
+        <OrderTypeModal />
       </div>
-      <GoToTop />
-      <CartOverlay />
-      <AuthModal />
-      <AuthToast />
-      <OrderTypeModal />
-    </div>
+    </SiteStatusProvider>
   );
 }

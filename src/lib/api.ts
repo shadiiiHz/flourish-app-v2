@@ -553,12 +553,30 @@ export function adminBulkDeleteCustomers(ids: string[]) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Site status (public)                                                */
+/* ------------------------------------------------------------------ */
+
+/** How fresh the site-closed banner is allowed to be — an operational toggle, so kept short. */
+const SITE_STATUS_REVALIDATE_SECONDS = 30;
+
+export async function getSiteStatus(): Promise<{ siteClosed: boolean }> {
+  try {
+    return await apiFetch<{ siteClosed: boolean }>("/api/settings/status", {
+      next: { revalidate: SITE_STATUS_REVALIDATE_SECONDS, tags: ["site-status"] },
+    });
+  } catch {
+    return { siteClosed: false };
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Admin settings (shipping cost tiers)                                */
 /* ------------------------------------------------------------------ */
 
 export interface AdminSettings {
   shippingCostUpTo5Km: number;
   shippingCostOver5Km: number;
+  siteClosed: boolean;
 }
 
 export function adminGetSettings() {

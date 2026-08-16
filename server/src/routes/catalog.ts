@@ -1,8 +1,17 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { getSettings } from "../lib/shipping.js";
 
 export const catalogRouter = Router();
+
+catalogRouter.get(
+  "/settings/status",
+  asyncHandler(async (_req, res) => {
+    const settings = await getSettings();
+    res.json({ siteClosed: settings.siteClosed });
+  }),
+);
 
 catalogRouter.get(
   "/categories",

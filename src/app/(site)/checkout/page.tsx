@@ -7,6 +7,7 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useAddresses, type Address } from "@/context/AddressContext";
 import { useOrderType } from "@/context/OrderTypeContext";
+import { useSiteStatus } from "@/context/SiteStatusContext";
 import { ApiError, createOrder, getShippingEstimate } from "@/lib/api";
 import AddressModal from "@/components/AddressModal";
 import Preloader from "@/components/Preloader";
@@ -26,6 +27,8 @@ function CheckoutPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { addresses, isLoading: addressesLoading, updateAddress } = useAddresses();
   const { orderType, preorder, openModal, setInstant } = useOrderType();
+  const { siteClosed } = useSiteStatus();
+  const blockedByClosure = siteClosed && orderType === "instant";
 
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -109,6 +112,10 @@ function CheckoutPage() {
   };
 
   const handleSubmit = async () => {
+    if (blockedByClosure) {
+      setError("امروز فلوریش تعطیل است و فقط ثبت پیش‌سفارش امکان‌پذیر است");
+      return;
+    }
     if (!selectedAddressId) {
       setError("لطفاً یک آدرس برای ارسال انتخاب کنید");
       return;
@@ -344,6 +351,19 @@ function CheckoutPage() {
             </div>
           </GlassCard>
 
+          {blockedByClosure && (
+            <div className="flex flex-col gap-2 rounded-2xl bg-danger-50 p-3 text-center text-xs font-semibold text-danger-500">
+              امروز فلوریش تعطیل است و فقط ثبت پیش‌سفارش امکان‌پذیر است.
+              <button
+                type="button"
+                onClick={openModal}
+                className="rounded-full bg-danger-500 px-3 py-1.5 text-white transition hover:opacity-90"
+              >
+                تبدیل به پیش‌سفارش
+              </button>
+            </div>
+          )}
+
           {error && (
             <p className="rounded-2xl bg-danger-50 p-3 text-center text-xs font-semibold text-danger-500">
               {error}
@@ -353,7 +373,7 @@ function CheckoutPage() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || !selectedAddressId || shippingLoading}
+            disabled={submitting || !selectedAddressId || shippingLoading || blockedByClosure}
             className="flex items-center justify-center gap-2 rounded-full bg-sand-500 px-4 py-3.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:pointer-events-none disabled:opacity-60"
           >
             <ShoppingBag className="h-4.5 w-4.5" />
