@@ -32,6 +32,11 @@ enum OrderType {
   preorder
 }
 
+enum DeliveryMethod {
+  delivery
+  pickup
+}
+
 model Category {
   id        String      @id @default(cuid())
   slug      String      @unique
@@ -130,30 +135,31 @@ model Address {
 }
 
 model Order {
-  id                String        @id @default(cuid())
+  id                String         @id @default(cuid())
   customerId        String?
-  customer          Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer          Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerPhone     String
   customerName      String?
-  status            OrderStatus   @default(pending)
-  orderType         OrderType     @default(instant)
+  status            OrderStatus    @default(pending)
+  orderType         OrderType      @default(instant)
+  deliveryMethod    DeliveryMethod @default(delivery)
   scheduledDate     DateTime?
   scheduledTimeSlot String?
   addressId         String?
-  address           Address?      @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  address           Address?       @relation(fields: [addressId], references: [id], onDelete: SetNull)
   addressText       String?
   distanceKm        Float?
   subtotal          Int
   tax               Int
-  shippingCost      Int           @default(0)
+  shippingCost      Int            @default(0)
   total             Int
   note              String?
-  paymentStatus     PaymentStatus @default(pending)
+  paymentStatus     PaymentStatus  @default(pending)
   paymentAuthority  String?
   paymentRefId      String?
   items             OrderItem[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 }
 
 model OrderItem {
@@ -174,7 +180,13 @@ model Settings {
   id                  Int      @id @default(1)
   shippingCostUpTo5Km Int      @default(0)
   shippingCostOver5Km Int      @default(0)
-  /** When true, only preorders can be placed — instant ordering is closed site-wide. */
+  /**
+   * Addresses farther than this from the store can't be delivered to — pickup only.
+   */
+  maxDeliveryRadiusKm Int      @default(8)
+  /**
+   * When true, only preorders can be placed — instant ordering is closed site-wide.
+   */
   siteClosed          Boolean  @default(false)
   updatedAt           DateTime @updatedAt
 }

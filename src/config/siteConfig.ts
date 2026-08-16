@@ -78,6 +78,8 @@ export const siteConfig = {
     address: 'مازندران، نوشهر، بلوار کریمی، صد متر بعد از پاساژ لنگر',
     mapUrl: 'https://maps.app.goo.gl/Q8UY1Cci1fnvFiHs8',
     mapEmbedUrl: 'https://maps.google.com/maps?q=36.6549149,51.4902702&z=17&output=embed',
+    lat: 36.6549149,
+    lng: 51.4902702,
     hours: 'شنبه تا جمعه، ۹:۰۰ الی ۲۲:۳۰',
     instagram: 'https://www.instagram.com/flourishbakery.ir',
   },

@@ -11,7 +11,7 @@ import type {
   AdminOrder,
   AdminProduct,
 } from "../types/admin";
-import type { Order, OrderStatus, OrderType } from "../types/order";
+import type { DeliveryMethod, Order, OrderStatus, OrderType } from "../types/order";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -364,7 +364,8 @@ export function clearMyCart() {
 }
 
 export interface CreateOrderPayload {
-  addressId: string;
+  addressId?: string;
+  deliveryMethod?: DeliveryMethod;
   customerName?: string;
   note?: string;
   orderType?: OrderType;
@@ -391,6 +392,8 @@ export function getOrder(id: string) {
 export interface ShippingEstimate {
   distanceKm: number;
   shippingCost: number;
+  outOfRange: boolean;
+  maxDeliveryRadiusKm: number;
 }
 
 export function getShippingEstimate(addressId: string) {
@@ -575,6 +578,7 @@ export async function getSiteStatus(): Promise<{ siteClosed: boolean }> {
 export interface AdminSettings {
   shippingCostUpTo5Km: number;
   shippingCostOver5Km: number;
+  maxDeliveryRadiusKm: number;
   siteClosed: boolean;
 }
 

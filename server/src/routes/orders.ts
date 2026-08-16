@@ -16,7 +16,8 @@ const MIN_PREORDER_DAYS_AHEAD = 2;
 
 const createOrderSchema = z
   .object({
-    addressId: z.string().min(1),
+    addressId: z.string().min(1).optional(),
+    deliveryMethod: z.enum(["delivery", "pickup"]).optional().default("delivery"),
     customerName: z.string().optional(),
     note: z.string().optional(),
     orderType: z.enum(["instant", "preorder"]).optional().default("instant"),
@@ -26,7 +27,10 @@ const createOrderSchema = z
   .refine(
     (data) => data.orderType !== "preorder" || (data.scheduledDate && data.scheduledTimeSlot),
     { message: "تاریخ و ساعت پیش‌سفارش الزامی است" },
-  );
+  )
+  .refine((data) => data.deliveryMethod !== "delivery" || !!data.addressId, {
+    message: "لطفاً یک آدرس برای ارسال انتخاب کنید",
+  });
 
 ordersRouter.post(
   "/",
@@ -37,7 +41,8 @@ ordersRouter.post(
       res.status(400).json({ error: "اطلاعات سفارش نامعتبر است" });
       return;
     }
-    const { addressId, customerName, note, orderType, scheduledTimeSlot } = parsed.data;
+    const { addressId, deliveryMethod, customerName, note, orderType, scheduledTimeSlot } =
+      parsed.data;
     const { sub: customerId, phone: customerPhone } = req.customer!;
 
     const settings = await getSettings();
@@ -63,16 +68,19 @@ ordersRouter.post(
       }
     }
 
-    const address = await prisma.address.findFirst({
-      where: { id: addressId, customerId },
-    });
-    if (!address) {
-      res.status(404).json({ error: "آدرس یافت نشد" });
-      return;
-    }
-    if (address.lat == null || address.lng == null) {
-      res.status(400).json({ error: "موقعیت مکانی این آدرس ثبت نشده است" });
-      return;
+    const address =
+      deliveryMethod === "delivery"
+        ? await prisma.address.findFirst({ where: { id: addressId, customerId } })
+        : null;
+    if (deliveryMethod === "delivery") {
+      if (!address) {
+        res.status(404).json({ error: "آدرس یافت نشد" });
+        return;
+      }
+      if (address.lat == null || address.lng == null) {
+        res.status(400).json({ error: "موقعیت مکانی این آدرس ثبت نشده است" });
+        return;
+      }
     }
 
     const cartItems = await prisma.cartItem.findMany({
@@ -114,7 +122,17 @@ ordersRouter.post(
 
     const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const tax = Math.round(subtotal * TAX_RATE);
-    const { distanceKm, shippingCost } = await calculateShipping(address.lat, address.lng);
+    const shippingResult =
+      deliveryMethod === "delivery" && address
+        ? await calculateShipping(address.lat!, address.lng!)
+        : { distanceKm: undefined, shippingCost: 0, outOfRange: false };
+    if (deliveryMethod === "delivery" && shippingResult.outOfRange) {
+      res
+        .status(400)
+        .json({ error: "این آدرس خارج از محدوده سرویس‌دهی فلوریش است" });
+      return;
+    }
+    const { distanceKm, shippingCost } = shippingResult;
     const total = subtotal + tax + shippingCost;
 
     const order = await prisma.order.create({
@@ -124,10 +142,14 @@ ordersRouter.post(
         customerName,
         note,
         orderType,
+        deliveryMethod,
         scheduledDate,
         scheduledTimeSlot: orderType === "preorder" ? scheduledTimeSlot : undefined,
-        addressId: address.id,
-        addressText: [address.address, address.details].filter(Boolean).join(" — "),
+        addressId: address?.id,
+        addressText:
+          deliveryMethod === "delivery" && address
+            ? [address.address, address.details].filter(Boolean).join(" — ")
+            : "مراجعه حضوری به فلوریش",
         distanceKm,
         subtotal,
         tax,

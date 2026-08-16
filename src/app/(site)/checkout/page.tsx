@@ -2,16 +2,30 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, MapPin, Pencil, Plus, ShoppingBag, SquarePen, User } from "lucide-react";
+import {
+  CreditCard,
+  MapPin,
+  Navigation,
+  Pencil,
+  Plus,
+  ShoppingBag,
+  SquarePen,
+  Truck,
+  User,
+} from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useAddresses, type Address } from "@/context/AddressContext";
 import { useOrderType } from "@/context/OrderTypeContext";
 import { useSiteStatus } from "@/context/SiteStatusContext";
-import { ApiError, createOrder, getShippingEstimate } from "@/lib/api";
+import { ApiError, createOrder, getShippingEstimate, type ShippingEstimate } from "@/lib/api";
+import { siteConfig } from "@/config/siteConfig";
+import type { DeliveryMethod } from "@/types/order";
 import AddressModal from "@/components/AddressModal";
+import DeliveryOutOfRangeModal from "@/components/DeliveryOutOfRangeModal";
 import Preloader from "@/components/Preloader";
 import { formatPreorderDateLong } from "@/lib/preorder";
+import { toPersianDigits } from "@/lib/formatNumber";
 
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
@@ -30,6 +44,7 @@ function CheckoutPage() {
   const { siteClosed } = useSiteStatus();
   const blockedByClosure = siteClosed && orderType === "instant";
 
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("delivery");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
@@ -37,8 +52,9 @@ function CheckoutPage() {
   const [lastName, setLastName] = useState("");
   const [note, setNote] = useState("");
 
-  const [shipping, setShipping] = useState<{ distanceKm: number; shippingCost: number } | null>(null);
+  const [shipping, setShipping] = useState<ShippingEstimate | null>(null);
   const [shippingLoading, setShippingLoading] = useState(false);
+  const [outOfRangeModalOpen, setOutOfRangeModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -59,13 +75,21 @@ function CheckoutPage() {
     setLastName(user?.lastName ?? "");
   }, [user]);
 
+  // Keep the selected delivery address synced to whichever one is default —
+  // covers initial load, and re-selects automatically whenever a new address
+  // is created (or an existing one edited) as the default.
+  const defaultAddressId = addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id;
   useEffect(() => {
-    if (addressesLoading || addresses.length === 0) return;
-    if (selectedAddressId && addresses.some((a) => a.id === selectedAddressId)) return;
-    setSelectedAddressId(addresses.find((a) => a.isDefault)?.id ?? addresses[0].id);
-  }, [addresses, addressesLoading, selectedAddressId]);
+    if (addressesLoading || !defaultAddressId) return;
+    setSelectedAddressId(defaultAddressId);
+  }, [defaultAddressId, addressesLoading]);
 
   useEffect(() => {
+    if (deliveryMethod === "pickup") {
+      setShipping({ distanceKm: 0, shippingCost: 0, outOfRange: false, maxDeliveryRadiusKm: 0 });
+      setShippingLoading(false);
+      return;
+    }
     if (!selectedAddressId) {
       setShipping(null);
       return;
@@ -79,7 +103,13 @@ function CheckoutPage() {
         setError(err instanceof ApiError ? err.message : "خطا در محاسبه هزینه ارسال");
       })
       .finally(() => setShippingLoading(false));
-  }, [selectedAddressId]);
+  }, [selectedAddressId, deliveryMethod]);
+
+  useEffect(() => {
+    if (deliveryMethod === "delivery" && shipping?.outOfRange) {
+      setOutOfRangeModalOpen(true);
+    }
+  }, [selectedAddressId, deliveryMethod, shipping?.outOfRange]);
 
   const grandTotal = useMemo(
     () => totalPrice + taxAmount + (shipping?.shippingCost ?? 0),
@@ -116,8 +146,17 @@ function CheckoutPage() {
       setError("امروز فلوریش تعطیل است و فقط ثبت پیش‌سفارش امکان‌پذیر است");
       return;
     }
-    if (!selectedAddressId) {
+    if (deliveryMethod === "delivery" && !selectedAddressId) {
       setError("لطفاً یک آدرس برای ارسال انتخاب کنید");
+      return;
+    }
+    if (deliveryMethod === "delivery" && shipping?.outOfRange) {
+      setError("این آدرس خارج از محدوده سرویس‌دهی فلوریش است");
+      setOutOfRangeModalOpen(true);
+      return;
+    }
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("لطفاً نام و نام خانوادگی خود را وارد کنید");
       return;
     }
     if (orderType === "preorder" && !preorder) {
@@ -129,7 +168,8 @@ function CheckoutPage() {
     try {
       const customerName = [firstName, lastName].filter(Boolean).join(" ").trim() || undefined;
       const { paymentUrl } = await createOrder({
-        addressId: selectedAddressId,
+        addressId: deliveryMethod === "delivery" ? (selectedAddressId ?? undefined) : undefined,
+        deliveryMethod,
         customerName,
         note: note.trim() || undefined,
         orderType,
@@ -176,95 +216,164 @@ function CheckoutPage() {
           )}
 
           <GlassCard>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cocoa-900">
-                آدرس‌های من
-                <MapPin className="h-5 w-5 text-sand-500" />
-              </h2>
-              <button
-                type="button"
-                onClick={openNewAddressModal}
-                className="flex items-center gap-1.5 rounded-full bg-sand-500 px-4 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95"
-              >
-                <Plus className="h-4 w-4" />
-                ثبت آدرس جدید
-              </button>
-            </div>
-
-            {addressesLoading ? (
-              <Preloader fullScreen={false} />
-            ) : addresses.length === 0 ? (
-              <p className="mt-2 text-sm font-semibold text-sand-500">
-                آدرسی ثبت نشده است، لطفا آدرس خود را ثبت نمایید.
-              </p>
-            ) : (
-              <div className="mt-5 flex flex-col gap-3">
-                {addresses.map((item) => {
-                  const isSelected = item.id === selectedAddressId;
-                  return (
-                    <div
-                      key={item.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => selectAddress(item)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          selectAddress(item);
-                        }
-                      }}
-                      className={`flex cursor-pointer items-start justify-between gap-3 rounded-2xl border p-4 text-right transition ${
-                        isSelected ? "border-sand-400 bg-sand-50/60" : "border-sand-100 bg-white"
+            <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cocoa-900">
+              روش تحویل سفارش
+              <Truck className="h-5 w-5 text-sand-500" />
+            </h2>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:gap-3">
+              {(
+                [
+                  { id: "delivery", label: "ارسال توسط فلوریش" },
+                  { id: "pickup", label: "مراجعه حضوری به فلوریش" },
+                ] as const
+              ).map(({ id, label }) => {
+                const isSelected = deliveryMethod === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setDeliveryMethod(id)}
+                    className={`flex flex-1 items-center justify-between gap-2 rounded-2xl border p-3.5 text-right transition ${
+                      isSelected ? "border-sand-400 bg-sand-50/60" : "border-sand-100 bg-white"
+                    }`}
+                  >
+                    <span className="text-sm font-semibold text-cocoa-900">{label}</span>
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                        isSelected ? "border-sand-500 bg-sand-500" : "border-cocoa-900/20"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-cocoa-900">
-                          {item.title || "بدون عنوان"}
-                        </p>
-                        <p className="mt-0.5 text-sm text-cocoa-700">
-                          {item.address}
-                          {item.details && ` — ${item.details}`}
-                        </p>
-                        {isSelected && (
-                          <p className="mt-1 text-xs font-semibold text-sand-500">
-                            {shippingLoading
-                              ? "در حال محاسبه فاصله…"
-                              : shipping
-                                ? `این آدرس ${shipping.distanceKm.toLocaleString("fa-IR", { maximumFractionDigits: 1 })} کیلومتر با فلوریش فاصله دارد`
-                                : null}
-                          </p>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditAddressModal(item);
-                          }}
-                          className="mt-2 inline-flex items-center gap-1 rounded-full border border-sand-200 bg-white px-3 py-1 text-xs font-bold text-cocoa-700 transition hover:bg-sand-50"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          ویرایش آدرس
-                        </button>
-                      </div>
-                      <span
-                        className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-                          isSelected ? "border-sand-500 bg-sand-500" : "border-cocoa-900/20"
+                      {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </GlassCard>
+
+          {deliveryMethod === "pickup" ? (
+            <GlassCard>
+              <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cocoa-900">
+                آدرس مراجعه حضوری
+                <MapPin className="h-5 w-5 text-sand-500" />
+              </h2>
+              <div className="mt-4 h-px bg-sand-50" />
+              <div className="mt-4 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 text-right">
+                  <p className="text-sm font-bold text-cocoa-900">فلوریش</p>
+                  <p className="mt-1 text-sm text-cocoa-700">{siteConfig.contact.address}</p>
+                  <p className="mt-1 text-sm text-cocoa-600">
+                    تلفن: {toPersianDigits(siteConfig.contact.phone)}
+                  </p>
+                </div>
+                <a
+                  href={siteConfig.contact.mapUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-sand-200 bg-white px-3 py-1.5 text-xs font-bold text-cocoa-700 transition hover:bg-sand-50"
+                >
+                  <Navigation className="h-3.5 w-3.5 text-sand-500" />
+                  مسیریابی
+                </a>
+              </div>
+            </GlassCard>
+          ) : (
+            <GlassCard>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cocoa-900">
+                  آدرس‌های من
+                  <MapPin className="h-5 w-5 text-sand-500" />
+                </h2>
+                <button
+                  type="button"
+                  onClick={openNewAddressModal}
+                  className="flex items-center gap-1.5 rounded-full bg-sand-500 px-4 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95"
+                >
+                  <Plus className="h-4 w-4" />
+                  ثبت آدرس جدید
+                </button>
+              </div>
+
+              {addressesLoading ? (
+                <Preloader fullScreen={false} />
+              ) : addresses.length === 0 ? (
+                <p className="mt-2 text-sm font-semibold text-sand-500">
+                  آدرسی ثبت نشده است، لطفا آدرس خود را ثبت نمایید.
+                </p>
+              ) : (
+                <div className="mt-5 flex flex-col gap-3">
+                  {addresses.map((item) => {
+                    const isSelected = item.id === selectedAddressId;
+                    return (
+                      <div
+                        key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => selectAddress(item)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            selectAddress(item);
+                          }
+                        }}
+                        className={`flex cursor-pointer items-start justify-between gap-3 rounded-2xl border p-4 text-right transition ${
+                          isSelected ? "border-sand-400 bg-sand-50/60" : "border-sand-100 bg-white"
                         }`}
                       >
-                        {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-1.5 text-sm font-bold text-cocoa-900">
+                            {item.title || "بدون عنوان"}
+                            {item.isDefault && (
+                              <span className="rounded-full bg-sand-50 px-2 py-0.5 text-[10px] font-bold text-sand-500">
+                                پیش‌فرض
+                              </span>
+                            )}
+                          </p>
+                          <p className="mt-0.5 text-sm text-cocoa-700">
+                            {item.address}
+                            {item.details && ` — ${item.details}`}
+                          </p>
+                          {isSelected && (
+                            <p className="mt-1 text-xs font-semibold text-sand-500">
+                              {shippingLoading
+                                ? "در حال محاسبه فاصله…"
+                                : shipping
+                                  ? `این آدرس ${shipping.distanceKm.toLocaleString("fa-IR", { maximumFractionDigits: 1 })} کیلومتر با فلوریش فاصله دارد`
+                                  : null}
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditAddressModal(item);
+                            }}
+                            className="mt-2 inline-flex items-center gap-1 rounded-full border border-sand-200 bg-white px-3 py-1 text-xs font-bold text-cocoa-700 transition hover:bg-sand-50"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            ویرایش آدرس
+                          </button>
+                        </div>
+                        <span
+                          className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                            isSelected ? "border-sand-500 bg-sand-500" : "border-cocoa-900/20"
+                          }`}
+                        >
+                          {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-            <AddressModal
-              isOpen={isModalOpen}
-              editingAddress={editingAddress}
-              onClose={() => setIsModalOpen(false)}
-            />
-          </GlassCard>
+              <AddressModal
+                isOpen={isModalOpen}
+                editingAddress={editingAddress}
+                onClose={() => setIsModalOpen(false)}
+              />
+            </GlassCard>
+          )}
 
           <GlassCard>
             <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cocoa-900">
@@ -274,19 +383,24 @@ function CheckoutPage() {
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <input
                 type="text"
-                placeholder="نام"
+                placeholder="نام *"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
+                required
                 className="w-full rounded-2xl border border-cocoa-900/10 bg-white px-4 py-3.5 text-right text-base text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25"
               />
               <input
                 type="text"
-                placeholder="نام خانوادگی"
+                placeholder="نام خانوادگی *"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
+                required
                 className="w-full rounded-2xl border border-cocoa-900/10 bg-white px-4 py-3.5 text-right text-base text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25"
               />
             </div>
+            <p className="mt-2 text-xs text-cocoa-500">
+              وارد کردن نام و نام خانوادگی الزامی است.
+            </p>
           </GlassCard>
 
           <GlassCard>
@@ -321,16 +435,22 @@ function CheckoutPage() {
                   {taxAmount.toLocaleString("fa-IR")} تومان
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-cocoa-600">هزینه ارسال</span>
-                <span className="font-semibold text-cocoa-900">
-                  {shippingLoading
-                    ? "…"
-                    : shipping
-                      ? `${shipping.shippingCost.toLocaleString("fa-IR")} تومان`
-                      : "—"}
-                </span>
-              </div>
+              {deliveryMethod === "delivery" && (
+                <div className="flex items-center justify-between">
+                  <span className="text-cocoa-600">هزینه ارسال</span>
+                  <span
+                    className={`font-semibold ${shipping?.outOfRange ? "text-danger-500" : "text-cocoa-900"}`}
+                  >
+                    {shippingLoading
+                      ? "…"
+                      : shipping?.outOfRange
+                        ? "خارج از محدوده"
+                        : shipping
+                          ? `${shipping.shippingCost.toLocaleString("fa-IR")} تومان`
+                          : "—"}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between border-t border-sand-50 pt-2.5">
                 <span className="font-bold text-cocoa-700">جمع کل</span>
                 <span className="text-lg font-bold text-cocoa-900">
@@ -373,7 +493,13 @@ function CheckoutPage() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || !selectedAddressId || shippingLoading || blockedByClosure}
+            disabled={
+              submitting ||
+              (deliveryMethod === "delivery" && !selectedAddressId) ||
+              (deliveryMethod === "delivery" && !!shipping?.outOfRange) ||
+              shippingLoading ||
+              blockedByClosure
+            }
             className="flex items-center justify-center gap-2 rounded-full bg-sand-500 px-4 py-3.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:pointer-events-none disabled:opacity-60"
           >
             <ShoppingBag className="h-4.5 w-4.5" />
@@ -381,6 +507,16 @@ function CheckoutPage() {
           </button>
         </div>
       </div>
+
+      <DeliveryOutOfRangeModal
+        isOpen={outOfRangeModalOpen}
+        maxRadiusKm={shipping?.maxDeliveryRadiusKm ?? 8}
+        onClose={() => setOutOfRangeModalOpen(false)}
+        onSelectPickup={() => {
+          setDeliveryMethod("pickup");
+          setOutOfRangeModalOpen(false);
+        }}
+      />
     </div>
   );
 }

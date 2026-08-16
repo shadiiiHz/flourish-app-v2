@@ -28,12 +28,18 @@ export async function getSettings() {
 export interface ShippingEstimate {
   distanceKm: number;
   shippingCost: number;
+  outOfRange: boolean;
+  maxDeliveryRadiusKm: number;
 }
 
 export async function calculateShipping(lat: number, lng: number): Promise<ShippingEstimate> {
   const distanceKm = haversineKm(env.storeLat, env.storeLng, lat, lng);
   const settings = await getSettings();
-  const shippingCost =
-    distanceKm <= 5 ? settings.shippingCostUpTo5Km : settings.shippingCostOver5Km;
-  return { distanceKm, shippingCost };
+  const outOfRange = distanceKm > settings.maxDeliveryRadiusKm;
+  const shippingCost = outOfRange
+    ? 0
+    : distanceKm <= 5
+      ? settings.shippingCostUpTo5Km
+      : settings.shippingCostOver5Km;
+  return { distanceKm, shippingCost, outOfRange, maxDeliveryRadiusKm: settings.maxDeliveryRadiusKm };
 }

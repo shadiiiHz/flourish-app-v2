@@ -120,11 +120,33 @@ function OrdersPanel() {
                   </div>
                 ))}
               </div>
-              <div className="mt-2.5 flex items-center justify-between border-t border-sand-50 pt-2.5 text-sm">
-                <span className="font-bold text-cocoa-700">مجموع</span>
-                <span className="font-bold text-cocoa-900">
-                  {order.total.toLocaleString("fa-IR")} تومان
-                </span>
+              <div className="mt-2.5 flex flex-col gap-1 border-t border-sand-50 pt-2.5 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-cocoa-600">جمع کالا</span>
+                  <span className="font-semibold text-cocoa-900">
+                    {order.subtotal.toLocaleString("fa-IR")} تومان
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-cocoa-600">مالیات</span>
+                  <span className="font-semibold text-cocoa-900">
+                    {order.tax.toLocaleString("fa-IR")} تومان
+                  </span>
+                </div>
+                {order.deliveryMethod !== "pickup" && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-cocoa-600">هزینه ارسال</span>
+                    <span className="font-semibold text-cocoa-900">
+                      {order.shippingCost.toLocaleString("fa-IR")} تومان
+                    </span>
+                  </div>
+                )}
+                <div className="mt-1 flex items-center justify-between border-t border-sand-50 pt-1.5">
+                  <span className="font-bold text-cocoa-700">مجموع</span>
+                  <span className="font-bold text-cocoa-900">
+                    {order.total.toLocaleString("fa-IR")} تومان
+                  </span>
+                </div>
               </div>
             </div>
           ))}

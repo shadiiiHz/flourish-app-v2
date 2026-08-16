@@ -10,12 +10,14 @@ import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 interface FormValues {
   shippingCostUpTo5Km: string;
   shippingCostOver5Km: string;
+  maxDeliveryRadiusKm: string;
   siteClosed: boolean;
 }
 
 const EMPTY_FORM: FormValues = {
   shippingCostUpTo5Km: "0",
   shippingCostOver5Km: "0",
+  maxDeliveryRadiusKm: "8",
   siteClosed: false,
 };
 
@@ -26,6 +28,9 @@ const validationSchema = Yup.object({
   shippingCostOver5Km: Yup.number()
     .typeError("هزینه ارسال باید عدد باشد")
     .min(0, "هزینه ارسال نمی‌تواند منفی باشد"),
+  maxDeliveryRadiusKm: Yup.number()
+    .typeError("شعاع باید عدد باشد")
+    .min(1, "شعاع باید حداقل ۱ کیلومتر باشد"),
 });
 
 function AdminSettingsPage() {
@@ -43,6 +48,7 @@ function AdminSettingsPage() {
         await adminUpdateSettings({
           shippingCostUpTo5Km: Number(values.shippingCostUpTo5Km) || 0,
           shippingCostOver5Km: Number(values.shippingCostOver5Km) || 0,
+          maxDeliveryRadiusKm: Number(values.maxDeliveryRadiusKm) || 8,
           siteClosed: values.siteClosed,
         });
         setSuccess(true);
@@ -61,6 +67,7 @@ function AdminSettingsPage() {
           values: {
             shippingCostUpTo5Km: String(s.shippingCostUpTo5Km),
             shippingCostOver5Km: String(s.shippingCostOver5Km),
+            maxDeliveryRadiusKm: String(s.maxDeliveryRadiusKm),
             siteClosed: s.siteClosed,
           },
         }),
@@ -147,6 +154,29 @@ function AdminSettingsPage() {
               {formik.touched.shippingCostOver5Km && formik.errors.shippingCostOver5Km && (
                 <p className="mt-1 text-xs font-semibold text-danger-500">
                   {formik.errors.shippingCostOver5Km}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                شعاع محدوده سرویس‌دهی (کیلومتر)
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                name="maxDeliveryRadiusKm"
+                value={digitsOnly(formik.values.maxDeliveryRadiusKm)}
+                onChange={(e) => formik.setFieldValue("maxDeliveryRadiusKm", digitsOnly(e.target.value))}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+              />
+              <p className="mt-1 text-xs text-cocoa-500">
+                آدرس‌های خارج از این شعاع فقط می‌توانند مراجعه حضوری ثبت کنند.
+              </p>
+              {formik.touched.maxDeliveryRadiusKm && formik.errors.maxDeliveryRadiusKm && (
+                <p className="mt-1 text-xs font-semibold text-danger-500">
+                  {formik.errors.maxDeliveryRadiusKm}
                 </p>
               )}
             </div>

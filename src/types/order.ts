@@ -25,6 +25,8 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 
 export type OrderType = "instant" | "preorder";
 
+export type DeliveryMethod = "delivery" | "pickup";
+
 export interface OrderItem {
   id: string;
   title: string;
@@ -39,6 +41,7 @@ export interface Order {
   customerName?: string | null;
   status: OrderStatus;
   orderType: OrderType;
+  deliveryMethod: DeliveryMethod;
   scheduledDate?: string | null;
   scheduledTimeSlot?: string | null;
   addressText?: string | null;
