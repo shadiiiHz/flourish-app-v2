@@ -23,6 +23,7 @@ import {
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import ConfirmModal from "@/components/ConfirmModal";
+import { formatOrderNumber } from "@/lib/orderNumber";
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -128,6 +129,12 @@ function AdminOrdersPage() {
 
   const columns = useMemo<GridColDef<AdminOrder>[]>(
     () => [
+      {
+        field: "orderNumber",
+        headerName: "شماره سفارش",
+        width: 130,
+        valueGetter: (_, row) => formatOrderNumber(row.orderNumber),
+      },
       {
         field: "customer",
         headerName: "مشتری",
@@ -298,7 +305,8 @@ function AdminOrdersPage() {
         {selectedOrder && (
           <>
             <DialogTitle className="font-display text-cocoa-900">
-              سفارش {selectedOrder.customerName || "بدون نام"}
+              سفارش {formatOrderNumber(selectedOrder.orderNumber)} —{" "}
+              {selectedOrder.customerName || "مهمان"}
             </DialogTitle>
             <DialogContent dividers>
               {selectedOrder.orderType === "preorder" && selectedOrder.scheduledDate && (

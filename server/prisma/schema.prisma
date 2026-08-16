@@ -136,6 +136,10 @@ model Address {
 
 model Order {
   id                String         @id @default(cuid())
+  /**
+   * Short, human-facing, DB-guaranteed-unique order number — display as #<orderNumber>.
+   */
+  orderNumber       Int            @unique @default(autoincrement())
   customerId        String?
   customer          Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerPhone     String

@@ -8,6 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { getOrder } from "@/lib/api";
 import type { Order } from "@/types/order";
 import Preloader from "@/components/Preloader";
+import { formatOrderNumber } from "@/lib/orderNumber";
 
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
@@ -64,7 +65,7 @@ function CheckoutResultContent() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-cocoa-600">شماره سفارش</span>
                 <span dir="ltr" className="font-semibold text-cocoa-900">
-                  {order.id}
+                  {formatOrderNumber(order.orderNumber)}
                 </span>
               </div>
               <div className="mt-1.5 flex items-center justify-between text-sm">

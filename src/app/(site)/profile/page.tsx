@@ -21,6 +21,7 @@ import { normalizeDigits, PHONE_REGEX, toPersianDigits } from "@/utils/phone";
 import { getMyOrders } from "@/lib/api";
 import { ORDER_STATUS_LABELS, type Order } from "@/types/order";
 import { formatPreorderDateWithWeekday } from "@/lib/preorder";
+import { formatOrderNumber } from "@/lib/orderNumber";
 import AddressesPanel from "@/components/AddressesPanel";
 import ChangePasswordPanel from "@/components/ChangePasswordPanel";
 import Preloader from "@/components/Preloader";
@@ -86,9 +87,14 @@ function OrdersPanel() {
               className="rounded-2xl border border-sand-100 p-4"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-cocoa-500">
-                  {new Date(order.createdAt).toLocaleDateString("fa-IR")}
-                </span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-bold text-cocoa-900">
+                    سفارش {formatOrderNumber(order.orderNumber)}
+                  </span>
+                  <span className="text-xs text-cocoa-500">
+                    {new Date(order.createdAt).toLocaleDateString("fa-IR")}
+                  </span>
+                </div>
                 <span className="rounded-full bg-sand-50 px-3 py-1 text-xs font-bold text-sand-500">
                   {ORDER_STATUS_LABELS[order.status]}
                 </span>

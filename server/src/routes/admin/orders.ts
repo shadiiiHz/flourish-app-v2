@@ -26,13 +26,22 @@ adminOrdersRouter.get(
       conditions.push({ status: status as (typeof ORDER_STATUSES)[number] });
     }
     if (search) {
-      conditions.push({
-        OR: [
-          { customerName: { contains: search, mode: "insensitive" as const } },
-          { customerPhone: { contains: search, mode: "insensitive" as const } },
-          { id: { contains: search, mode: "insensitive" as const } },
-        ],
-      });
+      const or: object[] = [
+        { customerName: { contains: search, mode: "insensitive" as const } },
+        { customerPhone: { contains: search, mode: "insensitive" as const } },
+        { id: { contains: search, mode: "insensitive" as const } },
+      ];
+      // Order numbers are searched as "FL-000123", "000123", or plain "123" — strip
+      // everything but digits and match the underlying integer (orderNumber is an Int
+      // column, so this can't be a Prisma `contains` the way the string fields above are).
+      const orderNumberDigits = search.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+      if (orderNumberDigits) {
+        const orderNumber = Number(orderNumberDigits);
+        if (Number.isSafeInteger(orderNumber)) {
+          or.push({ orderNumber });
+        }
+      }
+      conditions.push({ OR: or });
     }
     const where = conditions.length > 0 ? { AND: conditions } : undefined;
 
