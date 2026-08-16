@@ -23,6 +23,8 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   failed: "پرداخت ناموفق",
 };
 
+export type OrderType = "instant" | "preorder";
+
 export interface OrderItem {
   id: string;
   title: string;
@@ -36,6 +38,9 @@ export interface Order {
   customerPhone: string;
   customerName?: string | null;
   status: OrderStatus;
+  orderType: OrderType;
+  scheduledDate?: string | null;
+  scheduledTimeSlot?: string | null;
   addressText?: string | null;
   distanceKm?: number | null;
   subtotal: number;

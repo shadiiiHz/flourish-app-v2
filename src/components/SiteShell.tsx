@@ -9,6 +9,8 @@ import CartDrawer from "@/components/CartDrawer";
 import CartToast from "@/components/CartToast";
 import AuthModal from "@/components/AuthModal";
 import AuthToast from "@/components/AuthToast";
+import PreorderBanner from "@/components/PreorderBanner";
+import OrderTypeModal from "@/components/OrderTypeModal";
 import { useCart } from "@/context/CartContext";
 
 function CartOverlay() {
@@ -35,7 +37,10 @@ export default function SiteShell({ children }: { children: ReactNode }) {
       />
 
       <div className="relative z-10">
-        <Header />
+        <div id="site-header" className="sticky top-0 z-50">
+          <PreorderBanner />
+          <Header />
+        </div>
         <main>{children}</main>
         <Footer />
       </div>
@@ -43,6 +48,7 @@ export default function SiteShell({ children }: { children: ReactNode }) {
       <CartOverlay />
       <AuthModal />
       <AuthToast />
+      <OrderTypeModal />
     </div>
   );
 }

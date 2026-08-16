@@ -9,6 +9,7 @@ import DialogContent from "@mui/material/DialogContent";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Tooltip from "@mui/material/Tooltip";
 import {
   ApiError,
   adminBulkDeleteOrders,
@@ -135,7 +136,7 @@ function AdminOrdersPage() {
         renderCell: ({ row }) => (
           <div className="py-1.5">
             <p className="font-semibold text-cocoa-900">
-              {row.customerName || "مهمان"}
+              {row.customerName || "بدون نام"}
             </p>
             <p className="text-xs text-cocoa-500" dir="ltr">
               {row.customerPhone}
@@ -149,6 +150,32 @@ function AdminOrdersPage() {
         width: 170,
         valueGetter: (_, row) =>
           new Date(row.createdAt).toLocaleString("fa-IR"),
+      },
+      {
+        field: "orderType",
+        headerName: "نوع سفارش",
+        width: 130,
+        renderCell: ({ row }) =>
+          row.orderType === "preorder" ? (
+            <Tooltip
+              title={
+                row.scheduledDate
+                  ? `پیش‌سفارش برای ${new Date(row.scheduledDate).toLocaleDateString("fa-IR", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                    })}${row.scheduledTimeSlot ? ` — ساعت ${row.scheduledTimeSlot}` : ""}`
+                  : "پیش‌سفارش"
+              }
+              arrow
+            >
+              <span className="cursor-default rounded-full bg-sand-100 px-3 py-1 text-xs font-bold text-cocoa-900">
+                پیش‌سفارش
+              </span>
+            </Tooltip>
+          ) : (
+            <span className="text-xs text-cocoa-500">فوری</span>
+          ),
       },
       {
         field: "total",
@@ -274,6 +301,18 @@ function AdminOrdersPage() {
               سفارش {selectedOrder.customerName || "مهمان"}
             </DialogTitle>
             <DialogContent dividers>
+              {selectedOrder.orderType === "preorder" && selectedOrder.scheduledDate && (
+                <div className="mb-3 rounded-xl bg-sand-50 p-3 text-sm font-semibold text-cocoa-900">
+                  پیش‌سفارش برای{" "}
+                  {new Date(selectedOrder.scheduledDate).toLocaleDateString("fa-IR", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                  {selectedOrder.scheduledTimeSlot &&
+                    ` — ساعت ${selectedOrder.scheduledTimeSlot}`}
+                </div>
+              )}
               <div className="flex flex-col gap-2">
                 {selectedOrder.items.map((item) => (
                   <div

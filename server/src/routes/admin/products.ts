@@ -30,6 +30,8 @@ const productSchema = z.object({
   discountPercent: z.number().int().min(0).max(100).optional(),
   stock: z.number().int().nonnegative().optional(),
   isNew: z.boolean().optional(),
+  isAvailable: z.boolean().optional(),
+  allowPreorder: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   variants: z.array(variantSchema).optional(),
 });

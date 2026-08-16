@@ -13,11 +13,10 @@ function Header() {
 
   return (
     <motion.header
-      id="site-header"
       initial={{ opacity: 0, y: -24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="sticky top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-5"
+      className="px-3 pt-3 sm:px-6 sm:pt-5"
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-full border border-white/40 bg-white/40 px-3 py-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(138,84,39,0.25)] backdrop-blur-2xl backdrop-saturate-150 sm:px-6 sm:py-3">
         {/* Logo + nav — right side in RTL */}

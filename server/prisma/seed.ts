@@ -20,7 +20,7 @@ const CATEGORIES: CategorySeed[] = [
     tab: "bakery",
     title: "کیک",
     image: "/seed/mainCat/cake.svg",
-    note: "تمام شیرینی های فرانسوی از ۴۸ ساعت قبل به صورت کیک در سایزهای مختلف قابل سفارش هستند",
+    note: "تمام آیتم های پیستری از ۴۸ ساعت قبل به صورت کیک در سایزهای مختلف قابل سفارش هستند",
   },
   { slug: "custom", tab: "bakery", title: "آیتم‌های سفارشی", image: "/seed/mainCat/order.svg" },
   { slug: "sourdough", tab: "bakery", title: "نان خمیر ترش", image: "/seed/mainCat/bread.svg" },

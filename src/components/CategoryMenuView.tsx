@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Clock, MapPin, Phone } from "lucide-react";
+import { CalendarClock, Clock, MapPin, Phone } from "lucide-react";
 import { siteConfig, type Category, type CategoryTab, type CategoryTabId } from "@/config/siteConfig";
 import ProductCard from "@/components/ProductCard";
+import { useOrderType } from "@/context/OrderTypeContext";
+import { formatPreorderDateWithWeekday } from "@/lib/preorder";
 
 const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
 const toPersianDigits = (value: string) =>
@@ -19,6 +21,8 @@ interface CategoryMenuViewProps {
 }
 
 function CategoryMenuView({ tabs, categoriesByTab }: CategoryMenuViewProps) {
+  const { orderType, preorder, openModal } = useOrderType();
+  const hasPreorder = orderType === "preorder" && !!preorder;
   const flatCategories = useMemo(
     () =>
       tabs.flatMap((tab) =>
@@ -203,6 +207,17 @@ function CategoryMenuView({ tabs, categoriesByTab }: CategoryMenuViewProps) {
                 </button>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={openModal}
+              className="mt-2 flex items-center gap-1.5 rounded-full bg-sand-500 px-5 py-2.5 text-xs font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 sm:text-sm"
+            >
+              <CalendarClock className="h-4 w-4 shrink-0" />
+              {hasPreorder
+                ? `پیش‌سفارش: ${formatPreorderDateWithWeekday(preorder.date)} ساعت ${preorder.timeSlot}`
+                : "ثبت پیش‌سفارش"}
+            </button>
           </div>
         </div>
       </section>

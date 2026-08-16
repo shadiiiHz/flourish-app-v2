@@ -11,12 +11,21 @@ import { env } from "../lib/env.js";
 export const ordersRouter = Router();
 
 const TAX_RATE = 0.1;
+const MAX_PREORDER_DAYS_AHEAD = 10;
 
-const createOrderSchema = z.object({
-  addressId: z.string().min(1),
-  customerName: z.string().optional(),
-  note: z.string().optional(),
-});
+const createOrderSchema = z
+  .object({
+    addressId: z.string().min(1),
+    customerName: z.string().optional(),
+    note: z.string().optional(),
+    orderType: z.enum(["instant", "preorder"]).optional().default("instant"),
+    scheduledDate: z.string().optional(),
+    scheduledTimeSlot: z.string().optional(),
+  })
+  .refine(
+    (data) => data.orderType !== "preorder" || (data.scheduledDate && data.scheduledTimeSlot),
+    { message: "تاریخ و ساعت پیش‌سفارش الزامی است" },
+  );
 
 ordersRouter.post(
   "/",
@@ -27,8 +36,21 @@ ordersRouter.post(
       res.status(400).json({ error: "اطلاعات سفارش نامعتبر است" });
       return;
     }
-    const { addressId, customerName, note } = parsed.data;
+    const { addressId, customerName, note, orderType, scheduledTimeSlot } = parsed.data;
     const { sub: customerId, phone: customerPhone } = req.customer!;
+
+    let scheduledDate: Date | undefined;
+    if (orderType === "preorder") {
+      scheduledDate = new Date(parsed.data.scheduledDate!);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const maxDate = new Date(today);
+      maxDate.setDate(maxDate.getDate() + MAX_PREORDER_DAYS_AHEAD);
+      if (Number.isNaN(scheduledDate.getTime()) || scheduledDate < today || scheduledDate > maxDate) {
+        res.status(400).json({ error: "تاریخ پیش‌سفارش نامعتبر است" });
+        return;
+      }
+    }
 
     const address = await prisma.address.findFirst({
       where: { id: addressId, customerId },
@@ -49,6 +71,20 @@ ordersRouter.post(
     if (cartItems.length === 0) {
       res.status(400).json({ error: "سبد خرید خالی است" });
       return;
+    }
+    const unavailableItem = cartItems.find((item) => !item.product.isAvailable);
+    if (unavailableItem) {
+      res.status(400).json({ error: `«${unavailableItem.product.title}» دیگر موجود نیست` });
+      return;
+    }
+    if (orderType === "preorder") {
+      const notPreorderable = cartItems.find((item) => !item.product.allowPreorder);
+      if (notPreorderable) {
+        res
+          .status(400)
+          .json({ error: `«${notPreorderable.product.title}» قابل پیش‌سفارش نیست` });
+        return;
+      }
     }
 
     const orderItems = cartItems.map((item) => {
@@ -74,6 +110,9 @@ ordersRouter.post(
         customerPhone,
         customerName,
         note,
+        orderType,
+        scheduledDate,
+        scheduledTimeSlot: orderType === "preorder" ? scheduledTimeSlot : undefined,
         addressId: address.id,
         addressText: [address.address, address.details].filter(Boolean).join(" — "),
         distanceKm,

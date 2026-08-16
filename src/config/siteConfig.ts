@@ -34,6 +34,8 @@ export interface MenuItem {
   servingSize?: string
   discountPercent?: number
   stock?: number
+  isAvailable: boolean
+  allowPreorder: boolean
   variants?: MenuItemVariant[]
 }
 

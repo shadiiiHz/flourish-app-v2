@@ -11,7 +11,7 @@ import type {
   AdminOrder,
   AdminProduct,
 } from "../types/admin";
-import type { Order, OrderStatus } from "../types/order";
+import type { Order, OrderStatus, OrderType } from "../types/order";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -104,6 +104,8 @@ interface ApiProduct {
   servingSize?: string | null;
   discountPercent?: number | null;
   stock?: number | null;
+  isAvailable: boolean;
+  allowPreorder: boolean;
   variants: ApiVariant[];
 }
 
@@ -146,6 +148,8 @@ function mapProduct(p: ApiProduct, categoryTitle: string): MenuItem {
     servingSize: p.servingSize ?? undefined,
     discountPercent: p.discountPercent ?? undefined,
     stock: p.stock ?? undefined,
+    isAvailable: p.isAvailable,
+    allowPreorder: p.allowPreorder,
     variants: p.variants.length > 0 ? p.variants.map(mapVariant) : undefined,
   };
 }
@@ -361,6 +365,9 @@ export interface CreateOrderPayload {
   addressId: string;
   customerName?: string;
   note?: string;
+  orderType?: OrderType;
+  scheduledDate?: string;
+  scheduledTimeSlot?: string;
 }
 
 export interface CreateOrderResult {

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { Minus, Plus, X } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useOrderType } from "../context/OrderTypeContext";
 import { getDiscountedPrice, type MenuItem } from "../config/siteConfig";
 import { toPersianDigits } from "../lib/formatNumber";
 import MarqueeText from "./MarqueeText";
@@ -21,8 +22,10 @@ function CartVariantModal({
   onClose: () => void;
 }) {
   const { getQuantity, addToCart, setQuantity, lineKeyFor, totalCount, openCart } = useCart();
+  const { orderType } = useOrderType();
   const variants = item.variants ?? [];
   const hasDiscount = !!item.discountPercent;
+  const isUnorderable = !item.isAvailable || (orderType === "preorder" && !item.allowPreorder);
 
   const productCount = variants.reduce(
     (sum, variant) => sum + getQuantity(item.id, variant.id),
@@ -100,6 +103,12 @@ function CartVariantModal({
           </button>
         </div>
 
+        {isUnorderable && (
+          <p className="mx-5 mt-4 rounded-xl bg-danger-50 p-3 text-center text-xs font-semibold text-danger-500 sm:mx-6">
+            {!item.isAvailable ? "این محصول در حال حاضر ناموجود است" : "این محصول قابل پیش‌سفارش نیست"}
+          </p>
+        )}
+
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5 sm:p-6">
           {variants.map((variant) => {
             const quantity = getQuantity(item.id, variant.id);
@@ -171,7 +180,7 @@ function CartVariantModal({
                     <button
                       type="button"
                       aria-label="افزایش تعداد"
-                      disabled={atMax}
+                      disabled={atMax || isUnorderable}
                       onClick={() => addToCart(item, variant, 1)}
                       className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-cocoa-700 shadow-sm transition active:scale-95 disabled:opacity-40"
                     >
@@ -181,7 +190,7 @@ function CartVariantModal({
                 ) : (
                   <button
                     type="button"
-                    disabled={outOfStock}
+                    disabled={outOfStock || isUnorderable}
                     onClick={() => addToCart(item, variant, 1)}
                     className="flex shrink-0 items-center gap-1 rounded-full bg-sand-400 px-3.5 py-2 text-xs font-bold text-white shadow-[0_10px_20px_-8px_rgba(186,107,38,0.6)] transition-transform hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-40 sm:text-sm"
                   >

@@ -42,6 +42,8 @@ interface FormValues {
   discountPercent: string;
   stock: string;
   isNew: boolean;
+  isAvailable: boolean;
+  allowPreorder: boolean;
   sortOrder: string;
   variants: AdminVariant[];
 }
@@ -59,6 +61,8 @@ const EMPTY_FORM: FormValues = {
   discountPercent: "",
   stock: "",
   isNew: false,
+  isAvailable: true,
+  allowPreorder: true,
   sortOrder: "",
   variants: [],
 };
@@ -202,6 +206,8 @@ function AdminProductsPage() {
             : undefined,
           stock: values.stock ? Number(values.stock) : undefined,
           isNew: values.isNew,
+          isAvailable: values.isAvailable,
+          allowPreorder: values.allowPreorder,
           sortOrder: Number(values.sortOrder) || 0,
           variants: values.variants
             .filter((v) => v.title.trim())
@@ -258,6 +264,8 @@ function AdminProductsPage() {
           p.discountPercent != null ? String(p.discountPercent) : "",
         stock: p.stock != null ? String(p.stock) : "",
         isNew: p.isNew,
+        isAvailable: p.isAvailable,
+        allowPreorder: p.allowPreorder,
         sortOrder: String(p.sortOrder),
         variants: p.variants,
       },
@@ -379,6 +387,24 @@ function AdminProductsPage() {
         headerName: "موجودی",
         width: 100,
         valueGetter: (_, row) => row.stock ?? "نامحدود",
+      },
+      {
+        field: "isAvailable",
+        headerName: "وضعیت",
+        width: 110,
+        align: "center",
+        headerAlign: "center",
+        renderCell: ({ row }) => (
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ${
+              row.isAvailable
+                ? "bg-sand-50 text-sand-500"
+                : "bg-danger-50 text-danger-500"
+            }`}
+          >
+            {row.isAvailable ? "موجود" : "ناموجود"}
+          </span>
+        ),
       },
       {
         field: "actions",
@@ -648,6 +674,26 @@ function AdminProductsPage() {
               className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
             />
             نمایش در «آیتم‌های جدید»
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+            <input
+              type="checkbox"
+              name="isAvailable"
+              checked={formik.values.isAvailable}
+              onChange={formik.handleChange}
+              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+            />
+            موجود و قابل سفارش در سایت
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+            <input
+              type="checkbox"
+              name="allowPreorder"
+              checked={formik.values.allowPreorder}
+              onChange={formik.handleChange}
+              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+            />
+            قابل پیش‌سفارش
           </label>
         </div>
 

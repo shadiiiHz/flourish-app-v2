@@ -1,6 +1,6 @@
 import type { Order } from "./order";
 
-export type { OrderStatus, OrderItem as AdminOrderItem, PaymentStatus } from "./order";
+export type { OrderStatus, OrderItem as AdminOrderItem, OrderType, PaymentStatus } from "./order";
 export { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "./order";
 
 export type CategoryTabId = "bakery" | "drinks";
@@ -40,6 +40,8 @@ export interface AdminProduct {
   discountPercent?: number | null;
   stock?: number | null;
   isNew: boolean;
+  isAvailable: boolean;
+  allowPreorder: boolean;
   sortOrder: number;
   variants: AdminVariant[];
 }

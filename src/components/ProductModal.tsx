@@ -7,6 +7,7 @@ import { Minus, Plus, X } from "lucide-react";
 import ProductImageSlider from "./ProductImageSlider";
 import CartVariantModal from "./CartVariantModal";
 import { useCart } from "../context/CartContext";
+import { useOrderType } from "../context/OrderTypeContext";
 import { getDiscountedPrice, type MenuItem } from "../config/siteConfig";
 import { toPersianDigits } from "../lib/formatNumber";
 
@@ -21,6 +22,7 @@ function ProductModal({
 }) {
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const { addToCart, notify, getQuantity, setQuantity, lineKeyFor } = useCart();
+  const { orderType } = useOrderType();
   const hasDiscount = !!item.discountPercent && item.price > 0;
   const finalPrice = hasDiscount
     ? getDiscountedPrice(item.price, item.discountPercent)
@@ -29,6 +31,8 @@ function ProductModal({
   const cartQuantity = getQuantity(item.id);
   const outOfStock = !hasVariants && item.stock === 0;
   const atMax = !hasVariants && item.stock !== undefined && cartQuantity >= item.stock;
+  const notPreorderable = orderType === "preorder" && !item.allowPreorder;
+  const isUnorderable = !item.isAvailable || notPreorderable;
 
   const handleAddClick = () => {
     if (hasVariants) {
@@ -147,9 +151,13 @@ function ProductModal({
                 </span>
               )}
               <span className="text-lg font-bold text-sand-400">
-                {item.price > 0
-                  ? `${finalPrice.toLocaleString("fa-IR")} تومان`
-                  : "به‌زودی"}
+                {!item.isAvailable
+                  ? "ناموجود"
+                  : notPreorderable
+                    ? "غیرقابل پیش‌سفارش"
+                    : item.price > 0
+                      ? `${finalPrice.toLocaleString("fa-IR")} تومان`
+                      : "به‌زودی"}
               </span>
             </div>
             {!hasVariants && cartQuantity > 0 ? (
@@ -168,7 +176,7 @@ function ProductModal({
                 <button
                   type="button"
                   aria-label="افزایش تعداد"
-                  disabled={atMax}
+                  disabled={atMax || isUnorderable}
                   onClick={() => addToCart(item)}
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-cocoa-700 shadow-sm transition active:scale-95 disabled:opacity-40"
                 >
@@ -180,7 +188,7 @@ function ProductModal({
                 type="button"
                 aria-label={`افزودن ${item.title}`}
                 onClick={handleAddClick}
-                disabled={outOfStock || atMax}
+                disabled={outOfStock || atMax || isUnorderable}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sand-400 text-white shadow-[0_10px_20px_-8px_rgba(186,107,38,0.6)] transition-transform hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
               >
                 <Plus className="h-5 w-5" />

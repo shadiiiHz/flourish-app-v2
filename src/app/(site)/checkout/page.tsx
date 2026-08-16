@@ -6,9 +6,11 @@ import { CreditCard, MapPin, Pencil, Plus, ShoppingBag, SquarePen, User } from "
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useAddresses, type Address } from "@/context/AddressContext";
+import { useOrderType } from "@/context/OrderTypeContext";
 import { ApiError, createOrder, getShippingEstimate } from "@/lib/api";
 import AddressModal from "@/components/AddressModal";
 import Preloader from "@/components/Preloader";
+import { formatPreorderDateLong } from "@/lib/preorder";
 
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
@@ -23,6 +25,7 @@ function CheckoutPage() {
   const { lines, totalCount, totalPrice, taxAmount, closeCart } = useCart();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { addresses, isLoading: addressesLoading, updateAddress } = useAddresses();
+  const { orderType, preorder, openModal, setInstant } = useOrderType();
 
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -110,6 +113,10 @@ function CheckoutPage() {
       setError("لطفاً یک آدرس برای ارسال انتخاب کنید");
       return;
     }
+    if (orderType === "preorder" && !preorder) {
+      setError("لطفاً تاریخ و ساعت پیش‌سفارش را انتخاب کنید");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -118,7 +125,11 @@ function CheckoutPage() {
         addressId: selectedAddressId,
         customerName,
         note: note.trim() || undefined,
+        orderType,
+        scheduledDate: orderType === "preorder" ? preorder?.date : undefined,
+        scheduledTimeSlot: orderType === "preorder" ? preorder?.timeSlot : undefined,
       });
+      setInstant();
       window.location.href = paymentUrl;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "ثبت سفارش با خطا مواجه شد");
@@ -137,6 +148,26 @@ function CheckoutPage() {
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_320px] md:gap-6">
         <div className="flex flex-col gap-5">
+          {orderType === "preorder" && preorder && (
+            <GlassCard>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-display text-base font-bold text-sand-500">پیش‌سفارش</h2>
+                <button
+                  type="button"
+                  onClick={openModal}
+                  aria-label="ویرایش پیش‌سفارش"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-sand-100 bg-white text-cocoa-700 transition hover:bg-sand-50"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <p className="mt-2 text-sm leading-7 text-cocoa-700">
+                این سفارش در تاریخ {formatPreorderDateLong(preorder.date)} ساعت{" "}
+                {preorder.timeSlot} آماده‌سازی و تحویل خواهد شد.
+              </p>
+            </GlassCard>
+          )}
+
           <GlassCard>
             <div className="flex items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cocoa-900">

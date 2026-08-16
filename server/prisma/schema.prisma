@@ -27,6 +27,11 @@ enum PaymentStatus {
   failed
 }
 
+enum OrderType {
+  instant
+  preorder
+}
+
 model Category {
   id        String      @id @default(cuid())
   slug      String      @unique
@@ -54,6 +59,8 @@ model Product {
   discountPercent Int?
   stock           Int?
   isNew           Boolean          @default(false)
+  isAvailable     Boolean          @default(true)
+  allowPreorder   Boolean          @default(true)
   sortOrder       Int              @default(0)
   variants        ProductVariant[]
   orderItems      OrderItem[]
@@ -129,6 +136,9 @@ model Order {
   customerPhone     String
   customerName      String?
   status            OrderStatus   @default(pending)
+  orderType         OrderType     @default(instant)
+  scheduledDate     DateTime?
+  scheduledTimeSlot String?
   addressId         String?
   address           Address?      @relation(fields: [addressId], references: [id], onDelete: SetNull)
   addressText       String?
