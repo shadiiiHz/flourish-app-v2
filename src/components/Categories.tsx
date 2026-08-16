@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Category, CategoryTab, CategoryTabId } from "../config/siteConfig";
 
 const containerVariants = {
@@ -164,6 +164,17 @@ function Categories({ tabs, categoriesByTab }: CategoriesProps) {
               </button>
             </>
           )}
+        </div>
+
+        <div className="mt-10 flex justify-center">
+          <button
+            type="button"
+            onClick={() => router.push("/menu")}
+            className="flex items-center gap-1.5 rounded-full bg-sand-500 px-6 py-3 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95"
+          >
+            مشاهده منو
+            <ArrowLeft className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </section>

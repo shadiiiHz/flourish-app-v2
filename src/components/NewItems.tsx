@@ -61,7 +61,7 @@ function NewItems({ items }: NewItemsProps) {
   };
 
   return (
-    <section className="relative px-3 py-12 sm:px-6">
+    <section className="relative px-3 py-8 sm:px-6">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex items-center justify-between sm:mb-10">
           <h2 className="font-display text-xl font-bold text-cocoa-900 sm:text-2xl">
