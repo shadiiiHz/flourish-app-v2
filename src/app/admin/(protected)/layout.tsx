@@ -83,7 +83,7 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
         }}
       />
 
-      <div className="relative z-10 mx-auto flex min-h-svh max-w-7xl">
+      <div className="relative z-10 mx-auto flex min-h-svh w-full">
         <aside
           className={`relative hidden shrink-0 flex-col gap-1 border-l border-white/40 bg-white/80 py-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_30px_60px_-30px_rgba(74,44,18,0.35)] backdrop-blur-2xl backdrop-saturate-150 transition-[width] duration-300 md:flex ${
             collapsed ? "w-20 px-2" : "w-64 px-4"
