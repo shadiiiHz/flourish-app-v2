@@ -8,6 +8,7 @@ import ProductImageSlider from "./ProductImageSlider";
 import CartVariantModal from "./CartVariantModal";
 import { useCart } from "../context/CartContext";
 import { getDiscountedPrice, type MenuItem } from "../config/siteConfig";
+import { toPersianDigits } from "../lib/formatNumber";
 
 function ProductModal({
   item,
@@ -120,19 +121,19 @@ function ProductModal({
               {item.weight && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold text-cocoa-700">وزن</span>
-                  <span className="text-cocoa-600">{item.weight}</span>
+                  <span className="text-cocoa-600">{toPersianDigits(item.weight)}</span>
                 </div>
               )}
               {item.servingSize && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold text-cocoa-700">مناسب برای</span>
-                  <span className="text-cocoa-600">{item.servingSize}</span>
+                  <span className="text-cocoa-600">{toPersianDigits(item.servingSize)}</span>
                 </div>
               )}
               {item.ingredients && (
                 <div className="text-sm leading-6">
                   <span className="font-semibold text-cocoa-700">ترکیبات: </span>
-                  <span className="text-cocoa-600">{item.ingredients}</span>
+                  <span className="text-cocoa-600">{toPersianDigits(item.ingredients)}</span>
                 </div>
               )}
             </div>

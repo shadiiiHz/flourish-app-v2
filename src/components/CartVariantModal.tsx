@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Minus, Plus, X } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { getDiscountedPrice, type MenuItem } from "../config/siteConfig";
+import { toPersianDigits } from "../lib/formatNumber";
 import MarqueeText from "./MarqueeText";
 
 const placeholder = "/assets/placeholder.png";
@@ -133,7 +134,10 @@ function CartVariantModal({
                   </h4>
                   {(variantDescription || variant.weight) && (
                     <MarqueeText
-                      text={[variantDescription, variant.weight && `وزن: ${variant.weight}`]
+                      text={[
+                        variantDescription,
+                        variant.weight && `وزن: ${toPersianDigits(variant.weight)}`,
+                      ]
                         .filter(Boolean)
                         .join("، ")}
                       className="text-xs text-cocoa-500"
