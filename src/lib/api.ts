@@ -556,13 +556,12 @@ export function adminBulkDeleteCustomers(ids: string[]) {
 /* Site status (public)                                                */
 /* ------------------------------------------------------------------ */
 
-/** How fresh the site-closed banner is allowed to be — an operational toggle, so kept short. */
-const SITE_STATUS_REVALIDATE_SECONDS = 30;
-
 export async function getSiteStatus(): Promise<{ siteClosed: boolean }> {
   try {
+    // An operational toggle — never served stale from the SSR data cache;
+    // the client also polls this directly to catch admin changes mid-session.
     return await apiFetch<{ siteClosed: boolean }>("/api/settings/status", {
-      next: { revalidate: SITE_STATUS_REVALIDATE_SECONDS, tags: ["site-status"] },
+      next: { revalidate: 0 },
     });
   } catch {
     return { siteClosed: false };
