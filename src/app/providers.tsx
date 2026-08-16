@@ -11,11 +11,11 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <AddressProvider>
-        <CartProvider>
-          <OrderTypeProvider>
+        <OrderTypeProvider>
+          <CartProvider>
             <AdminAuthProvider>{children}</AdminAuthProvider>
-          </OrderTypeProvider>
-        </CartProvider>
+          </CartProvider>
+        </OrderTypeProvider>
       </AddressProvider>
     </AuthProvider>
   );

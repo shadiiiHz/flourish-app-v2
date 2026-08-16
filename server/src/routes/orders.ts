@@ -12,6 +12,7 @@ export const ordersRouter = Router();
 
 const TAX_RATE = 0.1;
 const MAX_PREORDER_DAYS_AHEAD = 10;
+const MIN_PREORDER_DAYS_AHEAD = 2;
 
 const createOrderSchema = z
   .object({
@@ -44,9 +45,11 @@ ordersRouter.post(
       scheduledDate = new Date(parsed.data.scheduledDate!);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + MIN_PREORDER_DAYS_AHEAD);
       const maxDate = new Date(today);
-      maxDate.setDate(maxDate.getDate() + MAX_PREORDER_DAYS_AHEAD);
-      if (Number.isNaN(scheduledDate.getTime()) || scheduledDate < today || scheduledDate > maxDate) {
+      maxDate.setDate(maxDate.getDate() + MIN_PREORDER_DAYS_AHEAD + MAX_PREORDER_DAYS_AHEAD - 1);
+      if (Number.isNaN(scheduledDate.getTime()) || scheduledDate < minDate || scheduledDate > maxDate) {
         res.status(400).json({ error: "تاریخ پیش‌سفارش نامعتبر است" });
         return;
       }
@@ -72,17 +75,19 @@ ordersRouter.post(
       res.status(400).json({ error: "سبد خرید خالی است" });
       return;
     }
-    const unavailableItem = cartItems.find((item) => !item.product.isAvailable);
-    if (unavailableItem) {
-      res.status(400).json({ error: `«${unavailableItem.product.title}» دیگر موجود نیست` });
-      return;
-    }
     if (orderType === "preorder") {
+      // Preorder availability depends only on allowPreorder — general isAvailable/stock don't apply.
       const notPreorderable = cartItems.find((item) => !item.product.allowPreorder);
       if (notPreorderable) {
         res
           .status(400)
           .json({ error: `«${notPreorderable.product.title}» قابل پیش‌سفارش نیست` });
+        return;
+      }
+    } else {
+      const unavailableItem = cartItems.find((item) => !item.product.isAvailable);
+      if (unavailableItem) {
+        res.status(400).json({ error: `«${unavailableItem.product.title}» دیگر موجود نیست` });
         return;
       }
     }

@@ -333,10 +333,12 @@ export interface AddCartItemPayload {
   productId: string;
   variantId?: string;
   quantity?: number;
+  orderType?: OrderType;
 }
 
-export function getMyCart() {
-  return apiFetch<ApiCartItem[]>("/api/customers/me/cart");
+export function getMyCart(orderType?: OrderType) {
+  const query = orderType ? `?orderType=${orderType}` : "";
+  return apiFetch<ApiCartItem[]>(`/api/customers/me/cart${query}`);
 }
 
 export function addMyCartItem(payload: AddCartItemPayload) {
@@ -346,10 +348,10 @@ export function addMyCartItem(payload: AddCartItemPayload) {
   });
 }
 
-export function updateMyCartItem(id: string, quantity: number) {
+export function updateMyCartItem(id: string, quantity: number, orderType?: OrderType) {
   return apiFetch<ApiCartItem>(`/api/customers/me/cart/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ quantity }),
+    body: JSON.stringify({ quantity, orderType }),
   });
 }
 

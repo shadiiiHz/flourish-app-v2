@@ -25,7 +25,10 @@ function CartVariantModal({
   const { orderType } = useOrderType();
   const variants = item.variants ?? [];
   const hasDiscount = !!item.discountPercent;
-  const isUnorderable = !item.isAvailable || (orderType === "preorder" && !item.allowPreorder);
+  const notPreorderable = orderType === "preorder" && !item.allowPreorder;
+  // Preorderable products are always available with unlimited inventory in preorder mode.
+  const unlimitedPreorder = orderType === "preorder" && item.allowPreorder;
+  const isUnorderable = unlimitedPreorder ? false : !item.isAvailable || notPreorderable;
 
   const productCount = variants.reduce(
     (sum, variant) => sum + getQuantity(item.id, variant.id),
@@ -115,8 +118,8 @@ function CartVariantModal({
             const finalPrice = hasDiscount
               ? getDiscountedPrice(variant.price, item.discountPercent)
               : variant.price;
-            const outOfStock = variant.stock === 0;
-            const atMax = variant.stock !== undefined && quantity >= variant.stock;
+            const outOfStock = !unlimitedPreorder && variant.stock === 0;
+            const atMax = !unlimitedPreorder && variant.stock !== undefined && quantity >= variant.stock;
             const variantDescription = variant.description || item.description;
 
             return (

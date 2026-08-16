@@ -28,7 +28,7 @@ const productSchema = z.object({
   ingredients: z.string().optional(),
   servingSize: z.string().optional(),
   discountPercent: z.number().int().min(0).max(100).optional(),
-  stock: z.number().int().nonnegative().optional(),
+  stock: z.number().int().nonnegative().nullable().optional(),
   isNew: z.boolean().optional(),
   isAvailable: z.boolean().optional(),
   allowPreorder: z.boolean().optional(),

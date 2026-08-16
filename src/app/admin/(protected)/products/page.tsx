@@ -204,7 +204,7 @@ function AdminProductsPage() {
           discountPercent: values.discountPercent
             ? Number(values.discountPercent)
             : undefined,
-          stock: values.stock ? Number(values.stock) : undefined,
+          stock: values.stock ? Number(values.stock) : null,
           isNew: values.isNew,
           isAvailable: values.isAvailable,
           allowPreorder: values.allowPreorder,
@@ -262,7 +262,7 @@ function AdminProductsPage() {
         servingSize: p.servingSize ?? "",
         discountPercent:
           p.discountPercent != null ? String(p.discountPercent) : "",
-        stock: p.stock != null ? String(p.stock) : "",
+        stock: p.isAvailable ? (p.stock != null ? String(p.stock) : "") : "0",
         isNew: p.isNew,
         isAvailable: p.isAvailable,
         allowPreorder: p.allowPreorder,
@@ -572,9 +572,16 @@ function AdminProductsPage() {
               placeholder="خالی = بدون محدودیت"
               name="stock"
               value={formik.values.stock}
-              onChange={formik.handleChange}
+              onChange={(e) => {
+                const value = e.target.value;
+                formik.setFieldValue("stock", value);
+                if (value !== "" && Number(value) === 0) {
+                  formik.setFieldValue("isAvailable", false);
+                }
+              }}
               onBlur={formik.handleBlur}
-              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+              disabled={!formik.values.isAvailable}
+              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400 disabled:bg-sand-50 disabled:text-cocoa-400"
             />
             {formik.touched.stock && formik.errors.stock && (
               <p className="mt-1 text-xs font-semibold text-danger-500">
@@ -680,7 +687,11 @@ function AdminProductsPage() {
               type="checkbox"
               name="isAvailable"
               checked={formik.values.isAvailable}
-              onChange={formik.handleChange}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                formik.setFieldValue("isAvailable", checked);
+                if (!checked) formik.setFieldValue("stock", "0");
+              }}
               className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
             />
             موجود و قابل سفارش در سایت

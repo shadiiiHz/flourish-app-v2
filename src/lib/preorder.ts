@@ -1,5 +1,8 @@
 export const MAX_PREORDER_DAYS_AHEAD = 10;
 
+/** Preorder days only start opening up 2 days after today. */
+export const MIN_PREORDER_DAYS_AHEAD = 2;
+
 /** Business hours the pre-order time-slot grid is generated across. */
 const SLOT_START_HOUR = 9;
 const SLOT_END_HOUR = 21;
@@ -27,18 +30,13 @@ export interface PreorderDateOption {
   month: string;
 }
 
-/** The next MAX_PREORDER_DAYS_AHEAD days, starting today, for the date-picker carousel. */
+/** The next MAX_PREORDER_DAYS_AHEAD days, starting MIN_PREORDER_DAYS_AHEAD days from today, for the date-picker carousel. */
 export function generatePreorderDateOptions(): PreorderDateOption[] {
   const today = startOfToday();
   return Array.from({ length: MAX_PREORDER_DAYS_AHEAD }, (_, i) => {
     const date = new Date(today);
-    date.setDate(date.getDate() + i);
-    const label =
-      i === 0
-        ? "امروز"
-        : i === 1
-          ? "فردا"
-          : date.toLocaleDateString(FA_LATIN_DIGITS_LOCALE, { weekday: "long" });
+    date.setDate(date.getDate() + MIN_PREORDER_DAYS_AHEAD + i);
+    const label = date.toLocaleDateString(FA_LATIN_DIGITS_LOCALE, { weekday: "long" });
     return {
       iso: toIsoDate(date),
       label,

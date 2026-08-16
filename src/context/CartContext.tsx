@@ -5,11 +5,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { getDiscountedPrice, type MenuItem, type MenuItemVariant } from "../config/siteConfig";
 import { useAuth } from "./AuthContext";
+import { useOrderType } from "./OrderTypeContext";
 import {
   addMyCartItem,
   clearMyCart,
@@ -79,19 +81,28 @@ function mapApiCartItem(item: ApiCartItem): CartLineInternal {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, openAuth } = useAuth();
+  const { orderType } = useOrderType();
   const [lines, setLines] = useState<CartLineInternal[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  /** In-flight add-to-cart requests, keyed by line key — lets later updates/removals wait
+   *  for the real server-side CartItem id instead of hitting the optimistic placeholder. */
+  const pendingCreatesRef = useRef<Map<string, Promise<ApiCartItem>>>(new Map());
+
+  const resolveCartItemId = (key: string, cartItemId: string): Promise<string> => {
+    const pending = pendingCreatesRef.current.get(key);
+    return pending ? pending.then((created) => created.id) : Promise.resolve(cartItemId);
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
       setLines([]);
       return;
     }
-    getMyCart()
+    getMyCart(orderType)
       .then((items) => setLines(items.map(mapApiCartItem)))
       .catch(() => setLines([]));
-  }, [isAuthenticated]);
+  }, [isAuthenticated, orderType]);
 
   useEffect(() => {
     if (!toast) return;
@@ -113,7 +124,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     const key = lineKeyFor(item.id, variant?.id);
-    const maxQuantity = variant ? variant.stock : item.stock;
+    const unlimited = orderType === "preorder" && item.allowPreorder;
+    const maxQuantity = unlimited ? undefined : variant ? variant.stock : item.stock;
     const existing = lines.find((line) => line.key === key);
 
     if (existing) {
@@ -124,9 +136,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setLines((prev) =>
         prev.map((line) => (line.key === key ? { ...line, quantity: nextQuantity } : line)),
       );
-      updateMyCartItem(existing.cartItemId, nextQuantity).catch(() => {
-        notify("بروزرسانی سبد خرید با خطا مواجه شد");
-      });
+      resolveCartItemId(key, existing.cartItemId)
+        .then((id) => updateMyCartItem(id, nextQuantity, orderType))
+        .catch(() => {
+          notify("بروزرسانی سبد خرید با خطا مواجه شد");
+        });
       return true;
     }
 
@@ -151,14 +165,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
         maxQuantity,
       },
     ]);
-    addMyCartItem({ productId: item.id, variantId: variant?.id, quantity: initialQuantity })
+    const createPromise = addMyCartItem({
+      productId: item.id,
+      variantId: variant?.id,
+      quantity: initialQuantity,
+      orderType,
+    })
       .then((created) => {
-        setLines((prev) => prev.map((line) => (line.key === key ? mapApiCartItem(created) : line)));
+        // Keep whatever quantity is currently local — a click that landed while this
+        // create was still in flight already bumped it (and queued its own PUT to
+        // sync the server); only the id/price/etc. from the server response are new.
+        setLines((prev) =>
+          prev.map((line) =>
+            line.key === key ? { ...mapApiCartItem(created), quantity: line.quantity } : line,
+          ),
+        );
+        return created;
       })
-      .catch(() => {
+      .catch((err) => {
         notify("افزودن به سبد خرید با خطا مواجه شد");
         setLines((prev) => prev.filter((line) => line.cartItemId !== optimisticId));
+        throw err;
+      })
+      .finally(() => {
+        pendingCreatesRef.current.delete(key);
       });
+    pendingCreatesRef.current.set(key, createPromise);
 
     return true;
   };
@@ -169,9 +201,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     if (quantity <= 0) {
       setLines((prev) => prev.filter((line) => line.key !== key));
-      removeMyCartItem(existing.cartItemId).catch(() => {
-        notify("حذف از سبد خرید با خطا مواجه شد");
-      });
+      resolveCartItemId(key, existing.cartItemId)
+        .then((id) => removeMyCartItem(id))
+        .catch(() => {
+          notify("حذف از سبد خرید با خطا مواجه شد");
+        });
       return;
     }
 
@@ -180,18 +214,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setLines((prev) =>
       prev.map((line) => (line.key === key ? { ...line, quantity: nextQuantity } : line)),
     );
-    updateMyCartItem(existing.cartItemId, nextQuantity).catch(() => {
-      notify("بروزرسانی سبد خرید با خطا مواجه شد");
-    });
+    resolveCartItemId(key, existing.cartItemId)
+      .then((id) => updateMyCartItem(id, nextQuantity, orderType))
+      .catch(() => {
+        notify("بروزرسانی سبد خرید با خطا مواجه شد");
+      });
   };
 
   const removeLine = (key: string) => {
     const existing = lines.find((line) => line.key === key);
     if (!existing) return;
     setLines((prev) => prev.filter((line) => line.key !== key));
-    removeMyCartItem(existing.cartItemId).catch(() => {
-      notify("حذف از سبد خرید با خطا مواجه شد");
-    });
+    resolveCartItemId(key, existing.cartItemId)
+      .then((id) => removeMyCartItem(id))
+      .catch(() => {
+        notify("حذف از سبد خرید با خطا مواجه شد");
+      });
   };
 
   const clearCart = () => {

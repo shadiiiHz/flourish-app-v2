@@ -298,7 +298,7 @@ function AdminOrdersPage() {
         {selectedOrder && (
           <>
             <DialogTitle className="font-display text-cocoa-900">
-              سفارش {selectedOrder.customerName || "مهمان"}
+              سفارش {selectedOrder.customerName || "بدون نام"}
             </DialogTitle>
             <DialogContent dividers>
               {selectedOrder.orderType === "preorder" && selectedOrder.scheduledDate && (

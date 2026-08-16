@@ -192,8 +192,16 @@ const cartItemInclude = {
 
 type CartItemWithRelations = Prisma.CartItemGetPayload<{ include: typeof cartItemInclude }>;
 
-function mapCartItem(item: CartItemWithRelations) {
+const orderTypeSchema = z.enum(["instant", "preorder"]);
+
+/** Preorderable products carry unlimited inventory in preorder mode — stock only caps instant orders. */
+function isUnlimitedInPreorder(orderType: z.infer<typeof orderTypeSchema>, allowPreorder: boolean) {
+  return orderType === "preorder" && allowPreorder;
+}
+
+function mapCartItem(item: CartItemWithRelations, orderType: z.infer<typeof orderTypeSchema> = "instant") {
   const basePrice = item.variant ? item.variant.price : item.product.price;
+  const unlimited = isUnlimitedInPreorder(orderType, item.product.allowPreorder);
   return {
     id: item.id,
     productId: item.productId,
@@ -203,19 +211,20 @@ function mapCartItem(item: CartItemWithRelations) {
     price: getDiscountedPrice(basePrice, item.product.discountPercent),
     image: item.variant?.image ?? item.product.images[0],
     quantity: item.quantity,
-    maxQuantity: item.variant ? item.variant.stock : item.product.stock,
+    maxQuantity: unlimited ? null : item.variant ? item.variant.stock : item.product.stock,
   };
 }
 
 customersRouter.get(
   "/me/cart",
   asyncHandler(async (req, res) => {
+    const orderType = orderTypeSchema.catch("instant").parse(req.query.orderType);
     const items = await prisma.cartItem.findMany({
       where: { customerId: req.customer!.sub },
       include: cartItemInclude,
       orderBy: { createdAt: "asc" },
     });
-    res.json(items.map(mapCartItem));
+    res.json(items.map((item) => mapCartItem(item, orderType)));
   }),
 );
 
@@ -223,6 +232,7 @@ const addCartItemSchema = z.object({
   productId: z.string().min(1),
   variantId: z.string().optional(),
   quantity: z.number().int().positive().optional(),
+  orderType: orderTypeSchema.optional().default("instant"),
 });
 
 customersRouter.post(
@@ -234,7 +244,7 @@ customersRouter.post(
       return;
     }
     const customerId = req.customer!.sub;
-    const { productId, variantId, quantity = 1 } = parsed.data;
+    const { productId, variantId, quantity = 1, orderType } = parsed.data;
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -249,7 +259,8 @@ customersRouter.post(
       res.status(404).json({ error: "نوع محصول یافت نشد" });
       return;
     }
-    const maxQuantity = variant ? variant.stock : product.stock;
+    const unlimited = isUnlimitedInPreorder(orderType, product.allowPreorder);
+    const maxQuantity = unlimited ? null : variant ? variant.stock : product.stock;
 
     const item = await prisma.$transaction(async (tx) => {
       const existing = await tx.cartItem.findFirst({
@@ -269,12 +280,13 @@ customersRouter.post(
         include: cartItemInclude,
       });
     });
-    res.status(201).json(mapCartItem(item));
+    res.status(201).json(mapCartItem(item, orderType));
   }),
 );
 
 const updateCartItemSchema = z.object({
   quantity: z.number().int(),
+  orderType: orderTypeSchema.optional().default("instant"),
 });
 
 customersRouter.put(
@@ -299,14 +311,20 @@ customersRouter.put(
       res.status(204).end();
       return;
     }
-    const maxQuantity = existing.variant ? existing.variant.stock : existing.product.stock;
+    const { orderType } = parsed.data;
+    const unlimited = isUnlimitedInPreorder(orderType, existing.product.allowPreorder);
+    const maxQuantity = unlimited
+      ? null
+      : existing.variant
+        ? existing.variant.stock
+        : existing.product.stock;
     const clamped = maxQuantity != null ? Math.min(parsed.data.quantity, maxQuantity) : parsed.data.quantity;
     const updated = await prisma.cartItem.update({
       where: { id: existing.id },
       data: { quantity: clamped },
       include: cartItemInclude,
     });
-    res.json(mapCartItem(updated));
+    res.json(mapCartItem(updated, orderType));
   }),
 );
 

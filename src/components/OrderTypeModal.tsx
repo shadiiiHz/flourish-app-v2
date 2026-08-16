@@ -6,11 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Clock, ShoppingBag, X } from "lucide-react";
 import { useOrderType } from "@/context/OrderTypeContext";
 import type { OrderType } from "@/types/order";
-import {
-  generatePreorderDateOptions,
-  generatePreorderTimeSlots,
-  isoToday,
-} from "@/lib/preorder";
+import { generatePreorderDateOptions, generatePreorderTimeSlots } from "@/lib/preorder";
 
 const DATE_OPTIONS = generatePreorderDateOptions();
 const TIME_SLOTS = generatePreorderTimeSlots();
@@ -27,7 +23,7 @@ function OrderTypeModal() {
   } = useOrderType();
   const [mounted, setMounted] = useState(false);
   const [selectedType, setSelectedType] = useState<OrderType>("instant");
-  const [selectedDate, setSelectedDate] = useState<string>(isoToday());
+  const [selectedDate, setSelectedDate] = useState<string>(DATE_OPTIONS[0].iso);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dateStartIndex, setDateStartIndex] = useState(0);
@@ -43,7 +39,7 @@ function OrderTypeModal() {
     setPrevOpen(isModalOpen);
     if (isModalOpen) {
       setSelectedType(orderType);
-      setSelectedDate(preorder?.date ?? isoToday());
+      setSelectedDate(preorder?.date ?? DATE_OPTIONS[0].iso);
       setSelectedSlot(preorder?.timeSlot ?? null);
       setError(null);
       const preorderIndex = preorder

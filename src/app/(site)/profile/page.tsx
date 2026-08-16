@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Camera,
+  CalendarClock,
   KeyRound,
   Landmark,
   LogOut,
@@ -19,6 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 import { normalizeDigits, PHONE_REGEX, toPersianDigits } from "@/utils/phone";
 import { getMyOrders } from "@/lib/api";
 import { ORDER_STATUS_LABELS, type Order } from "@/types/order";
+import { formatPreorderDateWithWeekday } from "@/lib/preorder";
 import AddressesPanel from "@/components/AddressesPanel";
 import ChangePasswordPanel from "@/components/ChangePasswordPanel";
 import Preloader from "@/components/Preloader";
@@ -91,6 +93,14 @@ function OrdersPanel() {
                   {ORDER_STATUS_LABELS[order.status]}
                 </span>
               </div>
+              {order.orderType === "preorder" && order.scheduledDate && (
+                <div className="mt-2.5 flex items-center gap-1.5 rounded-xl bg-sand-50 px-3 py-2 text-xs font-semibold text-sand-500">
+                  <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                  پیش‌سفارش برای{" "}
+                  {formatPreorderDateWithWeekday(order.scheduledDate.slice(0, 10))}
+                  {order.scheduledTimeSlot ? ` ساعت ${order.scheduledTimeSlot}` : ""}
+                </div>
+              )}
               <div className="mt-2.5 flex flex-col gap-1">
                 {order.items.map((item) => (
                   <div

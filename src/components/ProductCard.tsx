@@ -28,10 +28,12 @@ function ProductCard({
     : item.price;
   const hasVariants = !!item.variants && item.variants.length > 0;
   const cartQuantity = getQuantity(item.id);
-  const outOfStock = !hasVariants && item.stock === 0;
-  const atMax = !hasVariants && item.stock !== undefined && cartQuantity >= item.stock;
   const notPreorderable = orderType === "preorder" && !item.allowPreorder;
-  const isUnorderable = !item.isAvailable || notPreorderable;
+  // Preorderable products are always available with unlimited inventory in preorder mode.
+  const unlimitedPreorder = orderType === "preorder" && item.allowPreorder;
+  const outOfStock = !unlimitedPreorder && !hasVariants && item.stock === 0;
+  const atMax = !unlimitedPreorder && !hasVariants && item.stock !== undefined && cartQuantity >= item.stock;
+  const isUnorderable = unlimitedPreorder ? false : !item.isAvailable || notPreorderable;
 
   const handleAddClick = () => {
     if (hasVariants) {
@@ -89,7 +91,7 @@ function ProductCard({
                 </span>
               )}
               <span className="text-sm font-bold text-sand-400 sm:text-[15px]">
-                {!item.isAvailable
+                {!unlimitedPreorder && !item.isAvailable
                   ? "ناموجود"
                   : notPreorderable
                     ? "غیرقابل پیش‌سفارش"
