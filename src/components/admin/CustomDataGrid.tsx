@@ -121,14 +121,19 @@ export function CustomDataGrid<R extends GridValidRowModel>({
     <DataGrid
       sortingMode="server"
       sortModel={queryState.sortModel}
-      onSortModelChange={(model) => setQueryState((prev) => ({ ...prev, sortModel: model }))}
+      onSortModelChange={(model) =>
+        setQueryState((prev) => ({ ...prev, sortModel: model }))
+      }
       filterMode="server"
       filterModel={
-        queryState.filterModel?.items?.length || queryState.filterModel?.quickFilterValues?.length
+        queryState.filterModel?.items?.length ||
+        queryState.filterModel?.quickFilterValues?.length
           ? queryState.filterModel
           : { items: [] }
       }
-      onFilterModelChange={(model) => setQueryState((prev) => ({ ...prev, filterModel: model }))}
+      onFilterModelChange={(model) =>
+        setQueryState((prev) => ({ ...prev, filterModel: model }))
+      }
       paginationMode="server"
       pagination
       paginationModel={{ page: queryState.page, pageSize: queryState.pageSize }}
@@ -141,7 +146,33 @@ export function CustomDataGrid<R extends GridValidRowModel>({
       showToolbar
       disableRowSelectionOnClick
       {...props}
-      sx={{ height: 560, ...sx }}
+      sx={{
+        minHeight: 420,
+        ...sx,
+
+        "& .MuiDataGrid-scrollbar": {
+          scrollbarWidth: "thin",
+          scrollbarColor: "rgba(120, 90, 65, 0.25) transparent",
+        },
+
+        "& .MuiDataGrid-scrollbar::-webkit-scrollbar": {
+          width: "7px",
+          height: "7px",
+        },
+
+        "& .MuiDataGrid-scrollbar::-webkit-scrollbar-track": {
+          background: "transparent",
+        },
+
+        "& .MuiDataGrid-scrollbar::-webkit-scrollbar-thumb": {
+          background: "rgba(120, 90, 65, 0.22)",
+          borderRadius: "999px",
+        },
+
+        "& .MuiDataGrid-scrollbar::-webkit-scrollbar-thumb:hover": {
+          background: "rgba(120, 90, 65, 0.4)",
+        },
+      }}
     />
   );
 }
