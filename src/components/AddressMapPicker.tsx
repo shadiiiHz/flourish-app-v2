@@ -20,6 +20,7 @@ interface NominatimResult {
 }
 
 interface AddressMapPickerProps {
+  initialLocation?: PickedLocation | null;
   onLocationChange: (location: PickedLocation) => void;
 }
 
@@ -33,12 +34,15 @@ const pinIcon = L.divIcon({
   iconAnchor: [15, 40],
 });
 
-function AddressMapPicker({ onLocationChange }: AddressMapPickerProps) {
+function AddressMapPicker({ initialLocation, onLocationChange }: AddressMapPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const onLocationChangeRef = useRef(onLocationChange);
+  // Only the value at mount time matters — the map is initialized once and
+  // shouldn't re-center if the picked location changes afterwards.
+  const initialLocationRef = useRef(initialLocation);
 
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -52,9 +56,12 @@ function AddressMapPicker({ onLocationChange }: AddressMapPickerProps) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    const initial = initialLocationRef.current;
+    const center: L.LatLngTuple = initial ? [initial.lat, initial.lng] : TEHRAN_CENTER;
+
     const map = L.map(containerRef.current, {
-      center: TEHRAN_CENTER,
-      zoom: 11,
+      center,
+      zoom: initial ? 16 : 11,
       zoomControl: false,
     });
     L.control.zoom({ position: "bottomleft" }).addTo(map);
@@ -63,7 +70,7 @@ function AddressMapPicker({ onLocationChange }: AddressMapPickerProps) {
       maxZoom: 19,
     }).addTo(map);
 
-    const marker = L.marker(TEHRAN_CENTER, { icon: pinIcon, draggable: true }).addTo(map);
+    const marker = L.marker(center, { icon: pinIcon, draggable: true }).addTo(map);
 
     const reverseGeocode = async (lat: number, lng: number) => {
       onLocationChangeRef.current({ lng, lat });

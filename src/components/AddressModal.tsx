@@ -158,7 +158,7 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
 
               <form onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-4 p-5 sm:p-6">
-                  <AddressMapPicker onLocationChange={handleLocationChange} />
+                  <AddressMapPicker initialLocation={location} onLocationChange={handleLocationChange} />
 
                   <div className="flex flex-col">
                     <FieldShell label="آدرس">
