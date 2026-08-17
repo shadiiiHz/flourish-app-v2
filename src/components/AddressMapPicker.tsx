@@ -21,6 +21,7 @@ interface NominatimResult {
 
 interface AddressMapPickerProps {
   initialLocation?: PickedLocation | null;
+  hasError?: boolean;
   onLocationChange: (location: PickedLocation) => void;
 }
 
@@ -34,7 +35,7 @@ const pinIcon = L.divIcon({
   iconAnchor: [15, 40],
 });
 
-function AddressMapPicker({ initialLocation, onLocationChange }: AddressMapPickerProps) {
+function AddressMapPicker({ initialLocation, hasError, onLocationChange }: AddressMapPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -173,7 +174,11 @@ function AddressMapPicker({ initialLocation, onLocationChange }: AddressMapPicke
   };
 
   return (
-    <div className="relative h-72 overflow-hidden rounded-2xl border border-cocoa-900/10 sm:h-96">
+    <div
+      className={`relative h-72 overflow-hidden rounded-2xl border sm:h-96 ${
+        hasError ? "border-danger-500" : "border-cocoa-900/10"
+      }`}
+    >
       <div ref={containerRef} className="h-full w-full" />
       <div ref={searchWrapperRef} className="absolute inset-x-3 top-3 z-[500]">
         <div className="flex items-center gap-2 rounded-full border border-white/40 bg-white/90 px-3 py-2 shadow-md backdrop-blur-xl">

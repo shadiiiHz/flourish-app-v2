@@ -47,6 +47,7 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
   const [isDefault, setIsDefault] = useState(true);
   const [location, setLocation] = useState<PickedLocation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -71,6 +72,7 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
           : null,
       );
       setError(null);
+      setLocationError(null);
     }
   }
 
@@ -90,11 +92,16 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
 
   const handleLocationChange = (picked: PickedLocation) => {
     setLocation(picked);
+    setLocationError(null);
     if (picked.address) setAddress(picked.address);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!location) {
+      setLocationError("لطفاً موقعیت دقیق آدرس را روی نقشه مشخص کنید");
+      return;
+    }
     if (!address.trim()) {
       setError("لطفاً آدرس را وارد کنید");
       return;
@@ -158,7 +165,16 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
 
               <form onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-4 p-5 sm:p-6">
-                  <AddressMapPicker initialLocation={location} onLocationChange={handleLocationChange} />
+                  <div className="flex flex-col gap-1.5">
+                    <AddressMapPicker
+                      initialLocation={location}
+                      hasError={!!locationError}
+                      onLocationChange={handleLocationChange}
+                    />
+                    {locationError && (
+                      <p className="text-xs font-semibold text-danger-500">{locationError}</p>
+                    )}
+                  </div>
 
                   <div className="flex flex-col">
                     <FieldShell label="آدرس">
