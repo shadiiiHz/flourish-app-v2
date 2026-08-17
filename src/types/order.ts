@@ -48,6 +48,8 @@ export interface Order {
   addressText?: string | null;
   distanceKm?: number | null;
   subtotal: number;
+  discountCode?: string | null;
+  discountAmount: number;
   tax: number;
   shippingCost: number;
   total: number;

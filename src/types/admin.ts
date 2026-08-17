@@ -50,6 +50,14 @@ export interface AdminOrder extends Order {
   customerId?: string | null;
 }
 
+export interface AdminDiscountCode {
+  id: string;
+  code: string;
+  percent: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface AdminCustomer {
   id: string;
   phone: string;

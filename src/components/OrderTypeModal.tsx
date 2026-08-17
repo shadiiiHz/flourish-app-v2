@@ -8,6 +8,7 @@ import { useOrderType } from "@/context/OrderTypeContext";
 import type { OrderType } from "@/types/order";
 import { generatePreorderDateOptions, generatePreorderTimeSlots } from "@/lib/preorder";
 import { useSiteStatus } from "@/context/SiteStatusContext";
+import { toPersianDigits } from "@/lib/formatNumber";
 
 const DATE_OPTIONS = generatePreorderDateOptions();
 const TIME_SLOTS = generatePreorderTimeSlots();
@@ -208,7 +209,7 @@ function OrderTypeModal() {
                                 {opt.label}
                               </span>
                               <span className="text-base font-bold sm:text-lg">
-                                {opt.day}
+                                {toPersianDigits(opt.day)}
                               </span>
                               <span className="text-[11px] font-semibold">
                                 {opt.month}
@@ -277,7 +278,7 @@ function OrderTypeModal() {
                                   : "border-cocoa-900/10 bg-white text-cocoa-900"
                               }`}
                             >
-                              {slot}
+                              {toPersianDigits(slot)}
                             </button>
                           );
                         })}

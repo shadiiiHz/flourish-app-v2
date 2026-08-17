@@ -8,6 +8,7 @@ import type {
 import type {
   AdminCategory,
   AdminCustomer,
+  AdminDiscountCode,
   AdminOrder,
   AdminProduct,
 } from "../types/admin";
@@ -371,6 +372,7 @@ export interface CreateOrderPayload {
   orderType?: OrderType;
   scheduledDate?: string;
   scheduledTimeSlot?: string;
+  discountCode?: string;
 }
 
 export interface CreateOrderResult {
@@ -398,6 +400,18 @@ export interface ShippingEstimate {
 
 export function getShippingEstimate(addressId: string) {
   return apiFetch<ShippingEstimate>(`/api/shipping/estimate?addressId=${addressId}`);
+}
+
+export interface DiscountCodeValidation {
+  code: string;
+  percent: number;
+}
+
+export function validateDiscountCode(code: string) {
+  return apiFetch<DiscountCodeValidation>("/api/discount-codes/validate", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -591,4 +605,46 @@ export function adminUpdateSettings(payload: AdminSettings) {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin discount codes                                                */
+/* ------------------------------------------------------------------ */
+
+export function adminGetDiscountCodes(page = 1, pageSize = 20, search = "") {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  return apiFetch<Paginated<AdminDiscountCode>>(`/api/admin/discount-codes?${params.toString()}`);
+}
+
+export function adminCreateManualDiscountCode(code: string, percent: number) {
+  return apiFetch<AdminDiscountCode>("/api/admin/discount-codes", {
+    method: "POST",
+    body: JSON.stringify({ mode: "manual", code, percent }),
+  });
+}
+
+export function adminGenerateDiscountCode(percent: number) {
+  return apiFetch<AdminDiscountCode>("/api/admin/discount-codes", {
+    method: "POST",
+    body: JSON.stringify({ mode: "auto", percent }),
+  });
+}
+
+export function adminUpdateDiscountCode(
+  id: string,
+  payload: { percent?: number; isActive?: boolean },
+) {
+  return apiFetch<AdminDiscountCode>(`/api/admin/discount-codes/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminDeleteDiscountCode(id: string) {
+  return apiFetch(`/api/admin/discount-codes/${id}`, { method: "DELETE" });
+}
+
+export function adminBulkDeleteDiscountCodes(ids: string[]) {
+  return adminBulkDelete("/api/admin/discount-codes", ids);
 }

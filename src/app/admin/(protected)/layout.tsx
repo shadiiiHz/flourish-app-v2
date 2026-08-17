@@ -12,6 +12,7 @@ import {
   Settings,
   ShoppingBag,
   Tags,
+  TicketPercent,
   Users,
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/admin/categories", exact: false, label: "دسته‌بندی‌ها", icon: Tags },
   { href: "/admin/orders", exact: false, label: "سفارش‌ها", icon: ShoppingBag },
   { href: "/admin/customers", exact: false, label: "مشتریان", icon: Users },
+  { href: "/admin/discount-codes", exact: false, label: "کدهای تخفیف", icon: TicketPercent },
   { href: "/admin/settings", exact: false, label: "تنظیمات", icon: Settings },
 ];
 

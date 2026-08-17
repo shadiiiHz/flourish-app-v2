@@ -352,6 +352,17 @@ function AdminOrdersPage() {
                 </span>
               </div>
 
+              {!!selectedOrder.discountAmount && (
+                <div className="mt-1 flex items-center justify-between text-sm">
+                  <span className="text-cocoa-600">
+                    کد تخفیف {selectedOrder.discountCode && `(${selectedOrder.discountCode})`}
+                  </span>
+                  <span className="font-semibold text-danger-500">
+                    {selectedOrder.discountAmount.toLocaleString("fa-IR")}- تومان
+                  </span>
+                </div>
+              )}
+
               {selectedOrder.addressText && (
                 <div className="mt-2 flex items-start justify-between gap-3 text-sm">
                   <span className="shrink-0 text-cocoa-600">آدرس تحویل</span>

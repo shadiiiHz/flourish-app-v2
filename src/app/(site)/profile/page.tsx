@@ -133,6 +133,16 @@ function OrdersPanel() {
                     {order.subtotal.toLocaleString("fa-IR")} تومان
                   </span>
                 </div>
+                {!!order.discountAmount && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-cocoa-600">
+                      تخفیف {order.discountCode && `(${order.discountCode})`}
+                    </span>
+                    <span className="font-semibold text-danger-500">
+                      {order.discountAmount.toLocaleString("fa-IR")}- تومان
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-cocoa-600">مالیات</span>
                   <span className="font-semibold text-cocoa-900">

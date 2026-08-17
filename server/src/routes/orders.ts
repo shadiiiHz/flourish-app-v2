@@ -23,6 +23,7 @@ const createOrderSchema = z
     orderType: z.enum(["instant", "preorder"]).optional().default("instant"),
     scheduledDate: z.string().optional(),
     scheduledTimeSlot: z.string().optional(),
+    discountCode: z.string().trim().min(1).optional(),
   })
   .refine(
     (data) => data.orderType !== "preorder" || (data.scheduledDate && data.scheduledTimeSlot),
@@ -41,9 +42,21 @@ ordersRouter.post(
       res.status(400).json({ error: "اطلاعات سفارش نامعتبر است" });
       return;
     }
-    const { addressId, deliveryMethod, customerName, note, orderType, scheduledTimeSlot } =
+    const { addressId, deliveryMethod, customerName, note, orderType, scheduledTimeSlot, discountCode } =
       parsed.data;
     const { sub: customerId, phone: customerPhone } = req.customer!;
+
+    let appliedDiscount: { code: string; percent: number } | null = null;
+    if (discountCode) {
+      const discount = await prisma.discountCode.findUnique({
+        where: { code: discountCode.toUpperCase() },
+      });
+      if (!discount || !discount.isActive) {
+        res.status(400).json({ error: "کد تخفیف معتبر نیست" });
+        return;
+      }
+      appliedDiscount = { code: discount.code, percent: discount.percent };
+    }
 
     const settings = await getSettings();
     if (settings.siteClosed && orderType !== "preorder") {
@@ -121,7 +134,10 @@ ordersRouter.post(
     });
 
     const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const tax = Math.round(subtotal * TAX_RATE);
+    const discountAmount = appliedDiscount
+      ? Math.round((subtotal * appliedDiscount.percent) / 100)
+      : 0;
+    const tax = Math.round((subtotal - discountAmount) * TAX_RATE);
     const shippingResult =
       deliveryMethod === "delivery" && address
         ? await calculateShipping(address.lat!, address.lng!)
@@ -133,7 +149,7 @@ ordersRouter.post(
       return;
     }
     const { distanceKm, shippingCost } = shippingResult;
-    const total = subtotal + tax + shippingCost;
+    const total = subtotal - discountAmount + tax + shippingCost;
 
     const order = await prisma.order.create({
       data: {
@@ -152,6 +168,8 @@ ordersRouter.post(
             : "مراجعه حضوری به فلوریش",
         distanceKm,
         subtotal,
+        discountCode: appliedDiscount?.code,
+        discountAmount,
         tax,
         shippingCost,
         total,

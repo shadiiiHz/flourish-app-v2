@@ -154,6 +154,8 @@ model Order {
   addressText       String?
   distanceKm        Float?
   subtotal          Int
+  discountCode      String?
+  discountAmount    Int            @default(0)
   tax               Int
   shippingCost      Int            @default(0)
   total             Int
@@ -178,6 +180,15 @@ model OrderItem {
   variantTitle String?
   price        Int
   quantity     Int
+}
+
+model DiscountCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  percent   Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Settings {

@@ -18,7 +18,14 @@ import { useAuth } from "@/context/AuthContext";
 import { useAddresses, type Address } from "@/context/AddressContext";
 import { useOrderType } from "@/context/OrderTypeContext";
 import { useSiteStatus } from "@/context/SiteStatusContext";
-import { ApiError, createOrder, getShippingEstimate, type ShippingEstimate } from "@/lib/api";
+import {
+  ApiError,
+  createOrder,
+  getShippingEstimate,
+  validateDiscountCode,
+  type DiscountCodeValidation,
+  type ShippingEstimate,
+} from "@/lib/api";
 import { siteConfig } from "@/config/siteConfig";
 import type { DeliveryMethod } from "@/types/order";
 import AddressModal from "@/components/AddressModal";
@@ -37,7 +44,7 @@ function GlassCard({ children }: { children: React.ReactNode }) {
 
 function CheckoutPage() {
   const router = useRouter();
-  const { lines, totalCount, totalPrice, taxAmount, closeCart } = useCart();
+  const { lines, totalCount, totalPrice, closeCart } = useCart();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { addresses, isLoading: addressesLoading, updateAddress } = useAddresses();
   const { orderType, preorder, openModal, setInstant } = useOrderType();
@@ -57,6 +64,11 @@ function CheckoutPage() {
   const [outOfRangeModalOpen, setOutOfRangeModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [discountCodeInput, setDiscountCodeInput] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<DiscountCodeValidation | null>(null);
+  const [discountChecking, setDiscountChecking] = useState(false);
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   useEffect(() => {
     closeCart();
@@ -117,10 +129,38 @@ function CheckoutPage() {
     }
   }, [shipping, deliveryMethod]);
 
-  const grandTotal = useMemo(
-    () => totalPrice + taxAmount + (shipping?.shippingCost ?? 0),
-    [totalPrice, taxAmount, shipping],
+  const discountAmount = useMemo(
+    () => (appliedDiscount ? Math.round((totalPrice * appliedDiscount.percent) / 100) : 0),
+    [totalPrice, appliedDiscount],
   );
+  const discountedSubtotal = totalPrice - discountAmount;
+  const taxAmount = useMemo(() => Math.round(discountedSubtotal * 0.1), [discountedSubtotal]);
+  const grandTotal = useMemo(
+    () => discountedSubtotal + taxAmount + (shipping?.shippingCost ?? 0),
+    [discountedSubtotal, taxAmount, shipping],
+  );
+
+  const handleCheckDiscountCode = async () => {
+    const code = discountCodeInput.trim();
+    if (!code) return;
+    setDiscountChecking(true);
+    setDiscountError(null);
+    try {
+      const result = await validateDiscountCode(code);
+      setAppliedDiscount(result);
+    } catch (err) {
+      setAppliedDiscount(null);
+      setDiscountError(err instanceof ApiError ? err.message : "خطا در بررسی کد تخفیف");
+    } finally {
+      setDiscountChecking(false);
+    }
+  };
+
+  const handleRemoveDiscountCode = () => {
+    setAppliedDiscount(null);
+    setDiscountCodeInput("");
+    setDiscountError(null);
+  };
 
   const openNewAddressModal = () => {
     setEditingAddress(null);
@@ -181,6 +221,7 @@ function CheckoutPage() {
         orderType,
         scheduledDate: orderType === "preorder" ? preorder?.date : undefined,
         scheduledTimeSlot: orderType === "preorder" ? preorder?.timeSlot : undefined,
+        discountCode: appliedDiscount?.code,
       });
       setInstant();
       window.location.href = paymentUrl;
@@ -435,6 +476,14 @@ function CheckoutPage() {
                   {totalPrice.toLocaleString("fa-IR")} تومان
                 </span>
               </div>
+              {appliedDiscount && (
+                <div className="flex items-center justify-between">
+                  <span className="text-cocoa-600">تخفیف ({appliedDiscount.percent.toLocaleString("fa-IR")}٪)</span>
+                  <span className="font-semibold text-danger-500">
+                    {discountAmount.toLocaleString("fa-IR")}- تومان
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-cocoa-600">مالیات (۱۰٪)</span>
                 <span className="font-semibold text-cocoa-900">
@@ -457,6 +506,54 @@ function CheckoutPage() {
                   </span>
                 </div>
               )}
+
+              <div className="flex items-center gap-2 border-t border-sand-50 pt-2.5">
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={discountCodeInput}
+                  onChange={(e) => {
+                    setDiscountCodeInput(e.target.value);
+                    setDiscountError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCheckDiscountCode();
+                    }
+                  }}
+                  disabled={!!appliedDiscount}
+                  placeholder="کد تخفیف"
+                  className="w-full rounded-full border border-cocoa-900/10 bg-white px-4 py-2.5 text-sm text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25 disabled:opacity-60"
+                />
+                {appliedDiscount ? (
+                  <button
+                    type="button"
+                    onClick={handleRemoveDiscountCode}
+                    className="shrink-0 rounded-full border border-danger-500/30 px-4 py-2.5 text-xs font-bold text-danger-500 transition hover:bg-danger-50"
+                  >
+                    حذف
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleCheckDiscountCode}
+                    disabled={discountChecking || !discountCodeInput.trim()}
+                    className="shrink-0 rounded-full bg-sand-500 px-4 py-2.5 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-60"
+                  >
+                    {discountChecking ? "در حال بررسی…" : "بررسی"}
+                  </button>
+                )}
+              </div>
+              {discountError && (
+                <p className="text-xs font-semibold text-danger-500">{discountError}</p>
+              )}
+              {appliedDiscount && (
+                <p className="text-xs font-semibold text-sand-500">
+                  کد «{appliedDiscount.code}» با {appliedDiscount.percent.toLocaleString("fa-IR")}٪ تخفیف اعمال شد
+                </p>
+              )}
+
               <div className="flex items-center justify-between border-t border-sand-50 pt-2.5">
                 <span className="font-bold text-cocoa-700">جمع کل</span>
                 <span className="text-lg font-bold text-cocoa-900">
