@@ -7,6 +7,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Camera,
   CalendarClock,
+  ChevronLeft,
+  ChevronRight,
   KeyRound,
   Landmark,
   LogOut,
@@ -55,17 +57,25 @@ function PlaceholderPanel({ label }: { label: string }) {
   );
 }
 
+const ORDERS_PAGE_SIZE = 3;
+
 function OrdersPanel() {
   const { isAuthenticated } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(isAuthenticated);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    getMyOrders()
-      .then(setOrders)
+    setLoading(true);
+    getMyOrders(page, ORDERS_PAGE_SIZE)
+      .then((result) => {
+        setOrders(result.items);
+        setTotalPages(result.totalPages);
+      })
       .finally(() => setLoading(false));
-  }, [isAuthenticated]);
+  }, [isAuthenticated, page]);
 
   return (
     <GlassCard>
@@ -166,6 +176,45 @@ function OrdersPanel() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-5 flex items-center justify-center gap-1.5">
+          <button
+            type="button"
+            aria-label="صفحه قبل"
+            disabled={page === 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cocoa-900/10 bg-white text-cocoa-700 transition hover:bg-sand-50 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setPage(n)}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${
+                n === page
+                  ? "bg-sand-500 text-white"
+                  : "text-cocoa-700 hover:bg-sand-50"
+              }`}
+            >
+              {n.toLocaleString("fa-IR")}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            aria-label="صفحه بعد"
+            disabled={page === totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cocoa-900/10 bg-white text-cocoa-700 transition hover:bg-sand-50 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
         </div>
       )}
     </GlassCard>

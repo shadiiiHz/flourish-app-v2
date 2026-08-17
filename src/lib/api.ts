@@ -267,8 +267,9 @@ export function updateMyProfile(payload: UpdateProfilePayload) {
   });
 }
 
-export function getMyOrders() {
-  return apiFetch<Order[]>("/api/customers/me/orders");
+export function getMyOrders(page = 1, pageSize = 20) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  return apiFetch<Paginated<Order>>(`/api/customers/me/orders?${params.toString()}`);
 }
 
 export interface ApiAddress {

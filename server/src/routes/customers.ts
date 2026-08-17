@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { getDiscountedPrice } from "../lib/pricing.js";
+import { parsePagination, paginatedResult } from "../lib/pagination.js";
 import type { Prisma } from "@prisma/client";
 
 export const customersRouter = Router();
@@ -48,12 +49,19 @@ customersRouter.patch(
 customersRouter.get(
   "/me/orders",
   asyncHandler(async (req, res) => {
-    const orders = await prisma.order.findMany({
-      where: { customerId: req.customer!.sub },
-      include: { items: true },
-      orderBy: { createdAt: "desc" },
-    });
-    res.json(orders);
+    const customerId = req.customer!.sub;
+    const pagination = parsePagination(req);
+    const [orders, total] = await prisma.$transaction([
+      prisma.order.findMany({
+        where: { customerId },
+        include: { items: true },
+        orderBy: { createdAt: "desc" },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      prisma.order.count({ where: { customerId } }),
+    ]);
+    res.json(paginatedResult(orders, total, pagination));
   }),
 );
 
