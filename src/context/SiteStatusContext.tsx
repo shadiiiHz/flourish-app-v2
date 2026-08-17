@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
 import { getSiteStatus } from "@/lib/api";
 
 interface SiteStatusContextValue {
@@ -26,7 +25,6 @@ export function SiteStatusProvider({
   children: ReactNode;
 }) {
   const [siteClosed, setSiteClosed] = useState(initialSiteClosed);
-  const pathname = usePathname();
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +39,7 @@ export function SiteStatusProvider({
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [pathname]);
+  }, []);
 
   return (
     <SiteStatusContext.Provider value={{ siteClosed }}>{children}</SiteStatusContext.Provider>

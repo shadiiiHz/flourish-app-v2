@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -32,6 +33,17 @@ export default function SiteShell({
   children: ReactNode;
   siteClosed?: boolean;
 }) {
+  const router = useRouter();
+
+  // Neither router.push() call site for these two destinations goes
+  // through <Link>, so they'd never get Next's automatic prefetch —
+  // warm the RSC payload once up front instead of paying full latency
+  // on every click into the menu or checkout.
+  useEffect(() => {
+    router.prefetch("/menu");
+    router.prefetch("/checkout");
+  }, [router]);
+
   return (
     <SiteStatusProvider siteClosed={siteClosed}>
       <div className="relative min-h-svh overflow-x-clip bg-cream text-cocoa-900">
