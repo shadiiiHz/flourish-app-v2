@@ -88,12 +88,18 @@ function CheckoutPage() {
     if (deliveryMethod === "pickup") {
       setShipping({ distanceKm: 0, shippingCost: 0, outOfRange: false, maxDeliveryRadiusKm: 0 });
       setShippingLoading(false);
+      setOutOfRangeModalOpen(false);
       return;
     }
     if (!selectedAddressId) {
       setShipping(null);
       return;
     }
+    // Reset any previous address's result (and its out-of-range modal) so
+    // the new address is never judged against a stale distance while its
+    // own estimate is still being calculated.
+    setShipping(null);
+    setOutOfRangeModalOpen(false);
     setShippingLoading(true);
     setError(null);
     getShippingEstimate(selectedAddressId)
@@ -109,7 +115,7 @@ function CheckoutPage() {
     if (deliveryMethod === "delivery" && shipping?.outOfRange) {
       setOutOfRangeModalOpen(true);
     }
-  }, [selectedAddressId, deliveryMethod, shipping?.outOfRange]);
+  }, [shipping, deliveryMethod]);
 
   const grandTotal = useMemo(
     () => totalPrice + taxAmount + (shipping?.shippingCost ?? 0),
