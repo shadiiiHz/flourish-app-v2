@@ -129,6 +129,9 @@ function CheckoutPage() {
     }
   }, [shipping, deliveryMethod]);
 
+  const [useWallet, setUseWallet] = useState(false);
+  const walletBalance = user?.walletBalance ?? 0;
+
   const discountAmount = useMemo(
     () => (appliedDiscount ? Math.round((totalPrice * appliedDiscount.percent) / 100) : 0),
     [totalPrice, appliedDiscount],
@@ -139,6 +142,8 @@ function CheckoutPage() {
     () => discountedSubtotal + taxAmount + (shipping?.shippingCost ?? 0),
     [discountedSubtotal, taxAmount, shipping],
   );
+  const walletAmountUsed = useWallet ? Math.min(walletBalance, grandTotal) : 0;
+  const payableTotal = grandTotal - walletAmountUsed;
 
   const handleCheckDiscountCode = async () => {
     const code = discountCodeInput.trim();
@@ -213,7 +218,7 @@ function CheckoutPage() {
     setSubmitting(true);
     try {
       const customerName = [firstName, lastName].filter(Boolean).join(" ").trim() || undefined;
-      const { paymentUrl } = await createOrder({
+      const { order, paymentUrl } = await createOrder({
         addressId: deliveryMethod === "delivery" ? (selectedAddressId ?? undefined) : undefined,
         deliveryMethod,
         customerName,
@@ -222,9 +227,14 @@ function CheckoutPage() {
         scheduledDate: orderType === "preorder" ? preorder?.date : undefined,
         scheduledTimeSlot: orderType === "preorder" ? preorder?.timeSlot : undefined,
         discountCode: appliedDiscount?.code,
+        useWallet,
       });
       setInstant();
-      window.location.href = paymentUrl;
+      if (paymentUrl) {
+        window.location.href = paymentUrl;
+      } else {
+        router.push(`/checkout/result?status=paid&orderId=${order.id}`);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "ثبت سفارش با خطا مواجه شد");
       setSubmitting(false);
@@ -554,25 +564,60 @@ function CheckoutPage() {
                 </p>
               )}
 
+              {walletAmountUsed > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-cocoa-600">کیف پول</span>
+                  <span className="font-semibold text-danger-500">
+                    {walletAmountUsed.toLocaleString("fa-IR")}- تومان
+                  </span>
+                </div>
+              )}
+
               <div className="flex items-center justify-between border-t border-sand-50 pt-2.5">
                 <span className="font-bold text-cocoa-700">جمع کل</span>
                 <span className="text-lg font-bold text-cocoa-900">
-                  {grandTotal.toLocaleString("fa-IR")} تومان
+                  {payableTotal.toLocaleString("fa-IR")} تومان
                 </span>
               </div>
             </div>
           </GlassCard>
 
           <GlassCard>
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sand-50 text-sand-500">
-                <CreditCard className="h-5 w-5" />
-              </span>
-              <span className="text-sm font-bold text-cocoa-900">
-                پرداخت آنلاین از طریق درگاه زرین‌پال
-              </span>
-            </div>
+            <label
+              className={`flex items-center justify-between gap-3 ${
+                walletBalance > 0 ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+              }`}
+            >
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-bold text-cocoa-900">کیف پول</span>
+                <span className="text-xs text-cocoa-500">
+                  {walletBalance > 0
+                    ? `موجودی قابل استفاده: ${walletBalance.toLocaleString("fa-IR")} تومان`
+                    : "موجودی کیف پول شما صفر است"}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={useWallet}
+                disabled={walletBalance <= 0}
+                onChange={(e) => setUseWallet(e.target.checked)}
+                className="h-5 w-5 shrink-0 rounded-md border-2 border-cocoa-900/20 accent-sand-500 disabled:cursor-not-allowed"
+              />
+            </label>
           </GlassCard>
+
+          {payableTotal > 0 && (
+            <GlassCard>
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sand-50 text-sand-500">
+                  <CreditCard className="h-5 w-5" />
+                </span>
+                <span className="text-sm font-bold text-cocoa-900">
+                  پرداخت آنلاین از طریق درگاه زرین‌پال
+                </span>
+              </div>
+            </GlassCard>
+          )}
 
           {blockedByClosure && (
             <div className="flex flex-col gap-2 rounded-2xl bg-danger-50 p-3 text-center text-xs font-semibold text-danger-500">
@@ -606,7 +651,11 @@ function CheckoutPage() {
             className="flex items-center justify-center gap-2 rounded-full bg-sand-500 px-4 py-3.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:pointer-events-none disabled:opacity-60"
           >
             <ShoppingBag className="h-4.5 w-4.5" />
-            {submitting ? "در حال انتقال به درگاه پرداخت…" : `پرداخت ${grandTotal.toLocaleString("fa-IR")} تومان`}
+            {submitting
+              ? "در حال ثبت سفارش…"
+              : payableTotal > 0
+                ? `پرداخت ${payableTotal.toLocaleString("fa-IR")} تومان`
+                : "ثبت سفارش"}
           </button>
         </div>
       </div>

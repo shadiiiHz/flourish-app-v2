@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { LogOut, MapPin, ShoppingBag, User } from "lucide-react";
+import { LogOut, MapPin, ShoppingBag, User, Wallet } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { toPersianDigits } from "../utils/phone";
 
@@ -62,6 +62,20 @@ function ProfileMenu() {
                 <User className="h-4 w-4" />
               </span>
               <span dir="ltr">{toPersianDigits(user?.phone ?? "")}</span>
+            </Link>
+
+            <div className="my-1 h-px bg-cocoa-900/10" />
+
+            <Link
+              href="/profile?tab=wallet"
+              onClick={close}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-cocoa-500 transition hover:bg-sand-50"
+            >
+              <Wallet className="h-4 w-4 text-cocoa-400" />
+              کیف پول:{" "}
+              {(user?.walletBalance ?? 0) > 0
+                ? `${user!.walletBalance.toLocaleString("fa-IR")} تومان`
+                : "بدون موجودی"}
             </Link>
 
             <div className="my-1 h-px bg-cocoa-900/10" />

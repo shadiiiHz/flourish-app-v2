@@ -7,6 +7,7 @@ import { adminCustomersRouter } from "./customers.js";
 import { adminUploadsRouter } from "./uploads.js";
 import { adminSettingsRouter } from "./settings.js";
 import { adminDiscountCodesRouter } from "./discountCodes.js";
+import { adminWalletRouter } from "./wallet.js";
 
 export const adminRouter = Router();
 
@@ -18,3 +19,4 @@ adminRouter.use("/customers", adminCustomersRouter);
 adminRouter.use("/uploads", adminUploadsRouter);
 adminRouter.use("/settings", adminSettingsRouter);
 adminRouter.use("/discount-codes", adminDiscountCodesRouter);
+adminRouter.use("/wallet", adminWalletRouter);

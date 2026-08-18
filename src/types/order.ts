@@ -55,6 +55,27 @@ export interface Order {
   total: number;
   note?: string | null;
   paymentStatus: PaymentStatus;
+  paymentRefId?: string | null;
+  walletAmountUsed: number;
+  walletCashbackAmount: number;
   items: OrderItem[];
+  createdAt: string;
+}
+
+export type WalletTransactionType = "cashback" | "redeem" | "refund";
+
+export const WALLET_TRANSACTION_TYPE_LABELS: Record<WalletTransactionType, string> = {
+  cashback: "پاداش خرید",
+  redeem: "استفاده در سفارش",
+  refund: "بازگشت وجه",
+};
+
+export interface WalletTransaction {
+  id: string;
+  type: WalletTransactionType;
+  amount: number;
+  balanceAfter: number;
+  orderId?: string | null;
+  note?: string | null;
   createdAt: string;
 }

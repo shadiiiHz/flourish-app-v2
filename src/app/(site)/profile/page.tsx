@@ -16,24 +16,33 @@ import {
   Menu,
   ShoppingBag,
   User,
+  Wallet as WalletIcon,
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { normalizeDigits, PHONE_REGEX, toPersianDigits } from "@/utils/phone";
-import { getMyOrders } from "@/lib/api";
-import { ORDER_STATUS_LABELS, type Order } from "@/types/order";
+import { getMyOrders, getMyWallet } from "@/lib/api";
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+  WALLET_TRANSACTION_TYPE_LABELS,
+  type Order,
+  type PaymentStatus,
+  type WalletTransaction,
+} from "@/types/order";
 import { formatPreorderDateWithWeekday } from "@/lib/preorder";
 import { formatOrderNumber } from "@/lib/orderNumber";
 import AddressesPanel from "@/components/AddressesPanel";
 import ChangePasswordPanel from "@/components/ChangePasswordPanel";
 import Preloader from "@/components/Preloader";
 
-type ProfileTab = "info" | "orders" | "addresses" | "transactions" | "password";
+type ProfileTab = "info" | "orders" | "addresses" | "transactions" | "wallet" | "password";
 
 const TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
   { id: "orders", label: "سفارش‌های من", icon: ShoppingBag },
   { id: "addresses", label: "آدرس‌های من", icon: MapPin },
   { id: "transactions", label: "تراکنش‌ها", icon: Landmark },
+  { id: "wallet", label: "کیف پول", icon: WalletIcon },
   { id: "info", label: "اطلاعات من", icon: User },
   { id: "password", label: "تغییر کلمه عبور", icon: KeyRound },
 ];
@@ -43,17 +52,6 @@ function GlassCard({ children }: { children: ReactNode }) {
     <div className="rounded-[1.75rem] border border-white/40 bg-white/80 p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_30px_60px_-30px_rgba(74,44,18,0.35)] backdrop-blur-2xl backdrop-saturate-150 sm:rounded-[2rem] sm:p-7">
       {children}
     </div>
-  );
-}
-
-function PlaceholderPanel({ label }: { label: string }) {
-  return (
-    <GlassCard>
-      <h2 className="font-display text-lg font-bold text-cocoa-900">{label}</h2>
-      <p className="mt-3 text-sm text-cocoa-500">
-        این بخش به‌زودی تکمیل می‌شود.
-      </p>
-    </GlassCard>
   );
 }
 
@@ -174,6 +172,226 @@ function OrdersPanel() {
                   </span>
                 </div>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-5 flex items-center justify-center gap-1.5">
+          <button
+            type="button"
+            aria-label="صفحه قبل"
+            disabled={page === 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cocoa-900/10 bg-white text-cocoa-700 transition hover:bg-sand-50 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setPage(n)}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${
+                n === page
+                  ? "bg-sand-500 text-white"
+                  : "text-cocoa-700 hover:bg-sand-50"
+              }`}
+            >
+              {n.toLocaleString("fa-IR")}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            aria-label="صفحه بعد"
+            disabled={page === totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cocoa-900/10 bg-white text-cocoa-700 transition hover:bg-sand-50 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+const TRANSACTIONS_PAGE_SIZE = ORDERS_PAGE_SIZE;
+
+const PAYMENT_STATUS_STYLES: Record<PaymentStatus, string> = {
+  paid: "bg-sand-50 text-sand-500",
+  failed: "bg-danger-50 text-danger-500",
+  pending: "bg-cocoa-700/10 text-cocoa-600",
+};
+
+function TransactionsPanel() {
+  const { isAuthenticated } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(isAuthenticated);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setLoading(true);
+    getMyOrders(page, TRANSACTIONS_PAGE_SIZE)
+      .then((result) => {
+        setOrders(result.items);
+        setTotalPages(result.totalPages);
+      })
+      .finally(() => setLoading(false));
+  }, [isAuthenticated, page]);
+
+  return (
+    <GlassCard>
+      <h2 className="font-display text-lg font-bold text-cocoa-900">
+        تراکنش‌ها
+      </h2>
+
+      {loading ? (
+        <Preloader fullScreen={false} />
+      ) : orders.length === 0 ? (
+        <p className="mt-3 text-sm text-cocoa-500">
+          هنوز تراکنشی ثبت نشده است.
+        </p>
+      ) : (
+        <div className="mt-4 flex flex-col gap-3">
+          {orders.map((order) => (
+            <div
+              key={order.id}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-sand-100 p-4"
+            >
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-bold text-cocoa-900">
+                  سفارش {formatOrderNumber(order.orderNumber)}
+                </span>
+                <span className="text-xs text-cocoa-500">
+                  {new Date(order.createdAt).toLocaleDateString("fa-IR")}
+                </span>
+                {order.paymentStatus === "paid" && order.paymentRefId && (
+                  <span dir="ltr" className="text-xs text-cocoa-500">
+                    کد پیگیری: {toPersianDigits(order.paymentRefId)}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1.5">
+                <span className="text-sm font-bold text-cocoa-900">
+                  {order.total.toLocaleString("fa-IR")} تومان
+                </span>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${PAYMENT_STATUS_STYLES[order.paymentStatus]}`}
+                >
+                  {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-5 flex items-center justify-center gap-1.5">
+          <button
+            type="button"
+            aria-label="صفحه قبل"
+            disabled={page === 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cocoa-900/10 bg-white text-cocoa-700 transition hover:bg-sand-50 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setPage(n)}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${
+                n === page
+                  ? "bg-sand-500 text-white"
+                  : "text-cocoa-700 hover:bg-sand-50"
+              }`}
+            >
+              {n.toLocaleString("fa-IR")}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            aria-label="صفحه بعد"
+            disabled={page === totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cocoa-900/10 bg-white text-cocoa-700 transition hover:bg-sand-50 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+const WALLET_PAGE_SIZE = ORDERS_PAGE_SIZE;
+
+function WalletPanel() {
+  const { isAuthenticated } = useAuth();
+  const [balance, setBalance] = useState(0);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [loading, setLoading] = useState(isAuthenticated);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setLoading(true);
+    getMyWallet(page, WALLET_PAGE_SIZE)
+      .then((result) => {
+        setBalance(result.balance);
+        setTransactions(result.transactions.items);
+        setTotalPages(result.transactions.totalPages);
+      })
+      .finally(() => setLoading(false));
+  }, [isAuthenticated, page]);
+
+  return (
+    <GlassCard>
+      <h2 className="font-display text-lg font-bold text-cocoa-900">کیف پول</h2>
+
+      <div className="mt-4 rounded-2xl bg-sand-50/60 p-4 text-center">
+        <p className="text-xs font-semibold text-cocoa-600">موجودی کیف پول</p>
+        <p className="mt-1 font-display text-xl font-bold text-sand-500">
+          {balance.toLocaleString("fa-IR")} تومان
+        </p>
+      </div>
+
+      {loading ? (
+        <Preloader fullScreen={false} />
+      ) : transactions.length === 0 ? (
+        <p className="mt-3 text-sm text-cocoa-500">هنوز تراکنشی در کیف پول ثبت نشده است.</p>
+      ) : (
+        <div className="mt-4 flex flex-col gap-3">
+          {transactions.map((tx) => (
+            <div
+              key={tx.id}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-sand-100 p-4"
+            >
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-bold text-cocoa-900">
+                  {WALLET_TRANSACTION_TYPE_LABELS[tx.type]}
+                </span>
+                <span className="text-xs text-cocoa-500">
+                  {new Date(tx.createdAt).toLocaleDateString("fa-IR")}
+                </span>
+              </div>
+              <span
+                className={`text-sm font-bold ${tx.amount >= 0 ? "text-sand-500" : "text-danger-500"}`}
+              >
+                {tx.amount.toLocaleString("fa-IR")}
+                {tx.amount >= 0 ? "+" : ""} تومان
+              </span>
             </div>
           ))}
         </div>
@@ -561,9 +779,8 @@ function ProfilePageContent() {
           {activeTab === "info" && <ProfileInfoPanel />}
           {activeTab === "orders" && <OrdersPanel />}
           {activeTab === "addresses" && <AddressesPanel />}
-          {activeTab === "transactions" && (
-            <PlaceholderPanel label="تراکنش‌ها" />
-          )}
+          {activeTab === "transactions" && <TransactionsPanel />}
+          {activeTab === "wallet" && <WalletPanel />}
           {activeTab === "password" && <ChangePasswordPanel />}
         </div>
       </div>

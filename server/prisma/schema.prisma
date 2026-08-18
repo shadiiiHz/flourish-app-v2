@@ -37,6 +37,12 @@ enum DeliveryMethod {
   pickup
 }
 
+enum WalletTransactionType {
+  cashback
+  redeem
+  refund
+}
+
 model Category {
   id        String      @id @default(cuid())
   slug      String      @unique
@@ -91,18 +97,20 @@ model ProductVariant {
 }
 
 model Customer {
-  id           String     @id @default(cuid())
-  phone        String     @unique
-  passwordHash String?
-  firstName    String?
-  lastName     String?
-  email        String?
-  avatar       String?
-  orders       Order[]
-  addresses    Address[]
-  cartItems    CartItem[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                 String              @id @default(cuid())
+  phone              String              @unique
+  passwordHash       String?
+  firstName          String?
+  lastName           String?
+  email              String?
+  avatar             String?
+  walletBalance      Int                 @default(0)
+  orders             Order[]
+  addresses          Address[]
+  cartItems          CartItem[]
+  walletTransactions WalletTransaction[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model CartItem {
@@ -135,37 +143,40 @@ model Address {
 }
 
 model Order {
-  id                String         @id @default(cuid())
+  id                   String              @id @default(cuid())
   /**
    * Short, human-facing, DB-guaranteed-unique order number — display as #<orderNumber>.
    */
-  orderNumber       Int            @unique @default(autoincrement())
-  customerId        String?
-  customer          Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  customerPhone     String
-  customerName      String?
-  status            OrderStatus    @default(pending)
-  orderType         OrderType      @default(instant)
-  deliveryMethod    DeliveryMethod @default(delivery)
-  scheduledDate     DateTime?
-  scheduledTimeSlot String?
-  addressId         String?
-  address           Address?       @relation(fields: [addressId], references: [id], onDelete: SetNull)
-  addressText       String?
-  distanceKm        Float?
-  subtotal          Int
-  discountCode      String?
-  discountAmount    Int            @default(0)
-  tax               Int
-  shippingCost      Int            @default(0)
-  total             Int
-  note              String?
-  paymentStatus     PaymentStatus  @default(pending)
-  paymentAuthority  String?
-  paymentRefId      String?
-  items             OrderItem[]
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  orderNumber          Int                 @unique @default(autoincrement())
+  customerId           String?
+  customer             Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerPhone        String
+  customerName         String?
+  status               OrderStatus         @default(pending)
+  orderType            OrderType           @default(instant)
+  deliveryMethod       DeliveryMethod      @default(delivery)
+  scheduledDate        DateTime?
+  scheduledTimeSlot    String?
+  addressId            String?
+  address              Address?            @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  addressText          String?
+  distanceKm           Float?
+  subtotal             Int
+  discountCode         String?
+  discountAmount       Int                 @default(0)
+  tax                  Int
+  shippingCost         Int                 @default(0)
+  total                Int
+  note                 String?
+  paymentStatus        PaymentStatus       @default(pending)
+  paymentAuthority     String?
+  paymentRefId         String?
+  walletAmountUsed     Int                 @default(0)
+  walletCashbackAmount Int                 @default(0)
+  items                OrderItem[]
+  walletTransactions   WalletTransaction[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 }
 
 model OrderItem {
@@ -192,18 +203,39 @@ model DiscountCode {
 }
 
 model Settings {
-  id                  Int      @id @default(1)
-  shippingCostUpTo5Km Int      @default(0)
-  shippingCostOver5Km Int      @default(0)
+  id                    Int      @id @default(1)
+  shippingCostUpTo5Km   Int      @default(0)
+  shippingCostOver5Km   Int      @default(0)
   /**
    * Addresses farther than this from the store can't be delivered to — pickup only.
    */
-  maxDeliveryRadiusKm Int      @default(8)
+  maxDeliveryRadiusKm   Int      @default(8)
   /**
    * When true, only preorders can be placed — instant ordering is closed site-wide.
    */
-  siteClosed          Boolean  @default(false)
-  updatedAt           DateTime @updatedAt
+  siteClosed            Boolean  @default(false)
+  /**
+   * Percent of an order's item subtotal (pre-tax, pre-discount, pre-shipping) credited to the
+   * customer's wallet as cashback once the order is paid.
+   */
+  walletCashbackPercent Int      @default(0)
+  updatedAt             DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id           String                @id @default(cuid())
+  customerId   String
+  customer     Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type         WalletTransactionType
+  /**
+   * Signed amount in Toman — positive for credits (cashback, refund), negative for debits (redeem).
+   */
+  amount       Int
+  balanceAfter Int
+  orderId      String?
+  order        Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  note         String?
+  createdAt    DateTime              @default(now())
 }
 
 model AdminUser {

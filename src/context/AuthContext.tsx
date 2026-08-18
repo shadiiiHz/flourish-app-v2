@@ -26,6 +26,7 @@ export interface AuthUser {
   lastName?: string;
   email?: string;
   avatar?: string;
+  walletBalance: number;
 }
 
 export type AuthView = "otp-phone" | "otp-verify" | "password";

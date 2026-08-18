@@ -64,7 +64,11 @@ export interface AdminCustomer {
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
+  walletBalance: number;
   createdAt: string;
   _count?: { orders: number };
   orders?: AdminOrder[];
 }
+
+export type { WalletTransactionType, WalletTransaction as AdminWalletTransaction } from "./order";
+export { WALLET_TRANSACTION_TYPE_LABELS } from "./order";

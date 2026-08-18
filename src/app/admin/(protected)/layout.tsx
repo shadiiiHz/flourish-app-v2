@@ -14,6 +14,7 @@ import {
   Tags,
   TicketPercent,
   Users,
+  Wallet,
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import Preloader from "@/components/Preloader";
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { href: "/admin/orders", exact: false, label: "سفارش‌ها", icon: ShoppingBag },
   { href: "/admin/customers", exact: false, label: "مشتریان", icon: Users },
   { href: "/admin/discount-codes", exact: false, label: "کدهای تخفیف", icon: TicketPercent },
+  { href: "/admin/wallet", exact: false, label: "کیف پول", icon: Wallet },
   { href: "/admin/settings", exact: false, label: "تنظیمات", icon: Settings },
 ];
 

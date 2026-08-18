@@ -39,6 +39,7 @@ customersRouter.patch(
         lastName: customer.lastName ?? undefined,
         email: customer.email ?? undefined,
         avatar: customer.avatar ?? undefined,
+        walletBalance: customer.walletBalance,
       });
     } catch {
       res.status(409).json({ error: "این شماره موبایل قبلاً ثبت شده است" });
@@ -77,6 +78,28 @@ customersRouter.get(
       return;
     }
     res.json(order);
+  }),
+);
+
+customersRouter.get(
+  "/me/wallet",
+  asyncHandler(async (req, res) => {
+    const customerId = req.customer!.sub;
+    const pagination = parsePagination(req);
+    const [customer, transactions, total] = await prisma.$transaction([
+      prisma.customer.findUnique({ where: { id: customerId }, select: { walletBalance: true } }),
+      prisma.walletTransaction.findMany({
+        where: { customerId },
+        orderBy: { createdAt: "desc" },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      prisma.walletTransaction.count({ where: { customerId } }),
+    ]);
+    res.json({
+      balance: customer?.walletBalance ?? 0,
+      transactions: paginatedResult(transactions, total, pagination),
+    });
   }),
 );
 

@@ -11,8 +11,15 @@ import type {
   AdminDiscountCode,
   AdminOrder,
   AdminProduct,
+  AdminWalletTransaction,
 } from "../types/admin";
-import type { DeliveryMethod, Order, OrderStatus, OrderType } from "../types/order";
+import type {
+  DeliveryMethod,
+  Order,
+  OrderStatus,
+  OrderType,
+  WalletTransaction,
+} from "../types/order";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -207,6 +214,7 @@ export interface CustomerAuthUser {
   lastName?: string;
   email?: string;
   avatar?: string;
+  walletBalance: number;
 }
 
 export function customerRequestOtp(phone: string) {
@@ -270,6 +278,16 @@ export function updateMyProfile(payload: UpdateProfilePayload) {
 export function getMyOrders(page = 1, pageSize = 20) {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   return apiFetch<Paginated<Order>>(`/api/customers/me/orders?${params.toString()}`);
+}
+
+export interface MyWallet {
+  balance: number;
+  transactions: Paginated<WalletTransaction>;
+}
+
+export function getMyWallet(page = 1, pageSize = 20) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  return apiFetch<MyWallet>(`/api/customers/me/wallet?${params.toString()}`);
 }
 
 export interface ApiAddress {
@@ -374,11 +392,12 @@ export interface CreateOrderPayload {
   scheduledDate?: string;
   scheduledTimeSlot?: string;
   discountCode?: string;
+  useWallet?: boolean;
 }
 
 export interface CreateOrderResult {
   order: Order;
-  paymentUrl: string;
+  paymentUrl: string | null;
 }
 
 export function createOrder(payload: CreateOrderPayload) {
@@ -595,13 +614,14 @@ export interface AdminSettings {
   shippingCostOver5Km: number;
   maxDeliveryRadiusKm: number;
   siteClosed: boolean;
+  walletCashbackPercent: number;
 }
 
 export function adminGetSettings() {
   return apiFetch<AdminSettings>("/api/admin/settings");
 }
 
-export function adminUpdateSettings(payload: AdminSettings) {
+export function adminUpdateSettings(payload: Partial<AdminSettings>) {
   return apiFetch<AdminSettings>("/api/admin/settings", {
     method: "PUT",
     body: JSON.stringify(payload),
@@ -648,4 +668,21 @@ export function adminDeleteDiscountCode(id: string) {
 
 export function adminBulkDeleteDiscountCodes(ids: string[]) {
   return adminBulkDelete("/api/admin/discount-codes", ids);
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin wallet                                                        */
+/* ------------------------------------------------------------------ */
+
+export function adminGetWalletCustomers(page = 1, pageSize = 20, search = "") {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  return apiFetch<Paginated<AdminCustomer>>(`/api/admin/wallet/customers?${params.toString()}`);
+}
+
+export function adminGetCustomerWalletTransactions(customerId: string, page = 1, pageSize = 20) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  return apiFetch<Paginated<AdminWalletTransaction>>(
+    `/api/admin/wallet/customers/${customerId}/transactions?${params.toString()}`,
+  );
 }

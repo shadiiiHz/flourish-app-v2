@@ -42,6 +42,7 @@ function toAuthUser(customer: {
   lastName: string | null;
   email: string | null;
   avatar: string | null;
+  walletBalance: number;
 }) {
   return {
     phone: customer.phone,
@@ -50,6 +51,7 @@ function toAuthUser(customer: {
     lastName: customer.lastName ?? undefined,
     email: customer.email ?? undefined,
     avatar: customer.avatar ?? undefined,
+    walletBalance: customer.walletBalance,
   };
 }
 

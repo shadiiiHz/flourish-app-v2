@@ -7,10 +7,11 @@ import { getSettings } from "../../lib/shipping.js";
 export const adminSettingsRouter = Router();
 
 const settingsSchema = z.object({
-  shippingCostUpTo5Km: z.number().int().nonnegative(),
-  shippingCostOver5Km: z.number().int().nonnegative(),
+  shippingCostUpTo5Km: z.number().int().nonnegative().optional(),
+  shippingCostOver5Km: z.number().int().nonnegative().optional(),
   maxDeliveryRadiusKm: z.number().int().positive().optional(),
   siteClosed: z.boolean().optional(),
+  walletCashbackPercent: z.number().int().min(0).max(100).optional(),
 });
 
 adminSettingsRouter.get(

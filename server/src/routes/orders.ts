@@ -7,6 +7,7 @@ import { calculateShipping, getSettings } from "../lib/shipping.js";
 import { requestZarinpalPayment, verifyZarinpalPayment } from "../lib/zarinpal.js";
 import { getDiscountedPrice } from "../lib/pricing.js";
 import { env } from "../lib/env.js";
+import { creditWalletCashback, redeemWallet, refundWalletHold } from "../lib/wallet.js";
 
 export const ordersRouter = Router();
 
@@ -24,6 +25,7 @@ const createOrderSchema = z
     scheduledDate: z.string().optional(),
     scheduledTimeSlot: z.string().optional(),
     discountCode: z.string().trim().min(1).optional(),
+    useWallet: z.boolean().optional().default(false),
   })
   .refine(
     (data) => data.orderType !== "preorder" || (data.scheduledDate && data.scheduledTimeSlot),
@@ -42,7 +44,7 @@ ordersRouter.post(
       res.status(400).json({ error: "اطلاعات سفارش نامعتبر است" });
       return;
     }
-    const { addressId, deliveryMethod, customerName, note, orderType, scheduledTimeSlot, discountCode } =
+    const { addressId, deliveryMethod, customerName, note, orderType, scheduledTimeSlot, discountCode, useWallet } =
       parsed.data;
     const { sub: customerId, phone: customerPhone } = req.customer!;
 
@@ -151,6 +153,14 @@ ordersRouter.post(
     const { distanceKm, shippingCost } = shippingResult;
     const total = subtotal - discountAmount + tax + shippingCost;
 
+    let walletAmountUsed = 0;
+    if (useWallet) {
+      const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+      if (customer && customer.walletBalance > 0) {
+        walletAmountUsed = Math.min(customer.walletBalance, total);
+      }
+    }
+
     const order = await prisma.order.create({
       data: {
         customerId,
@@ -173,14 +183,33 @@ ordersRouter.post(
         tax,
         shippingCost,
         total,
+        walletAmountUsed,
         items: { create: orderItems },
       },
       include: { items: true },
     });
 
+    if (walletAmountUsed > 0) {
+      await redeemWallet(customerId, walletAmountUsed, order.id);
+    }
+
+    const payableAmount = total - walletAmountUsed;
+
+    if (payableAmount <= 0) {
+      const paidOrder = await prisma.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: "paid" },
+        include: { items: true },
+      });
+      await prisma.cartItem.deleteMany({ where: { customerId } });
+      await creditWalletCashback(order.id);
+      res.status(201).json({ order: paidOrder, paymentUrl: null });
+      return;
+    }
+
     try {
       const { authority, payUrl } = await requestZarinpalPayment({
-        amountToman: order.total,
+        amountToman: payableAmount,
         description: `پرداخت سفارش فلوریش #${order.id}`,
         callbackUrl: `${env.apiUrl}/api/orders/${order.id}/payment/callback`,
         mobile: customerPhone,
@@ -192,6 +221,7 @@ ordersRouter.post(
       res.status(201).json({ order, paymentUrl: payUrl });
     } catch (err) {
       console.error("Zarinpal payment request failed:", err);
+      await refundWalletHold(order.id);
       const message = err instanceof Error ? err.message : "خطا در اتصال به درگاه پرداخت";
       res.status(502).json({ error: message, orderId: order.id });
     }
@@ -215,12 +245,13 @@ ordersRouter.get(
         where: { id: order.id },
         data: { paymentStatus: "failed" },
       });
+      await refundWalletHold(order.id);
       res.redirect(`${env.appUrl}/checkout/result?status=failed&orderId=${order.id}`);
       return;
     }
 
     const verified = await verifyZarinpalPayment({
-      amountToman: order.total,
+      amountToman: order.total - order.walletAmountUsed,
       authority: order.paymentAuthority,
     });
 
@@ -229,6 +260,7 @@ ordersRouter.get(
         where: { id: order.id },
         data: { paymentStatus: "failed" },
       });
+      await refundWalletHold(order.id);
       res.redirect(`${env.appUrl}/checkout/result?status=failed&orderId=${order.id}`);
       return;
     }
@@ -240,6 +272,7 @@ ordersRouter.get(
     if (order.customerId) {
       await prisma.cartItem.deleteMany({ where: { customerId: order.customerId } });
     }
+    await creditWalletCashback(order.id);
     res.redirect(`${env.appUrl}/checkout/result?status=paid&orderId=${order.id}`);
   }),
 );
