@@ -542,6 +542,25 @@ export function adminUploadImage(file: File) {
   });
 }
 
+export interface BulkImportError {
+  row: number;
+  message: string;
+}
+
+export interface BulkImportResult {
+  createdCount: number;
+  errors: BulkImportError[];
+}
+
+export function adminBulkImportProducts(file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  return apiFetch<BulkImportResult>("/api/admin/products/bulk-import", {
+    method: "POST",
+    body: fd,
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Admin orders / customers                                            */
 /* ------------------------------------------------------------------ */

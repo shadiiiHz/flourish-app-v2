@@ -3,11 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Pencil, Plus, Trash2, Upload, X } from "lucide-react";
+import { FileUp, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
 import {
   ApiError,
   adminBulkDeleteProducts,
+  adminBulkImportProducts,
   adminCreateProduct,
   adminDeleteProduct,
   adminGetAllCategories,
@@ -16,6 +20,7 @@ import {
   adminUploadImage,
   apiUploadUrl,
   revalidateCatalog,
+  type BulkImportResult,
 } from "@/lib/api";
 import {
   CustomDataGrid,
@@ -133,6 +138,12 @@ function AdminProductsPage() {
     { type: "include", ids: new Set() },
   );
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
+  const [bulkImportLoading, setBulkImportLoading] = useState(false);
+  const [bulkImportError, setBulkImportError] = useState<string | null>(null);
+  const [bulkImportResult, setBulkImportResult] = useState<BulkImportResult | null>(null);
+  const bulkImportFileInputRef = useRef<HTMLInputElement>(null);
   const selectedIds = useMemo(
     () =>
       resolveSelectedRowIds(
@@ -338,6 +349,83 @@ function AdminProductsPage() {
     }
   };
 
+  const openBulkImport = () => {
+    setBulkImportFile(null);
+    setBulkImportError(null);
+    setBulkImportResult(null);
+    setBulkImportOpen(true);
+  };
+
+  const closeBulkImport = () => {
+    setBulkImportOpen(false);
+    setBulkImportFile(null);
+    setBulkImportError(null);
+    setBulkImportResult(null);
+  };
+
+  const handleBulkImportSubmit = async () => {
+    if (!bulkImportFile) return;
+    setBulkImportLoading(true);
+    setBulkImportError(null);
+    setBulkImportResult(null);
+    try {
+      const result = await adminBulkImportProducts(bulkImportFile);
+      setBulkImportResult(result);
+      if (result.createdCount > 0) {
+        load();
+        revalidateCatalog();
+      }
+    } catch (err) {
+      setBulkImportError(err instanceof ApiError ? err.message : "خطا در آپلود فایل");
+    } finally {
+      setBulkImportLoading(false);
+    }
+  };
+
+  const downloadSampleCsv = () => {
+    const exampleCategory = categories[0]?.title ?? "نوشیدنی";
+    const header = [
+      "عنوان",
+      "دسته‌بندی",
+      "قیمت",
+      "توضیحات",
+      "وزن",
+      "ترکیبات",
+      "مناسب برای",
+      "درصد تخفیف",
+      "موجودی",
+      "جدید",
+      "موجود",
+      "پیش‌سفارش",
+      "انواع محصول",
+    ];
+    const example = [
+      "لاته وانیل",
+      exampleCategory,
+      "120000",
+      "قهوه با شیر و شربت وانیل",
+      "",
+      "قهوه، شیر، شربت وانیل",
+      "۱ نفر",
+      "0",
+      "",
+      "بله",
+      "بله",
+      "بله",
+      "کوچک:100000:200 گرم:15;بزرگ:130000:350 گرم:10",
+    ];
+    const csv = `${header.join(",")}\n${example.map((v) => `"${v}"`).join(",")}\n`;
+    const blob = new Blob([String.fromCharCode(0xfeff) + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "نمونه-محصولات.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const categoryTitleById = useMemo(
     () => new Map(categories.map((c) => [c.id, c.title])),
     [categories],
@@ -441,7 +529,17 @@ function AdminProductsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-xl font-bold text-cocoa-900">محصولات</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-display text-xl font-bold text-cocoa-900">محصولات</h1>
+        <button
+          type="button"
+          onClick={openBulkImport}
+          className="flex items-center gap-1.5 rounded-full border border-sand-200 bg-white px-4 py-2.5 text-sm font-bold text-cocoa-700 transition hover:bg-sand-50"
+        >
+          <FileUp className="h-4 w-4 text-sand-500" />
+          آپلود گروهی
+        </button>
+      </div>
 
       <form
         onSubmit={formik.handleSubmit}
@@ -901,6 +999,105 @@ function AdminProductsPage() {
         onConfirm={handleBulkDelete}
         onClose={() => setBulkDeleteOpen(false)}
       />
+
+      <Dialog open={bulkImportOpen} onClose={closeBulkImport} maxWidth="sm" fullWidth dir="rtl">
+        <DialogTitle className="font-display text-cocoa-900">
+          آپلود گروهی محصولات
+        </DialogTitle>
+        <DialogContent dividers>
+          <p className="text-xs leading-6 text-cocoa-600">
+            یک فایل CSV با ستون‌های زیر آپلود کنید: عنوان، دسته‌بندی (اسم یا اسلاگ یک
+            دسته‌بندی موجود)، قیمت، توضیحات، وزن، ترکیبات، مناسب برای، درصد تخفیف،
+            موجودی، جدید، موجود، پیش‌سفارش، انواع محصول. فقط عنوان، دسته‌بندی و قیمت
+            الزامی هستند. تصویر محصولات از طریق این فایل قابل افزودن نیست — بعد از
+            آپلود، از فرم ویرایش هر محصول اضافه کنید. ستون وزن (چه برای خود محصول
+            چه برای انواع آن) فقط به شکل «عدد گرم» یا «عدد کیلوگرم» پذیرفته می‌شود،
+            مثلاً «۲۵۰ گرم».
+          </p>
+          <p className="mt-2 text-xs leading-6 text-cocoa-600">
+            برای «انواع محصول» (مثل سایزهای مختلف)، هر نوع را به شکل
+            <span dir="ltr" className="mx-1 font-mono">عنوان:قیمت:وزن:موجودی</span>
+            بنویسید و انواع مختلف را با <span dir="ltr" className="font-mono">;</span>
+            از هم جدا کنید — وزن و موجودی اختیاری هستند. مثال:
+            <span dir="ltr" className="mx-1 font-mono">
+              کوچک:100000:200 گرم:15;بزرگ:130000:350 گرم:10
+            </span>
+          </p>
+
+          <button
+            type="button"
+            onClick={downloadSampleCsv}
+            className="mt-3 text-xs font-bold text-sand-500 hover:text-sand-600"
+          >
+            دانلود نمونه CSV
+          </button>
+
+          <div className="mt-4 flex items-center gap-3">
+            <input
+              ref={bulkImportFileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                setBulkImportFile(e.target.files?.[0] ?? null);
+                setBulkImportResult(null);
+                setBulkImportError(null);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => bulkImportFileInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded-full border border-sand-200 bg-white px-4 py-2 text-xs font-bold text-cocoa-700 transition hover:bg-sand-50"
+            >
+              <Upload className="h-3.5 w-3.5 text-sand-500" />
+              انتخاب فایل
+            </button>
+            <span className="truncate text-xs text-cocoa-600">
+              {bulkImportFile ? bulkImportFile.name : "فایلی انتخاب نشده"}
+            </span>
+          </div>
+
+          {bulkImportError && (
+            <p className="mt-3 text-xs font-semibold text-danger-500">{bulkImportError}</p>
+          )}
+
+          {bulkImportResult && (
+            <div className="mt-4 flex flex-col gap-2">
+              <p className="text-xs font-bold text-sand-500">
+                {bulkImportResult.createdCount.toLocaleString("fa-IR")} محصول با موفقیت اضافه
+                شد.
+              </p>
+              {bulkImportResult.errors.length > 0 && (
+                <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-danger-50 p-3">
+                  {bulkImportResult.errors.map((e) => (
+                    <p key={e.row} className="text-xs font-semibold text-danger-500">
+                      ردیف {e.row.toLocaleString("fa-IR")}: {e.message}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBulkImportSubmit}
+              disabled={!bulkImportFile || bulkImportLoading}
+              className="rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+            >
+              {bulkImportLoading ? "در حال آپلود…" : "شروع آپلود"}
+            </button>
+            <button
+              type="button"
+              onClick={closeBulkImport}
+              className="rounded-full border border-sand-200 bg-white px-5 py-2.5 text-sm font-bold text-cocoa-700 transition hover:bg-sand-50"
+            >
+              بستن
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
