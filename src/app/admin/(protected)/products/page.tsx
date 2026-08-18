@@ -72,16 +72,10 @@ const EMPTY_FORM: FormValues = {
   variants: [],
 };
 
-function parseWeight(weight: string | null | undefined): {
-  weightValue: string;
-  weightUnit: WeightUnit;
-} {
+function parseWeight(weight: string | null | undefined): { weightValue: string; weightUnit: WeightUnit } {
   if (!weight) return { weightValue: "", weightUnit: "گرم" };
   const match = weight.match(/[\d.]+/);
-  return {
-    weightValue: match ? match[0] : "",
-    weightUnit: weight.includes("کیلو") ? "کیلوگرم" : "گرم",
-  };
+  return { weightValue: match ? match[0] : "", weightUnit: weight.includes("کیلو") ? "کیلوگرم" : "گرم" };
 }
 
 const validationSchema = Yup.object({
@@ -140,17 +134,15 @@ function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>({
-    type: "include",
-    ids: new Set(),
-  });
+  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>(
+    { type: "include", ids: new Set() },
+  );
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
   const [bulkImportLoading, setBulkImportLoading] = useState(false);
   const [bulkImportError, setBulkImportError] = useState<string | null>(null);
-  const [bulkImportResult, setBulkImportResult] =
-    useState<BulkImportResult | null>(null);
+  const [bulkImportResult, setBulkImportResult] = useState<BulkImportResult | null>(null);
   const bulkImportFileInputRef = useRef<HTMLInputElement>(null);
   const selectedIds = useMemo(
     () =>
@@ -384,9 +376,7 @@ function AdminProductsPage() {
         revalidateCatalog();
       }
     } catch (err) {
-      setBulkImportError(
-        err instanceof ApiError ? err.message : "خطا در آپلود فایل",
-      );
+      setBulkImportError(err instanceof ApiError ? err.message : "خطا در آپلود فایل");
     } finally {
       setBulkImportLoading(false);
     }
@@ -540,9 +530,7 @@ function AdminProductsPage() {
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <h1 className="font-display text-xl font-bold text-cocoa-900">
-          محصولات
-        </h1>
+        <h1 className="font-display text-xl font-bold text-cocoa-900">محصولات</h1>
         <button
           type="button"
           onClick={openBulkImport}
@@ -641,9 +629,7 @@ function AdminProductsPage() {
               placeholder="0"
               name="price"
               value={formatThousands(formik.values.price)}
-              onChange={(e) =>
-                formik.setFieldValue("price", digitsOnly(e.target.value))
-              }
+              onChange={(e) => formik.setFieldValue("price", digitsOnly(e.target.value))}
               onBlur={formik.handleBlur}
               className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
             />
@@ -891,9 +877,7 @@ function AdminProductsPage() {
                   <input
                     placeholder="عنوان"
                     value={v.title}
-                    onChange={(e) =>
-                      updateVariant(i, { title: e.target.value })
-                    }
+                    onChange={(e) => updateVariant(i, { title: e.target.value })}
                     className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                   />
                   <input
@@ -903,9 +887,7 @@ function AdminProductsPage() {
                     placeholder="قیمت"
                     value={v.price ? formatThousands(String(v.price)) : ""}
                     onChange={(e) =>
-                      updateVariant(i, {
-                        price: Number(digitsOnly(e.target.value)) || 0,
-                      })
+                      updateVariant(i, { price: Number(digitsOnly(e.target.value)) || 0 })
                     }
                     className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                   />
@@ -917,11 +899,7 @@ function AdminProductsPage() {
                       value={parseWeight(v.weight).weightValue}
                       onChange={(e) => {
                         const unit = parseWeight(v.weight).weightUnit;
-                        updateVariant(i, {
-                          weight: e.target.value
-                            ? `${e.target.value} ${unit}`
-                            : "",
-                        });
+                        updateVariant(i, { weight: e.target.value ? `${e.target.value} ${unit}` : "" });
                       }}
                       className="w-full rounded-lg border border-cocoa-900/10 px-2 py-2 text-xs outline-none focus:border-sand-400"
                     />
@@ -929,9 +907,7 @@ function AdminProductsPage() {
                       value={parseWeight(v.weight).weightUnit}
                       onChange={(e) => {
                         const value = parseWeight(v.weight).weightValue;
-                        updateVariant(i, {
-                          weight: value ? `${value} ${e.target.value}` : "",
-                        });
+                        updateVariant(i, { weight: value ? `${value} ${e.target.value}` : "" });
                       }}
                       className="shrink-0 rounded-lg border border-cocoa-900/10 px-1.5 py-2 text-xs outline-none focus:border-sand-400"
                     >
@@ -951,9 +927,7 @@ function AdminProductsPage() {
                 <input
                   placeholder="توضیحات این نوع (اختیاری)"
                   value={v.description ?? ""}
-                  onChange={(e) =>
-                    updateVariant(i, { description: e.target.value })
-                  }
+                  onChange={(e) => updateVariant(i, { description: e.target.value })}
                   className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                 />
               </div>
@@ -1010,9 +984,7 @@ function AdminProductsPage() {
         }
         confirmLabel="بله، حذف شود"
         cancelLabel="انصراف"
-        onConfirm={() =>
-          deletingProduct ? handleDelete(deletingProduct.id) : undefined
-        }
+        onConfirm={() => (deletingProduct ? handleDelete(deletingProduct.id) : undefined)}
         onClose={() => setDeletingProduct(null)}
       />
 
@@ -1037,8 +1009,15 @@ function AdminProductsPage() {
         scroll="body"
         sx={{
           "& .MuiDialog-container": {
-            scrollbarWidth: "none",
-            "&::-webkit-scrollbar": { display: "none" },
+            scrollbarWidth: "thin",
+            scrollbarColor: "rgba(74,44,18,0.25) transparent",
+            "&::-webkit-scrollbar": { width: 8 },
+            "&::-webkit-scrollbar-track": { background: "transparent" },
+            "&::-webkit-scrollbar-thumb": {
+          
+              backdropFilter: "blur(4px)",
+              borderRadius: 999,
+            },
           },
         }}
       >
@@ -1055,23 +1034,18 @@ function AdminProductsPage() {
         </DialogTitle>
         <DialogContent dividers>
           <p className="text-xs leading-6 text-cocoa-600">
-            یک فایل CSV با ستون‌های زیر آپلود کنید: عنوان، دسته‌بندی، قیمت،
-            توضیحات، وزن، ترکیبات، مناسب برای، درصد تخفیف، موجودی، جدید، موجود،
-            پیش‌سفارش، انواع محصول. فقط عنوان، دسته‌بندی و قیمت الزامی هستند.
-            تصویر محصولات از طریق این فایل قابل افزودن نیست — بعد از آپلود، از
-            فرم ویرایش هر محصول اضافه کنید. ستون وزن (چه برای خود محصول چه برای
-            انواع آن) فقط به شکل «عدد گرم» یا «عدد کیلوگرم» پذیرفته می‌شود،
+            یک فایل CSV با ستون‌های زیر آپلود کنید: عنوان، دسته‌بندی (اسم یا اسلاگ یک
+            دسته‌بندی موجود)، قیمت، توضیحات، وزن، ترکیبات، مناسب برای، درصد تخفیف،
+            موجودی، جدید، موجود، پیش‌سفارش، انواع محصول. فقط عنوان، دسته‌بندی و قیمت
+            الزامی هستند. تصویر محصولات از طریق این فایل قابل افزودن نیست — بعد از
+            آپلود، از فرم ویرایش هر محصول اضافه کنید. ستون وزن (چه برای خود محصول
+            چه برای انواع آن) فقط به شکل «عدد گرم» یا «عدد کیلوگرم» پذیرفته می‌شود،
             مثلاً «۲۵۰ گرم».
           </p>
           <p className="mt-2 text-xs leading-6 text-cocoa-600">
             برای «انواع محصول» (مثل سایزهای مختلف)، هر نوع را به شکل
-            <span dir="ltr" className="mx-1 font-mono">
-              عنوان:قیمت:وزن:موجودی
-            </span>
-            بنویسید و انواع مختلف را با{" "}
-            <span dir="ltr" className="font-mono">
-              ;
-            </span>
+            <span dir="ltr" className="mx-1 font-mono">عنوان:قیمت:وزن:موجودی</span>
+            بنویسید و انواع مختلف را با <span dir="ltr" className="font-mono">;</span>
             از هم جدا کنید — وزن و موجودی اختیاری هستند. مثال:
             <span dir="ltr" className="mx-1 font-mono">
               کوچک:100000:200 گرم:15;بزرگ:130000:350 گرم:10
@@ -1112,24 +1086,19 @@ function AdminProductsPage() {
           </div>
 
           {bulkImportError && (
-            <p className="mt-3 text-xs font-semibold text-danger-500">
-              {bulkImportError}
-            </p>
+            <p className="mt-3 text-xs font-semibold text-danger-500">{bulkImportError}</p>
           )}
 
           {bulkImportResult && (
             <div className="mt-4 flex flex-col gap-2">
               <p className="text-xs font-bold text-sand-500">
-                {bulkImportResult.createdCount.toLocaleString("fa-IR")} محصول با
-                موفقیت اضافه شد.
+                {bulkImportResult.createdCount.toLocaleString("fa-IR")} محصول با موفقیت اضافه
+                شد.
               </p>
               {bulkImportResult.errors.length > 0 && (
                 <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-danger-50 p-3">
                   {bulkImportResult.errors.map((e) => (
-                    <p
-                      key={e.row}
-                      className="text-xs font-semibold text-danger-500"
-                    >
+                    <p key={e.row} className="text-xs font-semibold text-danger-500">
                       ردیف {e.row.toLocaleString("fa-IR")}: {e.message}
                     </p>
                   ))}
