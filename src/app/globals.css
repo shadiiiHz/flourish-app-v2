@@ -51,10 +51,18 @@
   scrollbar-gutter: stable;
 }
 
+/*
+ * :root already reserves scrollbar-gutter: stable, so the layout never
+ * shifts when the scrollbar disappears. MUI's Modal/Dialog scroll-lock
+ * doesn't know that — it still adds its own body padding-right to
+ * compensate for the "missing" scrollbar, which double-compensates and
+ * causes a visible jump when any admin-panel modal opens or closes.
+ */
 body {
   margin: 0;
   background-color: var(--color-cream);
   font-family: var(--font-sans);
+  padding-right: 0 !important;
 }
 
 /* soft organic blob shape, used behind illustrations */

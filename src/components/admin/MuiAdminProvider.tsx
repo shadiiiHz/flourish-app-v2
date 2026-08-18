@@ -30,6 +30,14 @@ const theme = createTheme({
     MuiTextField: {
       defaultProps: { size: "small" },
     },
+    MuiBackdrop: {
+      styleOverrides: {
+        // `invisible` backdrops belong to Popover/Menu/Select, not Dialog —
+        // only blur the ones that actually render a visible dim overlay.
+        root: ({ ownerState }) =>
+          ownerState.invisible ? {} : { backdropFilter: "blur(4px)" },
+      },
+    },
   },
 }, faIR);
 

@@ -1034,9 +1034,24 @@ function AdminProductsPage() {
         maxWidth="sm"
         fullWidth
         dir="rtl"
+        scroll="body"
+        sx={{
+          "& .MuiDialog-container": {
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+          },
+        }}
       >
-        <DialogTitle className="font-display text-cocoa-900">
+        <DialogTitle className="flex items-center justify-between gap-3 font-display text-cocoa-900">
           آپلود گروهی محصولات
+          <button
+            type="button"
+            onClick={closeBulkImport}
+            aria-label="بستن"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-cocoa-500 transition hover:bg-sand-50 hover:text-cocoa-700"
+          >
+            <X className="h-4.5 w-4.5" />
+          </button>
         </DialogTitle>
         <DialogContent dividers>
           <p className="text-xs leading-6 text-cocoa-600">
