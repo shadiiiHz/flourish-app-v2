@@ -41,6 +41,7 @@ enum WalletTransactionType {
   cashback
   redeem
   refund
+  cashback_reversal
 }
 
 model Category {

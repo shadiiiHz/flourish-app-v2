@@ -7,7 +7,7 @@ import { calculateShipping, getSettings } from "../lib/shipping.js";
 import { requestZarinpalPayment, verifyZarinpalPayment } from "../lib/zarinpal.js";
 import { getDiscountedPrice } from "../lib/pricing.js";
 import { env } from "../lib/env.js";
-import { creditWalletCashback, redeemWallet, refundWalletHold } from "../lib/wallet.js";
+import { redeemWallet, refundWalletHold } from "../lib/wallet.js";
 
 export const ordersRouter = Router();
 
@@ -202,7 +202,6 @@ ordersRouter.post(
         include: { items: true },
       });
       await prisma.cartItem.deleteMany({ where: { customerId } });
-      await creditWalletCashback(order.id);
       res.status(201).json({ order: paidOrder, paymentUrl: null });
       return;
     }
@@ -272,7 +271,6 @@ ordersRouter.get(
     if (order.customerId) {
       await prisma.cartItem.deleteMany({ where: { customerId: order.customerId } });
     }
-    await creditWalletCashback(order.id);
     res.redirect(`${env.appUrl}/checkout/result?status=paid&orderId=${order.id}`);
   }),
 );

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
+import { creditWalletCashback, reverseWalletCashback } from "../../lib/wallet.js";
 
 export const adminOrdersRouter = Router();
 
@@ -79,6 +80,11 @@ adminOrdersRouter.patch(
       data: { status: parsed.data.status },
       include: { items: true, customer: true },
     });
+    if (parsed.data.status === "delivered") {
+      await creditWalletCashback(order.id);
+    } else if (parsed.data.status === "cancelled") {
+      await reverseWalletCashback(order.id);
+    }
     res.json(order);
   }),
 );
