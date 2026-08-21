@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryMenuView from "@/components/CategoryMenuView";
-import { CATEGORY_TABS, getCatalog } from "@/lib/api";
+import { CATEGORY_TABS, getCatalog, getSiteStatus } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "منو | فلوریش",
@@ -11,7 +11,16 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function MenuPage() {
-  const categoriesByTab = await getCatalog();
+  const [categoriesByTab, { walletCashbackPercent }] = await Promise.all([
+    getCatalog(),
+    getSiteStatus(),
+  ]);
 
-  return <CategoryMenuView tabs={CATEGORY_TABS} categoriesByTab={categoriesByTab} />;
+  return (
+    <CategoryMenuView
+      tabs={CATEGORY_TABS}
+      categoriesByTab={categoriesByTab}
+      walletCashbackPercent={walletCashbackPercent}
+    />
+  );
 }

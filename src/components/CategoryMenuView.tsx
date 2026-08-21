@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { CalendarClock, Clock, MapPin, Phone } from "lucide-react";
+import { CalendarClock, Clock, MapPin, Phone, Wallet } from "lucide-react";
 import { siteConfig, type Category, type CategoryTab, type CategoryTabId } from "@/config/siteConfig";
 import ProductCard from "@/components/ProductCard";
 import { useOrderType } from "@/context/OrderTypeContext";
@@ -18,9 +18,10 @@ type PageSection = "menu" | "info";
 interface CategoryMenuViewProps {
   tabs: CategoryTab[];
   categoriesByTab: Record<CategoryTabId, Category[]>;
+  walletCashbackPercent: number;
 }
 
-function CategoryMenuView({ tabs, categoriesByTab }: CategoryMenuViewProps) {
+function CategoryMenuView({ tabs, categoriesByTab, walletCashbackPercent }: CategoryMenuViewProps) {
   const { orderType, preorder, openModal } = useOrderType();
   const hasPreorder = orderType === "preorder" && !!preorder;
   const flatCategories = useMemo(
@@ -221,6 +222,26 @@ function CategoryMenuView({ tabs, categoriesByTab }: CategoryMenuViewProps) {
           </div>
         </div>
       </section>
+
+      {walletCashbackPercent > 0 && (
+        <section className="px-3 pt-4 sm:px-6">
+          <div className="mx-auto flex max-w-6xl justify-start">
+            <div className="flex w-fit items-center gap-2.5 rounded-2xl border border-sand-100 bg-white/80 px-3 py-3 shadow-[0_15px_40px_-25px_rgba(138,84,39,0.35)] backdrop-blur-xl">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sand-500 text-white shadow-[0_8px_16px_-6px_rgba(164,72,25,0.6)]">
+                <Wallet className="h-4 w-4" strokeWidth={1.9} />
+              </span>
+              <div>
+                <h2 className="font-display text-xs font-bold text-cocoa-900 sm:text-sm">
+                  اعتبار بازگشتی | CashBack
+                </h2>
+                <p className="mt-0.5 text-[11px] text-cocoa-500 sm:text-xs">
+                  {toPersianDigits(String(walletCashbackPercent))}درصد اعتبار بازگشتی به کیف پول
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {activeSection === "info" && (
         <div className="mx-auto max-w-5xl px-3 pb-16 pt-8 sm:px-6">

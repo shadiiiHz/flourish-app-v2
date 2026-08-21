@@ -9,7 +9,10 @@ catalogRouter.get(
   "/settings/status",
   asyncHandler(async (_req, res) => {
     const settings = await getSettings();
-    res.json({ siteClosed: settings.siteClosed });
+    res.json({
+      siteClosed: settings.siteClosed,
+      walletCashbackPercent: settings.walletCashbackPercent,
+    });
   }),
 );
 

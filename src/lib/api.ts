@@ -612,15 +612,19 @@ export function adminBulkDeleteCustomers(ids: string[]) {
 /* Site status (public)                                                */
 /* ------------------------------------------------------------------ */
 
-export async function getSiteStatus(): Promise<{ siteClosed: boolean }> {
+export async function getSiteStatus(): Promise<{
+  siteClosed: boolean;
+  walletCashbackPercent: number;
+}> {
   try {
     // An operational toggle — never served stale from the SSR data cache;
     // the client also polls this directly to catch admin changes mid-session.
-    return await apiFetch<{ siteClosed: boolean }>("/api/settings/status", {
-      next: { revalidate: 0 },
-    });
+    return await apiFetch<{ siteClosed: boolean; walletCashbackPercent: number }>(
+      "/api/settings/status",
+      { next: { revalidate: 0 } },
+    );
   } catch {
-    return { siteClosed: false };
+    return { siteClosed: false, walletCashbackPercent: 0 };
   }
 }
 
