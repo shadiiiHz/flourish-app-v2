@@ -30,3 +30,7 @@ npm run dev
 ## API layer
 
 All requests to the backend go through the single client in `src/lib/api.ts` — every endpoint is a typed, named export (`getCatalog`, `adminGetProducts`, `createOrder`, …) instead of ad-hoc fetch calls scattered across components/pages.
+
+## Deployment
+
+Pushing to `main` deploys automatically to the cloud server via GitHub Actions — see [`deploy/README.md`](deploy/README.md) for one-time setup (SSH key + repo secrets).
