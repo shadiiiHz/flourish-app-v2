@@ -3,9 +3,31 @@
 import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Store, Truck } from "lucide-react";
-import { ApiError, adminGetSettings, adminUpdateSettings } from "@/lib/api";
+import { KeyRound, Store, Truck } from "lucide-react";
+import { ApiError, adminChangePassword, adminGetSettings, adminUpdateSettings } from "@/lib/api";
 import { digitsOnly, formatThousands } from "@/lib/formatNumber";
+
+interface PasswordFormValues {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+const EMPTY_PASSWORD_FORM: PasswordFormValues = {
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+};
+
+const passwordValidationSchema = Yup.object({
+  currentPassword: Yup.string().required("رمز عبور فعلی را وارد کنید"),
+  newPassword: Yup.string()
+    .min(8, "رمز عبور جدید باید حداقل ۸ کاراکتر باشد")
+    .required("رمز عبور جدید را وارد کنید"),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref("newPassword")], "تکرار رمز عبور با رمز جدید یکسان نیست")
+    .required("تکرار رمز عبور را وارد کنید"),
+});
 
 interface FormValues {
   shippingCostUpTo5Km: string;
@@ -74,6 +96,27 @@ function AdminSettingsPage() {
       )
       .finally(() => setLoading(false));
   }, []);
+
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const passwordFormik = useFormik<PasswordFormValues>({
+    initialValues: EMPTY_PASSWORD_FORM,
+    validationSchema: passwordValidationSchema,
+    onSubmit: async (values, helpers) => {
+      setPasswordError(null);
+      setPasswordSuccess(false);
+      try {
+        await adminChangePassword(values.currentPassword, values.newPassword);
+        setPasswordSuccess(true);
+        helpers.resetForm();
+      } catch (err) {
+        setPasswordError(err instanceof ApiError ? err.message : "خطا در تغییر رمز عبور");
+      } finally {
+        helpers.setSubmitting(false);
+      }
+    },
+  });
 
   return (
     <div>
@@ -192,6 +235,91 @@ function AdminSettingsPage() {
           className="mt-4 rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
         >
           {formik.isSubmitting ? "در حال ذخیره…" : "ذخیره تغییرات"}
+        </button>
+      </form>
+
+      <form
+        onSubmit={passwordFormik.handleSubmit}
+        className="mt-4 max-w-xl rounded-[1.5rem] border border-sand-100 bg-white p-5"
+      >
+        <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
+          <KeyRound className="h-4.5 w-4.5 text-sand-500" />
+          تغییر رمز عبور
+        </h2>
+        <p className="mt-1 text-xs text-cocoa-500">
+          برای تغییر رمز عبور ورود به پنل ادمین، رمز فعلی و رمز جدید را وارد کنید.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+              رمز عبور فعلی
+            </label>
+            <input
+              type="password"
+              name="currentPassword"
+              value={passwordFormik.values.currentPassword}
+              onChange={passwordFormik.handleChange}
+              onBlur={passwordFormik.handleBlur}
+              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+            />
+            {passwordFormik.touched.currentPassword && passwordFormik.errors.currentPassword && (
+              <p className="mt-1 text-xs font-semibold text-danger-500">
+                {passwordFormik.errors.currentPassword}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+              رمز عبور جدید
+            </label>
+            <input
+              type="password"
+              name="newPassword"
+              value={passwordFormik.values.newPassword}
+              onChange={passwordFormik.handleChange}
+              onBlur={passwordFormik.handleBlur}
+              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+            />
+            {passwordFormik.touched.newPassword && passwordFormik.errors.newPassword && (
+              <p className="mt-1 text-xs font-semibold text-danger-500">
+                {passwordFormik.errors.newPassword}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+              تکرار رمز عبور جدید
+            </label>
+            <input
+              type="password"
+              name="confirmPassword"
+              value={passwordFormik.values.confirmPassword}
+              onChange={passwordFormik.handleChange}
+              onBlur={passwordFormik.handleBlur}
+              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+            />
+            {passwordFormik.touched.confirmPassword && passwordFormik.errors.confirmPassword && (
+              <p className="mt-1 text-xs font-semibold text-danger-500">
+                {passwordFormik.errors.confirmPassword}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {passwordError && (
+          <p className="mt-3 text-xs font-semibold text-danger-500">{passwordError}</p>
+        )}
+        {passwordSuccess && (
+          <p className="mt-3 text-xs font-semibold text-sand-500">رمز عبور با موفقیت تغییر کرد</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={passwordFormik.isSubmitting}
+          className="mt-4 rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+        >
+          {passwordFormik.isSubmitting ? "در حال تغییر…" : "تغییر رمز عبور"}
         </button>
       </form>
     </div>

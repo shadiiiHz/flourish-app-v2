@@ -13,6 +13,11 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8, "رمز عبور جدید باید حداقل ۸ کاراکتر باشد"),
+});
+
 // secure/sameSite are derived from the actual request instead of NODE_ENV:
 // the app is served same-origin behind a single reverse proxy, so "lax" is
 // correct regardless of environment, and "secure" must match whether this
@@ -76,5 +81,34 @@ adminAuthRouter.get(
       return;
     }
     res.json({ id: admin.id, email: admin.email, name: admin.name, role: admin.role });
+  }),
+);
+
+adminAuthRouter.post(
+  "/password",
+  requireAdminAuth,
+  asyncHandler(async (req, res) => {
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "اطلاعات معتبر نیست" });
+      return;
+    }
+    const { currentPassword, newPassword } = parsed.data;
+
+    const admin = await prisma.adminUser.findUnique({ where: { id: req.admin!.sub } });
+    if (!admin) {
+      res.status(401).json({ error: "کاربر ادمین یافت نشد" });
+      return;
+    }
+
+    const valid = await bcrypt.compare(currentPassword, admin.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "رمز عبور فعلی اشتباه است" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.adminUser.update({ where: { id: admin.id }, data: { passwordHash } });
+    res.status(204).end();
   }),
 );

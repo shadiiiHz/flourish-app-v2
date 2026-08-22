@@ -460,6 +460,12 @@ export function adminLogout() {
   return apiFetch("/api/admin/auth/logout", { method: "POST" });
 }
 
+export function adminChangePassword(currentPassword: string, newPassword: string) {
+  return apiFetch<void>("/api/admin/auth/password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
 export interface Paginated<T> {
   items: T[];
   total: number;
