@@ -461,6 +461,11 @@ function AdminOrdersPage() {
                   </FormControl>
                 </div>
               )}
+
+              <p className="mt-3 text-xs text-cocoa-500">
+                توجه: پاداش کیف پول این سفارش فقط زمانی به حساب مشتری اضافه می‌شود که وضعیت
+                سفارش هم «تحویل داده شده» و هم «پرداخت‌شده» باشد.
+              </p>
             </DialogContent>
           </>
         )}
