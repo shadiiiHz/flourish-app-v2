@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
+import { deleteUploadedFiles } from "../../lib/uploads.js";
 
 export const adminProductsRouter = Router();
 
@@ -282,6 +283,18 @@ adminProductsRouter.put(
     }
     const { variants, ...data } = parsed.data;
 
+    // Fetched pre-update only when something that carries images is being
+    // replaced, so we know which files dropped out and can delete those —
+    // and only those; a PUT that omits `images`/`variants` leaves them
+    // untouched, so nothing of that kind should be swept.
+    const previous =
+      variants || data.images !== undefined
+        ? await prisma.product.findUnique({
+            where: { id: req.params.id },
+            include: { variants: true },
+          })
+        : null;
+
     const product = await prisma.$transaction(async (tx) => {
       if (variants) {
         await tx.productVariant.deleteMany({ where: { productId: req.params.id } });
@@ -298,6 +311,22 @@ adminProductsRouter.put(
       });
     });
 
+    const orphaned: (string | null | undefined)[] = [];
+    if (data.images !== undefined && previous) {
+      orphaned.push(...previous.images.filter((url) => !product.images.includes(url)));
+    }
+    if (variants && previous) {
+      const newVariantImages = new Set(
+        product.variants.map((v) => v.image).filter((v): v is string => !!v),
+      );
+      orphaned.push(
+        ...previous.variants
+          .map((v) => v.image)
+          .filter((url): url is string => !!url && !newVariantImages.has(url)),
+      );
+    }
+    await deleteUploadedFiles(orphaned);
+
     res.json(product);
   }),
 );
@@ -310,7 +339,15 @@ adminProductsRouter.delete(
       res.status(400).json({ error: "شناسه‌های نامعتبر" });
       return;
     }
+    const products = await prisma.product.findMany({
+      where: { id: { in: parsed.data.ids } },
+      include: { variants: { select: { image: true } } },
+    });
     await prisma.product.deleteMany({ where: { id: { in: parsed.data.ids } } });
+    await deleteUploadedFiles([
+      ...products.flatMap((p) => p.images),
+      ...products.flatMap((p) => p.variants.map((v) => v.image)),
+    ]);
     res.status(204).end();
   }),
 );
@@ -318,7 +355,11 @@ adminProductsRouter.delete(
 adminProductsRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
-    await prisma.product.delete({ where: { id: req.params.id } });
+    const product = await prisma.product.delete({
+      where: { id: req.params.id },
+      include: { variants: { select: { image: true } } },
+    });
+    await deleteUploadedFiles([...product.images, ...product.variants.map((v) => v.image)]);
     res.status(204).end();
   }),
 );

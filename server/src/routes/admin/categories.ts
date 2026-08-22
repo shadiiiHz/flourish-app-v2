@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
+import { deleteUploadedFile, deleteUploadedFiles } from "../../lib/uploads.js";
 
 export const adminCategoriesRouter = Router();
 
@@ -75,10 +76,14 @@ adminCategoriesRouter.put(
       res.status(400).json({ error: "اطلاعات دسته‌بندی نامعتبر است" });
       return;
     }
+    const previous = await prisma.category.findUnique({ where: { id: req.params.id } });
     const category = await prisma.category.update({
       where: { id: req.params.id },
       data: parsed.data,
     });
+    if (parsed.data.image !== undefined && previous?.image && previous.image !== category.image) {
+      await deleteUploadedFile(previous.image);
+    }
     res.json(category);
   }),
 );
@@ -91,7 +96,12 @@ adminCategoriesRouter.delete(
       res.status(400).json({ error: "شناسه‌های نامعتبر" });
       return;
     }
+    const categories = await prisma.category.findMany({
+      where: { id: { in: parsed.data.ids } },
+      select: { image: true },
+    });
     await prisma.category.deleteMany({ where: { id: { in: parsed.data.ids } } });
+    await deleteUploadedFiles(categories.map((c) => c.image));
     res.status(204).end();
   }),
 );
@@ -99,7 +109,8 @@ adminCategoriesRouter.delete(
 adminCategoriesRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
-    await prisma.category.delete({ where: { id: req.params.id } });
+    const category = await prisma.category.delete({ where: { id: req.params.id } });
+    await deleteUploadedFile(category.image);
     res.status(204).end();
   }),
 );
