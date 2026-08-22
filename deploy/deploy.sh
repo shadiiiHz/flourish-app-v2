@@ -38,8 +38,7 @@ fi
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "==> Installing Docker"
-  $SUDO apt-get update -y
-  $SUDO apt-get install -y docker.io docker-compose-plugin
+  $CURL -fsSL https://get.docker.com | $SUDO sh
   $SUDO systemctl enable --now docker
 fi
 
