@@ -14,6 +14,7 @@ import {
   adminGetDiscountCodes,
   adminUpdateDiscountCode,
 } from "@/lib/api";
+import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -181,6 +182,7 @@ function AdminDiscountCodesPage() {
         field: "isActive",
         headerName: "وضعیت",
         width: 110,
+        valueFormatter: (_, row) => (row.isActive ? "فعال" : "غیرفعال"),
         renderCell: ({ row }) => (
           <span
             className={`rounded-full px-2.5 py-1 text-xs font-bold ${
@@ -240,6 +242,11 @@ function AdminDiscountCodesPage() {
     ],
     [],
   );
+
+  const handleExportAll = useCallback(async () => {
+    const all = await fetchAllPages((p, ps) => adminGetDiscountCodes(p, ps, debouncedSearch));
+    downloadCsv("discount-codes.csv", buildCsv(columns, all));
+  }, [columns, debouncedSearch]);
 
   return (
     <div>
@@ -357,6 +364,8 @@ function AdminDiscountCodesPage() {
           onRowSelectionModelChange={setSelectionModel}
           selectedCount={selectedIds.length}
           onBulkDelete={() => setBulkDeleteOpen(true)}
+          exportFileName="discount-codes"
+          onExportAll={handleExportAll}
           bulkDeleteLabel="حذف گروهی کدهای تخفیف"
           sx={{ border: "none", height: 800 }}
         />

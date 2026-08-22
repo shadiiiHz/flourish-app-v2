@@ -16,6 +16,7 @@ import {
   apiUploadUrl,
   revalidateCatalog,
 } from "@/lib/api";
+import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -279,6 +280,11 @@ function AdminCategoriesPage() {
     [],
   );
 
+  const handleExportAll = useCallback(async () => {
+    const all = await fetchAllPages((p, ps) => adminGetCategories(p, ps, debouncedSearch));
+    downloadCsv("categories.csv", buildCsv(columns, all));
+  }, [columns, debouncedSearch]);
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -437,6 +443,8 @@ function AdminCategoriesPage() {
           onRowSelectionModelChange={setSelectionModel}
           selectedCount={selectedIds.length}
           onBulkDelete={() => setBulkDeleteOpen(true)}
+          exportFileName="categories"
+          onExportAll={handleExportAll}
           bulkDeleteLabel="حذف گروهی دسته‌بندی‌ها"
           sx={{ border: "none", height: 800 }}
         />

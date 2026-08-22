@@ -13,6 +13,7 @@ import {
   adminGetCustomer,
   adminGetCustomers,
 } from "@/lib/api";
+import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -167,6 +168,11 @@ function AdminCustomersPage() {
     [],
   );
 
+  const handleExportAll = useCallback(async () => {
+    const all = await fetchAllPages((p, ps) => adminGetCustomers(p, ps, debouncedSearch));
+    downloadCsv("customers.csv", buildCsv(columns, all));
+  }, [columns, debouncedSearch]);
+
   return (
     <div>
       <h1 className="font-display text-xl font-bold text-cocoa-900">مشتریان</h1>
@@ -191,6 +197,8 @@ function AdminCustomersPage() {
           onRowSelectionModelChange={setSelectionModel}
           selectedCount={selectedIds.length}
           onBulkDelete={() => setBulkDeleteOpen(true)}
+          exportFileName="customers"
+          onExportAll={handleExportAll}
           bulkDeleteLabel="حذف گروهی مشتریان"
           sx={{ border: "none", height: 720 }}
         />

@@ -22,6 +22,7 @@ import {
   revalidateCatalog,
   type BulkImportResult,
 } from "@/lib/api";
+import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -497,6 +498,7 @@ function AdminProductsPage() {
         width: 110,
         align: "center",
         headerAlign: "center",
+        valueFormatter: (_, row) => (row.isAvailable ? "موجود" : "ناموجود"),
         renderCell: ({ row }) => (
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -541,6 +543,11 @@ function AdminProductsPage() {
     ],
     [categoryTitleById],
   );
+
+  const handleExportAll = useCallback(async () => {
+    const all = await fetchAllPages((p, ps) => adminGetProducts(p, ps, debouncedSearch));
+    downloadCsv("products.csv", buildCsv(columns, all));
+  }, [columns, debouncedSearch]);
 
   return (
     <div>
@@ -1000,6 +1007,8 @@ function AdminProductsPage() {
           onRowSelectionModelChange={setSelectionModel}
           selectedCount={selectedIds.length}
           onBulkDelete={() => setBulkDeleteOpen(true)}
+          exportFileName="products"
+          onExportAll={handleExportAll}
           bulkDeleteLabel="حذف گروهی محصولات"
           sx={{ border: "none", height: 800 }}
         />

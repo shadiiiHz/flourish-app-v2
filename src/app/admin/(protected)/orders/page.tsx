@@ -16,6 +16,7 @@ import {
   adminGetOrders,
   adminUpdateOrderStatus,
 } from "@/lib/api";
+import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -140,6 +141,7 @@ function AdminOrdersPage() {
         headerName: "مشتری",
         flex: 1,
         minWidth: 160,
+        valueFormatter: (_, row) => `${row.customerName || "بدون نام"} — ${row.customerPhone}`,
         renderCell: ({ row }) => (
           <div className="py-1.5">
             <p className="font-semibold text-cocoa-900">
@@ -162,6 +164,7 @@ function AdminOrdersPage() {
         field: "orderType",
         headerName: "نوع سفارش",
         width: 130,
+        valueFormatter: (_, row) => (row.orderType === "preorder" ? "پیش‌سفارش" : "فوری"),
         renderCell: ({ row }) =>
           row.orderType === "preorder" ? (
             <Tooltip
@@ -194,6 +197,7 @@ function AdminOrdersPage() {
         field: "paymentStatus",
         headerName: "وضعیت پرداخت",
         width: 130,
+        valueFormatter: (_, row) => PAYMENT_STATUS_LABELS[row.paymentStatus],
         renderCell: ({ row }) => (
           <span
             className={`font-semibold ${
@@ -212,6 +216,7 @@ function AdminOrdersPage() {
         field: "status",
         headerName: "وضعیت سفارش",
         width: 150,
+        valueFormatter: (_, row) => ORDER_STATUS_LABELS[row.status],
         renderCell: ({ row }) => (
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_STYLES[row.status]}`}
@@ -244,6 +249,13 @@ function AdminOrdersPage() {
     ],
     [],
   );
+
+  const handleExportAll = useCallback(async () => {
+    const all = await fetchAllPages((p, ps) =>
+      adminGetOrders(statusFilter, p, ps, debouncedSearch),
+    );
+    downloadCsv("orders.csv", buildCsv(columns, all));
+  }, [columns, statusFilter, debouncedSearch]);
 
   return (
     <div>
@@ -290,6 +302,8 @@ function AdminOrdersPage() {
           onRowSelectionModelChange={setSelectionModel}
           selectedCount={selectedIds.length}
           onBulkDelete={() => setBulkDeleteOpen(true)}
+          exportFileName="orders"
+          onExportAll={handleExportAll}
           bulkDeleteLabel="حذف گروهی سفارش‌ها"
           sx={{ border: "none", height: 800 }}
         />

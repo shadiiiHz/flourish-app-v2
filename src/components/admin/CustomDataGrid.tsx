@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import {
   DataGrid,
   GridToolbarContainer,
@@ -9,13 +9,16 @@ import {
   GridToolbarFilterButton,
   GridToolbarDensitySelector,
   GridToolbarQuickFilter,
+  useGridApiContext,
   type DataGridProps,
+  type GridColDef,
   type GridRowId,
   type GridRowSelectionModel,
   type GridSortModel,
   type GridFilterModel,
   type GridValidRowModel,
 } from "@mui/x-data-grid";
+import { buildCsv, downloadCsv } from "@/lib/csv";
 
 /**
  * With server-side pagination, MUI's header "select all" checkbox can't
@@ -40,6 +43,9 @@ declare module "@mui/x-data-grid" {
     selectedCount?: number;
     onBulkDelete?: () => void;
     bulkDeleteLabel?: string;
+    exportColumns?: GridColDef[];
+    exportFileName?: string;
+    onExportAll?: () => void | Promise<void>;
   }
 }
 
@@ -57,14 +63,40 @@ interface BulkDeleteToolbarProps {
   selectedCount?: number;
   onBulkDelete?: () => void;
   bulkDeleteLabel?: string;
+  exportColumns?: GridColDef[];
+  exportFileName?: string;
+  onExportAll?: () => void | Promise<void>;
 }
 
-/** Same layout as MUI's built-in GridToolbar, with a bulk-delete action spliced in. */
+/** Same layout as MUI's built-in GridToolbar, with bulk-delete + CSV export actions spliced in. */
 function BulkDeleteToolbar({
   selectedCount = 0,
   onBulkDelete,
   bulkDeleteLabel = "حذف گروهی",
+  exportColumns,
+  exportFileName = "export",
+  onExportAll,
 }: BulkDeleteToolbarProps) {
+  const apiRef = useGridApiContext();
+  const [exportingAll, setExportingAll] = useState(false);
+
+  const handleExportSelected = () => {
+    if (!exportColumns) return;
+    const rows = Array.from(apiRef.current.getSelectedRows().values());
+    if (rows.length === 0) return;
+    downloadCsv(`${exportFileName}-selected.csv`, buildCsv(exportColumns, rows));
+  };
+
+  const handleExportAll = async () => {
+    if (!onExportAll || exportingAll) return;
+    setExportingAll(true);
+    try {
+      await onExportAll();
+    } finally {
+      setExportingAll(false);
+    }
+  };
+
   return (
     <GridToolbarContainer>
       <GridToolbarColumnsButton />
@@ -78,6 +110,27 @@ function BulkDeleteToolbar({
         >
           <Trash2 className="h-3.5 w-3.5" />
           {bulkDeleteLabel} ({selectedCount.toLocaleString("fa-IR")})
+        </button>
+      )}
+      {exportColumns && selectedCount > 0 && (
+        <button
+          type="button"
+          onClick={handleExportSelected}
+          className="mx-1 flex items-center gap-1.5 rounded-full bg-sand-100 px-3.5 py-1.5 text-xs font-bold text-cocoa-900 transition-transform hover:scale-[1.02] active:scale-95"
+        >
+          <Download className="h-3.5 w-3.5" />
+          خروجی انتخاب‌شده‌ها ({selectedCount.toLocaleString("fa-IR")})
+        </button>
+      )}
+      {onExportAll && (
+        <button
+          type="button"
+          onClick={handleExportAll}
+          disabled={exportingAll}
+          className="mx-1 flex items-center gap-1.5 rounded-full bg-sand-100 px-3.5 py-1.5 text-xs font-bold text-cocoa-900 transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+        >
+          <Download className="h-3.5 w-3.5" />
+          {exportingAll ? "در حال آماده‌سازی…" : "خروجی همه"}
         </button>
       )}
       <div style={{ flex: 1 }} />
@@ -97,6 +150,8 @@ export function CustomDataGrid<R extends GridValidRowModel>({
   selectedCount,
   onBulkDelete,
   bulkDeleteLabel,
+  exportFileName,
+  onExportAll,
   ...props
 }: CustomDataGridProps<R>) {
   const defaultData = {
@@ -142,7 +197,16 @@ export function CustomDataGrid<R extends GridValidRowModel>({
       }
       pageSizeOptions={[10, 20, 50, 100]}
       slots={{ toolbar: BulkDeleteToolbar }}
-      slotProps={{ toolbar: { selectedCount, onBulkDelete, bulkDeleteLabel } }}
+      slotProps={{
+        toolbar: {
+          selectedCount,
+          onBulkDelete,
+          bulkDeleteLabel,
+          exportColumns: props.columns as GridColDef[],
+          exportFileName,
+          onExportAll,
+        },
+      }}
       showToolbar
       disableRowSelectionOnClick
       {...props}

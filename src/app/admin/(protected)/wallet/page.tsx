@@ -13,6 +13,7 @@ import {
   adminGetWalletCustomers,
   adminUpdateSettings,
 } from "@/lib/api";
+import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import {
   CustomDataGrid,
   type QueryType,
@@ -201,6 +202,11 @@ function AdminWalletPage() {
     [],
   );
 
+  const handleExportAll = useCallback(async () => {
+    const all = await fetchAllPages((p, ps) => adminGetWalletCustomers(p, ps, debouncedSearch));
+    downloadCsv("wallet-customers.csv", buildCsv(columns, all));
+  }, [columns, debouncedSearch]);
+
   return (
     <div>
       <h1 className="font-display text-xl font-bold text-cocoa-900">کیف پول</h1>
@@ -218,6 +224,8 @@ function AdminWalletPage() {
           loading={loading}
           onQueryChange={handleQueryChange}
           localeText={faDataGridLocaleText}
+          exportFileName="wallet-customers"
+          onExportAll={handleExportAll}
           filterMode="client"
           sortingMode="client"
           getRowHeight={() => 56}
