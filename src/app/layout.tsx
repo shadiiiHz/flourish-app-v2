@@ -8,15 +8,13 @@ export const metadata: Metadata = {
   icons: {
     icon: "/assets/logo-placeholder.png",
   },
-  other: {
-    enamad: "184415467",
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fa" dir="rtl">
       <head>
+        <meta name="enamad" content="184415467"/>
         {/* Loaded by the browser instead of next/font/google: next build on
             this server can't reliably reach fonts.googleapis.com at build
             time, but end users' browsers can. */}
