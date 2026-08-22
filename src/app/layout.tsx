@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "184415467",
+  title: "18441547",
   description: "فلوریش، بوتیک نان و شیرینی مدرن با محصولات دست‌ساز و تازه.",
   icons: {
     icon: "/assets/logo-placeholder.png",
@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fa" dir="rtl">
       <head>
-        <meta name="enamad" content="184415467"/>
+        <meta name="enamad" content="18441547"/>
         {/* Loaded by the browser instead of next/font/google: next build on
             this server can't reliably reach fonts.googleapis.com at build
             time, but end users' browsers can. */}
