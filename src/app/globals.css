@@ -16,7 +16,9 @@
   --color-danger-50: #fbeeec;
   --color-danger-500: #c1615a;
 
-  --font-sans: var(--font-vazirmatn), "Roboto", "Helvetica", "Arial", sans-serif;
+  --font-vazirmatn: "Vazirmatn", "Roboto", "Helvetica", "Arial", sans-serif;
+  --font-sans:
+    var(--font-vazirmatn), "Roboto", "Helvetica", "Arial", sans-serif;
 
   --animate-float: float 6s ease-in-out infinite;
   --animate-float-slow: float 9s ease-in-out infinite;
