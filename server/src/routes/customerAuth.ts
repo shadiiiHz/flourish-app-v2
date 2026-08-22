@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
@@ -25,15 +25,21 @@ async function deliverOtp(phone: string, code: string, message: string): Promise
   return {};
 }
 
-const isProduction = process.env.NODE_ENV === "production";
-
-const cookieOptions = {
-  httpOnly: true as const,
-  sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
-  secure: isProduction,
-  maxAge: 30 * 24 * 60 * 60 * 1000,
-  path: "/",
-};
+// secure/sameSite are derived from the actual request instead of NODE_ENV:
+// the app is served same-origin behind a single reverse proxy, so "lax" is
+// correct regardless of environment, and "secure" must match whether this
+// particular request arrived over HTTPS (via req.secure, which honors
+// X-Forwarded-Proto once "trust proxy" is set) — a cookie marked Secure is
+// silently dropped by the browser over plain HTTP.
+function getCookieOptions(req: Request) {
+  return {
+    httpOnly: true as const,
+    sameSite: "lax" as const,
+    secure: req.secure,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    path: "/",
+  };
+}
 
 function toAuthUser(customer: {
   phone: string;
@@ -93,7 +99,7 @@ customerAuthRouter.post(
       create: { phone },
     });
     const token = signCustomerToken({ sub: customer.id, phone: customer.phone });
-    res.cookie(CUSTOMER_COOKIE_NAME, token, cookieOptions);
+    res.cookie(CUSTOMER_COOKIE_NAME, token, getCookieOptions(req));
     res.json(toAuthUser(customer));
   }),
 );
@@ -120,7 +126,7 @@ customerAuthRouter.post(
       return;
     }
     const token = signCustomerToken({ sub: customer.id, phone: customer.phone });
-    res.cookie(CUSTOMER_COOKIE_NAME, token, cookieOptions);
+    res.cookie(CUSTOMER_COOKIE_NAME, token, getCookieOptions(req));
     res.json(toAuthUser(customer));
   }),
 );
@@ -138,16 +144,12 @@ customerAuthRouter.get(
   }),
 );
 
-customerAuthRouter.post("/logout", (_req, res) => {
+customerAuthRouter.post("/logout", (req, res) => {
   // clearCookie's Set-Cookie must match the sameSite/secure the cookie was
-  // set with, or cross-origin browsers silently ignore it and the session
-  // cookie never actually clears — see cookieOptions above.
-  res.clearCookie(CUSTOMER_COOKIE_NAME, {
-    httpOnly: cookieOptions.httpOnly,
-    sameSite: cookieOptions.sameSite,
-    secure: cookieOptions.secure,
-    path: cookieOptions.path,
-  });
+  // set with, or browsers silently ignore it and the session cookie never
+  // actually clears — see getCookieOptions above.
+  const { httpOnly, sameSite, secure, path } = getCookieOptions(req);
+  res.clearCookie(CUSTOMER_COOKIE_NAME, { httpOnly, sameSite, secure, path });
   res.status(204).end();
 });
 

@@ -14,6 +14,10 @@ import { discountCodesRouter } from "./routes/discountCodes.js";
 
 const app = express();
 
+// Runs behind the nginx reverse proxy; trust its X-Forwarded-Proto so
+// req.secure reflects the browser's actual HTTP/HTTPS connection.
+app.set("trust proxy", 1);
+
 app.use(cors({ origin: env.corsOrigin, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
