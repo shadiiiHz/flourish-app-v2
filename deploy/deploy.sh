@@ -43,6 +43,14 @@ if ! command -v docker >/dev/null 2>&1; then
   $SUDO systemctl enable --now docker
 fi
 
+# Docker Hub is blocked from this server's IP (sanctions-related 403s).
+# Route image pulls through an Iranian mirror instead.
+if [ ! -f /etc/docker/daemon.json ]; then
+  echo "==> Configuring Docker Hub mirror"
+  echo '{"registry-mirrors": ["https://docker.arvancloud.ir"]}' | $SUDO tee /etc/docker/daemon.json >/dev/null
+  $SUDO systemctl restart docker
+fi
+
 if ! command -v nginx >/dev/null 2>&1; then
   echo "==> Installing nginx"
   $SUDO apt-get update -y
