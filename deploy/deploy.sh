@@ -12,6 +12,13 @@ NODE_MAJOR=22
 SUDO=""
 [ "$(id -u)" -ne 0 ] && SUDO="sudo"
 
+# 0. This server's IPv6 route to Ubuntu/nodesource mirrors is broken, which
+# stalls apt-get update and leaves package indexes stale. Force IPv4.
+if [ ! -f /etc/apt/apt.conf.d/99force-ipv4 ]; then
+  echo 'Acquire::ForceIPv4 "true";' | $SUDO tee /etc/apt/apt.conf.d/99force-ipv4 >/dev/null
+fi
+CURL="curl -4"
+
 # 1. Swap — a 2GB RAM box can OOM during `next build`/`tsc`, a swapfile prevents that.
 if [ ! -f /swapfile ]; then
   echo "==> Creating 2G swapfile"
@@ -25,7 +32,7 @@ fi
 # 2. System packages
 if ! command -v node >/dev/null 2>&1 || [ "$(node -v | sed 's/^v//;s/\..*//')" -lt "$NODE_MAJOR" ]; then
   echo "==> Installing Node.js $NODE_MAJOR"
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | $SUDO bash -
+  $CURL -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | $SUDO bash -
   $SUDO apt-get install -y nodejs
 fi
 
