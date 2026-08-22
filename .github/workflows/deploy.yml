@@ -23,6 +23,8 @@ jobs:
             --exclude=.next
             --exclude=server/dist
             --exclude=server/uploads
+            --exclude=.env*
+            --exclude=server/.env*
           path: ./
           remote_path: ${{ vars.DEPLOY_PATH || '/home/ubuntu/flourish-app-v2' }}
           remote_host: ${{ secrets.DEPLOY_HOST }}
