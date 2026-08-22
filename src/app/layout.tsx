@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "فلوریش | بوتیک نان و شیرینی",
+  title: "184415467",
   description: "فلوریش، بوتیک نان و شیرینی مدرن با محصولات دست‌ساز و تازه.",
   icons: {
     icon: "/assets/logo-placeholder.png",
