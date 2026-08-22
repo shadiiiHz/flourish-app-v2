@@ -124,6 +124,7 @@ echo "==> Building backend"
 (cd server && npm run build)
 
 echo "==> Building frontend"
+rm -rf .next
 npm run build
 
 # 8. Process manager
