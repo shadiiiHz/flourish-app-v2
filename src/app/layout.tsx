@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/assets/logo-placeholder.png",
   },
+  other: {
+    enamad: "184415467",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
