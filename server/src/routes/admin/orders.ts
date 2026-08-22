@@ -3,7 +3,9 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
-import { creditWalletCashback, reverseWalletCashback } from "../../lib/wallet.js";
+import { creditWalletCashback, redeemWallet, reverseWalletCashback } from "../../lib/wallet.js";
+import { calculateShipping } from "../../lib/shipping.js";
+import { TAX_RATE, getDiscountedPrice } from "../../lib/pricing.js";
 
 export const adminOrdersRouter = Router();
 
@@ -58,6 +60,226 @@ adminOrdersRouter.get(
       prisma.order.count({ where }),
     ]);
     res.json(paginatedResult(orders, total, pagination));
+  }),
+);
+
+const orderItemInputSchema = z.object({
+  productId: z.string().min(1),
+  variantId: z.string().optional(),
+  quantity: z.number().int().positive(),
+});
+
+const createOrderSchema = z
+  .object({
+    customerId: z.string().min(1),
+    items: z.array(orderItemInputSchema).min(1, "حداقل یک آیتم باید انتخاب شود"),
+    deliveryMethod: z.enum(["delivery", "pickup"]).default("delivery"),
+    addressId: z.string().optional(),
+    addressText: z.string().optional(),
+    shippingCost: z.number().int().nonnegative().optional(),
+    discountCode: z.string().trim().min(1).optional(),
+    useWallet: z.boolean().optional().default(false),
+    paymentStatus: z.enum(["pending", "paid"]).default("pending"),
+    customerName: z.string().optional(),
+    note: z.string().optional(),
+  })
+  .refine((data) => data.deliveryMethod !== "delivery" || !!data.addressId || !!data.addressText, {
+    message: "برای ارسال باید یک آدرس (ثبت‌شده یا دستی) مشخص شود",
+  });
+
+/**
+ * Manual, in-person/phone order entry for the admin panel — bypasses the
+ * cart + Zarinpal flow entirely (products/quantities are chosen directly,
+ * and the admin decides payment status up front), but reuses the same
+ * pricing/discount/shipping/wallet rules as customer checkout so totals
+ * stay consistent between the two paths.
+ */
+adminOrdersRouter.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    const parsed = createOrderSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: parsed.error.issues[0]?.message ?? "اطلاعات سفارش نامعتبر است" });
+      return;
+    }
+    const {
+      customerId,
+      items,
+      deliveryMethod,
+      addressId,
+      addressText,
+      shippingCost: manualShippingCost,
+      discountCode,
+      useWallet,
+      paymentStatus,
+      customerName,
+      note,
+    } = parsed.data;
+
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) {
+      res.status(404).json({ error: "مشتری یافت نشد" });
+      return;
+    }
+
+    let appliedDiscount: { code: string; percent: number } | null = null;
+    if (discountCode) {
+      const discount = await prisma.discountCode.findUnique({
+        where: { code: discountCode.toUpperCase() },
+      });
+      if (!discount || !discount.isActive) {
+        res.status(400).json({ error: "کد تخفیف معتبر نیست" });
+        return;
+      }
+      appliedDiscount = { code: discount.code, percent: discount.percent };
+    }
+
+    const productIds = [...new Set(items.map((i) => i.productId))];
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      include: { variants: true },
+    });
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    const orderItems: {
+      productId: string;
+      variantId?: string;
+      title: string;
+      variantTitle?: string;
+      price: number;
+      quantity: number;
+    }[] = [];
+    for (const item of items) {
+      const product = productById.get(item.productId);
+      if (!product) {
+        res.status(400).json({ error: "یکی از محصولات انتخاب‌شده یافت نشد" });
+        return;
+      }
+      const variant = item.variantId
+        ? product.variants.find((v) => v.id === item.variantId)
+        : undefined;
+      if (item.variantId && !variant) {
+        res.status(400).json({ error: `نوع انتخاب‌شده برای «${product.title}» یافت نشد` });
+        return;
+      }
+      const basePrice = variant ? variant.price : product.price;
+      orderItems.push({
+        productId: product.id,
+        variantId: variant?.id,
+        title: product.title,
+        variantTitle: variant?.title,
+        price: getDiscountedPrice(basePrice, product.discountPercent),
+        quantity: item.quantity,
+      });
+    }
+
+    const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const discountAmount = appliedDiscount
+      ? Math.round((subtotal * appliedDiscount.percent) / 100)
+      : 0;
+    const tax = Math.round((subtotal - discountAmount) * TAX_RATE);
+
+    let address: Awaited<ReturnType<typeof prisma.address.findFirst>> = null;
+    let distanceKm: number | undefined;
+    let finalShippingCost = 0;
+    let finalAddressText: string | undefined;
+
+    if (deliveryMethod === "delivery") {
+      if (addressId) {
+        address = await prisma.address.findFirst({ where: { id: addressId, customerId } });
+        if (!address) {
+          res.status(404).json({ error: "آدرس یافت نشد" });
+          return;
+        }
+        if (address.lat != null && address.lng != null) {
+          const shippingResult = await calculateShipping(address.lat, address.lng);
+          if (shippingResult.outOfRange) {
+            res.status(400).json({ error: "این آدرس خارج از محدوده سرویس‌دهی فلوریش است" });
+            return;
+          }
+          distanceKm = shippingResult.distanceKm;
+          finalShippingCost = shippingResult.shippingCost;
+        } else {
+          finalShippingCost = manualShippingCost ?? 0;
+        }
+        finalAddressText = [address.address, address.details].filter(Boolean).join(" — ");
+      } else {
+        finalAddressText = addressText;
+        finalShippingCost = manualShippingCost ?? 0;
+      }
+    } else {
+      finalAddressText = "مراجعه حضوری به فلوریش";
+    }
+
+    const total = subtotal - discountAmount + tax + finalShippingCost;
+
+    let walletAmountUsed = 0;
+    if (useWallet && customer.walletBalance > 0) {
+      walletAmountUsed = Math.min(customer.walletBalance, total);
+    }
+
+    const order = await prisma.order.create({
+      data: {
+        customerId,
+        customerPhone: customer.phone,
+        customerName:
+          customerName ||
+          [customer.firstName, customer.lastName].filter(Boolean).join(" ") ||
+          undefined,
+        note,
+        orderType: "instant",
+        deliveryMethod,
+        addressId: address?.id,
+        addressText: finalAddressText,
+        distanceKm,
+        subtotal,
+        discountCode: appliedDiscount?.code,
+        discountAmount,
+        tax,
+        shippingCost: finalShippingCost,
+        total,
+        walletAmountUsed,
+        paymentStatus,
+        items: { create: orderItems },
+      },
+      include: { items: true, customer: true },
+    });
+
+    if (walletAmountUsed > 0) {
+      await redeemWallet(customerId, walletAmountUsed, order.id);
+    }
+
+    res.status(201).json(order);
+  }),
+);
+
+const paymentStatusSchema = z.object({
+  paymentStatus: z.enum(["pending", "paid", "failed"]),
+});
+
+/** Lets the admin mark a manually-created (pay-on-delivery/cash) order as paid once collected. */
+adminOrdersRouter.patch(
+  "/:id/payment-status",
+  asyncHandler(async (req, res) => {
+    const parsed = paymentStatusSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "وضعیت پرداخت نامعتبر است" });
+      return;
+    }
+    const order = await prisma.order.update({
+      where: { id: req.params.id },
+      data: { paymentStatus: parsed.data.paymentStatus },
+      include: { items: true, customer: true },
+    });
+    // Cashback only credits once an order is both delivered and paid; if delivery happened
+    // first (e.g. a manually-created cash-on-delivery order), marking it paid afterward is
+    // what should trigger the credit. creditWalletCashback is idempotent, so this is safe.
+    if (order.paymentStatus === "paid" && order.status === "delivered") {
+      await creditWalletCashback(order.id);
+    }
+    res.json(order);
   }),
 );
 

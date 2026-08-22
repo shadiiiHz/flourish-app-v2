@@ -58,6 +58,17 @@ export interface AdminDiscountCode {
   createdAt: string;
 }
 
+export interface AdminAddress {
+  id: string;
+  title?: string | null;
+  address: string;
+  details?: string | null;
+  phone?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  isDefault?: boolean;
+}
+
 export interface AdminCustomer {
   id: string;
   phone: string;
@@ -68,6 +79,7 @@ export interface AdminCustomer {
   createdAt: string;
   _count?: { orders: number };
   orders?: AdminOrder[];
+  addresses?: AdminAddress[];
 }
 
 export type { WalletTransactionType, WalletTransaction as AdminWalletTransaction } from "./order";

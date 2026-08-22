@@ -6,7 +6,16 @@ import { parsePagination, parseSearch, paginatedResult } from "../../lib/paginat
 
 export const adminCustomersRouter = Router();
 
+const PHONE_REGEX = /^09\d{9}$/;
+
 const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) });
+
+const createCustomerSchema = z.object({
+  phone: z.string().regex(PHONE_REGEX, "شماره موبایل معتبر نیست"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+});
 
 adminCustomersRouter.get(
   "/",
@@ -42,13 +51,37 @@ adminCustomersRouter.get(
   asyncHandler(async (req, res) => {
     const customer = await prisma.customer.findUnique({
       where: { id: req.params.id },
-      include: { orders: { include: { items: true }, orderBy: { createdAt: "desc" } } },
+      include: {
+        orders: { include: { items: true }, orderBy: { createdAt: "desc" } },
+        addresses: { orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }] },
+      },
     });
     if (!customer) {
       res.status(404).json({ error: "مشتری یافت نشد" });
       return;
     }
     res.json(customer);
+  }),
+);
+
+adminCustomersRouter.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    const parsed = createCustomerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "اطلاعات نامعتبر است" });
+      return;
+    }
+    const { phone, firstName, lastName, email } = parsed.data;
+    const existing = await prisma.customer.findUnique({ where: { phone } });
+    if (existing) {
+      res.status(409).json({ error: "مشتری با این شماره موبایل قبلاً ثبت شده است" });
+      return;
+    }
+    const customer = await prisma.customer.create({
+      data: { phone, firstName, lastName, email: email || undefined },
+    });
+    res.status(201).json(customer);
   }),
 );
 

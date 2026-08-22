@@ -5,13 +5,12 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { calculateShipping, getSettings } from "../lib/shipping.js";
 import { requestZarinpalPayment, verifyZarinpalPayment } from "../lib/zarinpal.js";
-import { getDiscountedPrice } from "../lib/pricing.js";
+import { TAX_RATE, getDiscountedPrice } from "../lib/pricing.js";
 import { env } from "../lib/env.js";
 import { redeemWallet, refundWalletHold } from "../lib/wallet.js";
 
 export const ordersRouter = Router();
 
-const TAX_RATE = 0.1;
 const MAX_PREORDER_DAYS_AHEAD = 10;
 const MIN_PREORDER_DAYS_AHEAD = 2;
 

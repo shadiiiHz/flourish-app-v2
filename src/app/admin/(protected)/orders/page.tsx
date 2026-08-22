@@ -14,6 +14,7 @@ import {
   ApiError,
   adminBulkDeleteOrders,
   adminGetOrders,
+  adminUpdateOrderPaymentStatus,
   adminUpdateOrderStatus,
 } from "@/lib/api";
 import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
@@ -30,9 +31,11 @@ import {
   PAYMENT_STATUS_LABELS,
   type AdminOrder,
   type OrderStatus,
+  type PaymentStatus,
 } from "@/types/admin";
 
 const STATUS_OPTIONS = Object.keys(ORDER_STATUS_LABELS) as OrderStatus[];
+const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = ["pending", "paid"];
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
   pending: "bg-sand-50 text-sand-500",
@@ -124,6 +127,23 @@ function AdminOrdersPage() {
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "خطا در بروزرسانی وضعیت",
+      );
+    }
+  };
+
+  const updatePaymentStatus = async (id: string, paymentStatus: "pending" | "paid") => {
+    setError(null);
+    try {
+      await adminUpdateOrderPaymentStatus(id, paymentStatus);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, paymentStatus } : o)),
+      );
+      setSelectedOrder((prev) =>
+        prev && prev.id === id ? { ...prev, paymentStatus } : prev,
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "خطا در بروزرسانی وضعیت پرداخت",
       );
     }
   };
@@ -416,6 +436,31 @@ function AdminOrdersPage() {
                   </Select>
                 </FormControl>
               </div>
+
+              {selectedOrder.paymentStatus !== "failed" && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs font-semibold text-cocoa-600 shrink-0">
+                    تغییر وضعیت پرداخت:
+                  </span>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={selectedOrder.paymentStatus}
+                      onChange={(e) =>
+                        updatePaymentStatus(
+                          selectedOrder.id,
+                          e.target.value as "pending" | "paid",
+                        )
+                      }
+                    >
+                      {PAYMENT_STATUS_OPTIONS.map((s) => (
+                        <MenuItem key={s} value={s}>
+                          {PAYMENT_STATUS_LABELS[s]}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </div>
+              )}
             </DialogContent>
           </>
         )}

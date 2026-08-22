@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+import { Eye, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -9,6 +12,7 @@ import DialogContent from "@mui/material/DialogContent";
 import {
   ApiError,
   adminBulkDeleteCustomers,
+  adminCreateCustomer,
   adminDeleteCustomer,
   adminGetCustomer,
   adminGetCustomers,
@@ -22,6 +26,31 @@ import {
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import ConfirmModal from "@/components/ConfirmModal";
 import { ORDER_STATUS_LABELS, type AdminCustomer } from "@/types/admin";
+import { normalizeDigits, PHONE_REGEX } from "@/utils/phone";
+
+interface NewCustomerForm {
+  phone: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+const NEW_CUSTOMER_FORM: NewCustomerForm = {
+  phone: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+};
+
+const newCustomerSchema = Yup.object({
+  phone: Yup.string()
+    .transform((v) => normalizeDigits(v ?? ""))
+    .matches(PHONE_REGEX, "شماره موبایل معتبر نیست")
+    .required("شماره موبایل الزامی است"),
+  firstName: Yup.string(),
+  lastName: Yup.string(),
+  email: Yup.string().email("ایمیل معتبر نیست"),
+});
 
 function AdminCustomersPage() {
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
@@ -40,6 +69,7 @@ function AdminCustomersPage() {
     { type: "include", ids: new Set() },
   );
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const selectedIds = useMemo(
     () =>
       resolveSelectedRowIds(
@@ -109,6 +139,28 @@ function AdminCustomersPage() {
 
   const selectedCustomer = customers.find((c) => c.id === selectedId) ?? null;
 
+  const createFormik = useFormik<NewCustomerForm>({
+    initialValues: NEW_CUSTOMER_FORM,
+    validationSchema: newCustomerSchema,
+    onSubmit: async (values, helpers) => {
+      try {
+        await adminCreateCustomer({
+          phone: normalizeDigits(values.phone),
+          firstName: values.firstName || undefined,
+          lastName: values.lastName || undefined,
+          email: values.email || undefined,
+        });
+        helpers.resetForm();
+        setCreateOpen(false);
+        load();
+      } catch (err) {
+        helpers.setStatus(err instanceof ApiError ? err.message : "خطا در ثبت مشتری");
+      } finally {
+        helpers.setSubmitting(false);
+      }
+    },
+  });
+
   const columns = useMemo<GridColDef<AdminCustomer>[]>(
     () => [
       {
@@ -175,7 +227,26 @@ function AdminCustomersPage() {
 
   return (
     <div>
-      <h1 className="font-display text-xl font-bold text-cocoa-900">مشتریان</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-xl font-bold text-cocoa-900">مشتریان</h1>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/orders/new"
+            className="flex items-center gap-1.5 rounded-full border border-sand-200 bg-white px-4 py-2 text-xs font-bold text-cocoa-700 transition hover:bg-sand-50"
+          >
+            <ShoppingBag className="h-3.5 w-3.5" />
+            ثبت سفارش دستی
+          </Link>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-1.5 rounded-full bg-sand-500 px-4 py-2 text-xs font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            افزودن مشتری
+          </button>
+        </div>
+      </div>
 
       {error && (
         <p className="mt-3 text-xs font-semibold text-danger-500">{error}</p>
@@ -266,6 +337,97 @@ function AdminCustomersPage() {
         }
         onClose={() => setDeletingCustomer(null)}
       />
+
+      <Dialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        dir="rtl"
+      >
+        <DialogTitle className="font-display text-cocoa-900">افزودن مشتری</DialogTitle>
+        <DialogContent dividers>
+          <form onSubmit={createFormik.handleSubmit} className="flex flex-col gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                شماره موبایل
+              </label>
+              <input
+                type="text"
+                dir="ltr"
+                name="phone"
+                value={createFormik.values.phone}
+                onChange={(e) =>
+                  createFormik.setFieldValue("phone", normalizeDigits(e.target.value))
+                }
+                onBlur={createFormik.handleBlur}
+                placeholder="09xxxxxxxxx"
+                className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+              />
+              {createFormik.touched.phone && createFormik.errors.phone && (
+                <p className="mt-1 text-xs font-semibold text-danger-500">
+                  {createFormik.errors.phone}
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-cocoa-600">نام</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={createFormik.values.firstName}
+                  onChange={createFormik.handleChange}
+                  className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                  نام خانوادگی
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={createFormik.values.lastName}
+                  onChange={createFormik.handleChange}
+                  className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                ایمیل (اختیاری)
+              </label>
+              <input
+                type="email"
+                dir="ltr"
+                name="email"
+                value={createFormik.values.email}
+                onChange={createFormik.handleChange}
+                onBlur={createFormik.handleBlur}
+                className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+              />
+              {createFormik.touched.email && createFormik.errors.email && (
+                <p className="mt-1 text-xs font-semibold text-danger-500">
+                  {createFormik.errors.email}
+                </p>
+              )}
+            </div>
+
+            {createFormik.status && (
+              <p className="text-xs font-semibold text-danger-500">{createFormik.status}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={createFormik.isSubmitting}
+              className="mt-1 rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+            >
+              {createFormik.isSubmitting ? "در حال ثبت…" : "ثبت مشتری"}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmModal
         isOpen={bulkDeleteOpen}

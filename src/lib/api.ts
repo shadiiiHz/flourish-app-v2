@@ -466,6 +466,7 @@ export function adminChangePassword(currentPassword: string, newPassword: string
     body: JSON.stringify({ currentPassword, newPassword }),
   });
 }
+
 export interface Paginated<T> {
   items: T[];
   total: number;
@@ -592,6 +593,34 @@ export function adminUpdateOrderStatus(id: string, status: OrderStatus) {
   });
 }
 
+export function adminUpdateOrderPaymentStatus(id: string, paymentStatus: "pending" | "paid") {
+  return apiFetch(`/api/admin/orders/${id}/payment-status`, {
+    method: "PATCH",
+    body: JSON.stringify({ paymentStatus }),
+  });
+}
+
+export interface AdminCreateOrderPayload {
+  customerId: string;
+  items: { productId: string; variantId?: string; quantity: number }[];
+  deliveryMethod: DeliveryMethod;
+  addressId?: string;
+  addressText?: string;
+  shippingCost?: number;
+  discountCode?: string;
+  useWallet?: boolean;
+  paymentStatus: "pending" | "paid";
+  customerName?: string;
+  note?: string;
+}
+
+export function adminCreateOrder(payload: AdminCreateOrderPayload) {
+  return apiFetch<AdminOrder>("/api/admin/orders", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function adminBulkDeleteOrders(ids: string[]) {
   return adminBulkDelete("/api/admin/orders", ids);
 }
@@ -604,6 +633,20 @@ export function adminGetCustomers(page = 1, pageSize = 20, search = "") {
 
 export function adminGetCustomer(id: string) {
   return apiFetch<AdminCustomer>(`/api/admin/customers/${id}`);
+}
+
+export interface AdminCreateCustomerPayload {
+  phone: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+export function adminCreateCustomer(payload: AdminCreateCustomerPayload) {
+  return apiFetch<AdminCustomer>("/api/admin/customers", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function adminDeleteCustomer(id: string) {
