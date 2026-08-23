@@ -9,6 +9,7 @@ import type {
   AdminCategory,
   AdminCustomer,
   AdminDiscountCode,
+  AdminHeroSlide,
   AdminOrder,
   AdminProduct,
   AdminWalletTransaction,
@@ -187,6 +188,18 @@ export async function getNewProducts(): Promise<MenuItem[]> {
     next: { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] },
   });
   return data.map((p) => mapProduct(p, p.category.title));
+}
+
+export interface HeroSlide {
+  id: string;
+  image: string;
+}
+
+export async function getHeroSlides(): Promise<HeroSlide[]> {
+  const data = await apiFetch<AdminHeroSlide[]>("/api/hero-slides", {
+    next: { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] },
+  });
+  return data.map((s) => ({ ...s, image: apiUploadUrl(s.image) }));
 }
 
 /**
@@ -510,6 +523,28 @@ export function adminDeleteCategory(id: string) {
 
 export function adminBulkDeleteCategories(ids: string[]) {
   return adminBulkDelete("/api/admin/categories", ids);
+}
+
+export function adminGetHeroSlides() {
+  return apiFetch<AdminHeroSlide[]>("/api/admin/hero-slides");
+}
+
+export function adminCreateHeroSlide(payload: Record<string, unknown>) {
+  return apiFetch<AdminHeroSlide>("/api/admin/hero-slides", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminUpdateHeroSlide(id: string, payload: Record<string, unknown>) {
+  return apiFetch<AdminHeroSlide>(`/api/admin/hero-slides/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminDeleteHeroSlide(id: string) {
+  return apiFetch(`/api/admin/hero-slides/${id}`, { method: "DELETE" });
 }
 
 export function adminGetProducts(page = 1, pageSize = 20, search = "") {

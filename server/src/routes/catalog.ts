@@ -17,6 +17,16 @@ catalogRouter.get(
 );
 
 catalogRouter.get(
+  "/hero-slides",
+  asyncHandler(async (_req, res) => {
+    const slides = await prisma.heroSlide.findMany({
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    });
+    res.json(slides);
+  }),
+);
+
+catalogRouter.get(
   "/categories",
   asyncHandler(async (_req, res) => {
     const categories = await prisma.category.findMany({

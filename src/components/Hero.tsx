@@ -2,23 +2,28 @@
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion, type PanInfo } from 'framer-motion'
-import { siteConfig } from '../config/siteConfig'
+import type { HeroSlide } from '../lib/api'
 
-const slides = siteConfig.hero.slides
 const AUTOPLAY_MS = 4500
 const SWIPE_THRESHOLD = 60
 
-function Hero() {
+interface HeroProps {
+  slides: HeroSlide[]
+}
+
+function Hero({ slides }: HeroProps) {
   const [index, setIndex] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
 
   useEffect(() => {
-    if (isPaused) return
+    if (isPaused || slides.length <= 1) return
     const timer = setInterval(() => {
       setIndex((i) => (i + 1) % slides.length)
     }, AUTOPLAY_MS)
     return () => clearInterval(timer)
-  }, [isPaused])
+  }, [isPaused, slides.length])
+
+  if (slides.length === 0) return null
 
   const handlePanEnd = (
     _event: MouseEvent | TouchEvent | PointerEvent,
@@ -49,7 +54,7 @@ function Hero() {
             <motion.img
               key={slide.id}
               src={slide.image}
-              alt={slide.title}
+              alt=""
               draggable={false}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

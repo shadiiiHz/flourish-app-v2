@@ -1,10 +1,3 @@
-export interface HeroSlide {
-  id: number
-  title: string
-  desc: string
-  image: string
-}
-
 export type CategoryTabId = 'bakery' | 'drinks'
 
 export interface CategoryTab {
@@ -55,22 +48,6 @@ export function getDiscountedPrice(price: number, discountPercent?: number) {
 }
 
 export const siteConfig = {
-  hero: {
-    slides: [
-      {
-        id: 0,
-        title: '',
-        desc: '',
-        image: '/assets/slider/slide1.png',
-      },
-      {
-        id: 1,
-        title: '',
-        desc: '',
-        image: '/assets/slider/slide2.png',
-      },
-    ] satisfies HeroSlide[],
-  },
   contact: {
     phone: '09960080286',
     whatsapp: '989960080286',

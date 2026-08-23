@@ -16,6 +16,12 @@ export interface AdminCategory {
   _count?: { products: number };
 }
 
+export interface AdminHeroSlide {
+  id: string;
+  image: string;
+  sortOrder: number;
+}
+
 export interface AdminVariant {
   id?: string;
   title: string;

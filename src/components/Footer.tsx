@@ -170,7 +170,6 @@ function Footer() {
               <a
                 referrerPolicy="origin"
                 target="_blank"
-                rel="noreferrer"
                 href="https://trustseal.enamad.ir/?id=7423133&Code=D18Zie0mygvhVIIgi8e2pcZIH3cTEhSP"
               >
                 <img
