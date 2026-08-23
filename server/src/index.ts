@@ -20,7 +20,7 @@ app.set("trust proxy", 1);
 
 app.use(cors({ origin: env.corsOrigin, credentials: true }));
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: "8mb" }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -36,6 +36,10 @@ app.use("/api/admin", adminRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
+  if (err && typeof err === "object" && "status" in err && err.status === 413) {
+    res.status(413).json({ error: "حجم فایل ارسالی بیش از حد مجاز است" });
+    return;
+  }
   res.status(500).json({ error: "خطای غیرمنتظره سرور" });
 });
 
