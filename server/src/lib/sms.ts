@@ -34,3 +34,37 @@ export async function sendSms(to: string, text: string): Promise<void> {
 
   console.info(`MeliPayamak SMS to ${to}: ${body}`);
 }
+
+interface PatternSmsResponse {
+  recId?: number;
+  status?: string;
+}
+
+/**
+ * Sends an SMS via MeliPayamak's shared-line pattern API
+ * (https://console.melipayamak.com/api/send/shared/{apikey}), using a
+ * pre-approved template (bodyId) with placeholder values in args, instead
+ * of a dedicated sender line + free text like sendSms above.
+ */
+export async function sendPatternSms(
+  to: string,
+  bodyId: number,
+  args: string[],
+): Promise<void> {
+  const res = await fetch(
+    `https://console.melipayamak.com/api/send/shared/${env.melipayamakApiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bodyId, to, args }),
+    },
+  );
+  const data = (await res.json()) as PatternSmsResponse;
+
+  if (!res.ok || !data.recId) {
+    console.error(`MeliPayamak pattern SMS failed for ${to}: HTTP ${res.status} — ${JSON.stringify(data)}`);
+    throw new Error(data.status || `MeliPayamak pattern SMS failed with status ${res.status}`);
+  }
+
+  console.info(`MeliPayamak pattern SMS to ${to}: recId ${data.recId}`);
+}

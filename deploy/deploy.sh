@@ -85,13 +85,14 @@ DATABASE_URL=postgresql://flourish:flourish@localhost:5432/flourish
 JWT_SECRET=${JWT_SECRET}
 PORT=4000
 CORS_ORIGIN=http://${HOST}
-API_URL=http://${HOST}/api
+API_URL=http://${HOST}
 APP_URL=http://${HOST}
 ADMIN_SEED_EMAIL=admin@flourish.local
 ADMIN_SEED_PASSWORD=${ADMIN_PASSWORD}
 # Fill these in to enable SMS / online payment:
 # MELIPAYAMAK_API_KEY=
 # MELIPAYAMAK_SENDER=
+# MELIPAYAMAK_OTP_BODY_ID=
 # ZARINPAL_MERCHANT_ID=
 # ZARINPAL_SANDBOX=true
 EOF

@@ -6,7 +6,7 @@ import { CUSTOMER_COOKIE_NAME, signCustomerToken } from "../lib/auth.js";
 import { env } from "../lib/env.js";
 import { loginOtpStore, passwordChangeOtpStore } from "../lib/otpStore.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
-import { sendSms } from "../lib/sms.js";
+import { sendSms, sendPatternSms } from "../lib/sms.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 
 export const customerAuthRouter = Router();
@@ -15,11 +15,19 @@ export const customerAuthRouter = Router();
  * Sends the OTP over SMS when MELIPAYAMAK_API_KEY is configured; otherwise
  * falls back to logging + returning the code in the response, same as the
  * old fully-simulated demo flow (useful for local dev without SMS credit).
+ *
+ * When MELIPAYAMAK_OTP_BODY_ID is also set, delivery goes through the
+ * shared-line pattern API (a pre-approved template with the code as its
+ * only placeholder) instead of a free-text send on a dedicated line.
  */
 async function deliverOtp(phone: string, code: string, message: string): Promise<{ code?: string }> {
   if (!env.melipayamakApiKey) {
     console.info(`[Flourish] کد شبیه‌سازی‌شده برای ${phone}: ${code}`);
     return { code };
+  }
+  if (env.melipayamakOtpBodyId) {
+    await sendPatternSms(phone, env.melipayamakOtpBodyId, [code]);
+    return {};
   }
   await sendSms(phone, message);
   return {};
