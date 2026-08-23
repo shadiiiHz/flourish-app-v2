@@ -106,7 +106,7 @@ function AdminSettingsPage() {
 
   useEffect(() => {
     adminGetSettings()
-      .then((s) =>
+      .then((s) => {
         formik.resetForm({
           values: {
             shippingCostUpTo5Km: String(s.shippingCostUpTo5Km),
@@ -114,8 +114,9 @@ function AdminSettingsPage() {
             maxDeliveryRadiusKm: String(s.maxDeliveryRadiusKm),
             siteClosed: s.siteClosed,
           },
-        }),
-      )
+        });
+        setMenuBannerImage(s.menuBannerImage);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -141,6 +142,28 @@ function AdminSettingsPage() {
       }
     },
   });
+
+  const [menuBannerImage, setMenuBannerImage] = useState<string | null>(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBannerUpload = async (file: File) => {
+    setBannerError(null);
+    setBannerUploading(true);
+    try {
+      const { url } = await adminUploadImage(file);
+      await adminUpdateSettings({ menuBannerImage: url });
+      setMenuBannerImage(url);
+      revalidateCatalog();
+    } catch (err) {
+      setBannerError(
+        err instanceof ApiError ? err.message : "خطا در آپلود بنر",
+      );
+    } finally {
+      setBannerUploading(false);
+    }
+  };
 
   const [heroSlides, setHeroSlides] = useState<AdminHeroSlide[]>([]);
   const [heroLoading, setHeroLoading] = useState(true);
@@ -469,6 +492,62 @@ function AdminSettingsPage() {
       <div className="mt-4 max-w-xl rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
           <ImagePlus className="h-4.5 w-4.5 text-sand-500" />
+          بنر صفحه منو
+        </h2>
+        <p className="mt-1 text-xs text-cocoa-500">
+          تصویر پس‌زمینه‌ی بالای صفحه‌ی منو (پشت عنوان «بوتیک نان و شیرینی
+          فلوریش»).
+        </p>
+        <p className="mt-2 rounded-xl bg-sand-50/60 p-3 text-xs leading-6 text-cocoa-600">
+          راهنمای سایز عکس: افقی و کشیده، حدود{" "}
+          <span dir="ltr" className="font-semibold">
+            1600×800
+          </span>{" "}
+          پیکسل و حجمش کمتر از ۵۰۰ کیلوبایت.
+        </p>
+
+        {loading ? (
+          <p className="mt-4 text-sm text-cocoa-500">در حال بارگذاری…</p>
+        ) : (
+          <div className="mt-4 flex items-center gap-3">
+            <img
+              src={apiUploadUrl(menuBannerImage || "/assets/cat-banner.jpg")}
+              alt=""
+              className="h-16 w-28 rounded-lg border border-sand-100 object-cover"
+            />
+            <input
+              ref={bannerFileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleBannerUpload(file);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => bannerFileInputRef.current?.click()}
+              disabled={bannerUploading}
+              className="flex items-center gap-1.5 rounded-full border border-sand-200 px-3.5 py-2 text-xs font-bold text-cocoa-700 transition hover:bg-sand-50 disabled:opacity-60"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {bannerUploading ? "در حال آپلود…" : "تغییر بنر"}
+            </button>
+          </div>
+        )}
+
+        {bannerError && (
+          <p className="mt-3 text-xs font-semibold text-danger-500">
+            {bannerError}
+          </p>
+        )}
+      </div>
+
+      <div className="mt-4 max-w-xl rounded-[1.5rem] border border-sand-100 bg-white p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
+          <ImagePlus className="h-4.5 w-4.5 text-sand-500" />
           اسلایدر صفحه اصلی
         </h2>
         <p className="mt-1 text-xs text-cocoa-500">
@@ -478,7 +557,7 @@ function AdminSettingsPage() {
           راهنمای سایز عکس: بهتره تصویر افقی و کشیده باشه، حدود{" "}
           <span dir="ltr" className="font-semibold">
             1600×600
-          </span>
+          </span>{" "}
           پیکسل (نسبت تقریبی ۲.۷ به ۱) و حجمش کمتر از ۵۰۰ کیلوبایت. چون تصویر
           همیشه کل کادر رو پر می‌کنه، عکس‌های خیلی عمودی یا مربعی ممکنه از طرفین
           بریده بشن.

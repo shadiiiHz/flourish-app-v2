@@ -12,6 +12,7 @@ catalogRouter.get(
     res.json({
       siteClosed: settings.siteClosed,
       walletCashbackPercent: settings.walletCashbackPercent,
+      menuBannerImage: settings.menuBannerImage,
     });
   }),
 );

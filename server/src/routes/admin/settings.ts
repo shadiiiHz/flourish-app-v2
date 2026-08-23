@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { getSettings } from "../../lib/shipping.js";
+import { deleteUploadedFile } from "../../lib/uploads.js";
 
 export const adminSettingsRouter = Router();
 
@@ -12,6 +13,7 @@ const settingsSchema = z.object({
   maxDeliveryRadiusKm: z.number().int().positive().optional(),
   siteClosed: z.boolean().optional(),
   walletCashbackPercent: z.number().int().min(0).max(100).optional(),
+  menuBannerImage: z.string().optional(),
 });
 
 adminSettingsRouter.get(
@@ -30,11 +32,19 @@ adminSettingsRouter.put(
       res.status(400).json({ error: "اطلاعات تنظیمات نامعتبر است" });
       return;
     }
+    const previous = await getSettings();
     const settings = await prisma.settings.upsert({
       where: { id: 1 },
       update: parsed.data,
       create: { id: 1, ...parsed.data },
     });
+    if (
+      parsed.data.menuBannerImage !== undefined &&
+      previous.menuBannerImage &&
+      previous.menuBannerImage !== settings.menuBannerImage
+    ) {
+      await deleteUploadedFile(previous.menuBannerImage);
+    }
     res.json(settings);
   }),
 );

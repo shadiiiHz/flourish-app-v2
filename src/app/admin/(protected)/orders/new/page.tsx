@@ -575,14 +575,16 @@ function AdminNewOrderPage() {
 
       {error && <p className="mt-4 text-xs font-semibold text-danger-500">{error}</p>}
 
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={submitting}
-        className="mt-4 w-full rounded-full bg-sand-500 px-5 py-3 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.01] active:scale-95 disabled:opacity-60"
-      >
-        {submitting ? "در حال ثبت سفارش…" : "ثبت سفارش"}
-      </button>
+      <div className="mt-4 flex justify-start">
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="rounded-full bg-sand-500 px-4 py-2 text-xs font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+        >
+          {submitting ? "در حال ثبت سفارش…" : "ثبت سفارش"}
+        </button>
+      </div>
     </div>
   );
 }

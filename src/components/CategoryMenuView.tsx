@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import Image from "next/image";
 import { CalendarClock, Clock, MapPin, Phone, Wallet } from "lucide-react";
 import { siteConfig, type Category, type CategoryTab, type CategoryTabId } from "@/config/siteConfig";
 import ProductCard from "@/components/ProductCard";
@@ -19,9 +18,15 @@ interface CategoryMenuViewProps {
   tabs: CategoryTab[];
   categoriesByTab: Record<CategoryTabId, Category[]>;
   walletCashbackPercent: number;
+  bannerImage: string;
 }
 
-function CategoryMenuView({ tabs, categoriesByTab, walletCashbackPercent }: CategoryMenuViewProps) {
+function CategoryMenuView({
+  tabs,
+  categoriesByTab,
+  walletCashbackPercent,
+  bannerImage,
+}: CategoryMenuViewProps) {
   const { orderType, preorder, openModal } = useOrderType();
   const hasPreorder = orderType === "preorder" && !!preorder;
   const flatCategories = useMemo(
@@ -159,12 +164,9 @@ function CategoryMenuView({ tabs, categoriesByTab, walletCashbackPercent }: Cate
     <div className="relative">
       <section className="relative px-3 pt-8 sm:px-6 sm:pt-10">
         <div className="relative mx-auto h-[320px] max-w-6xl overflow-hidden rounded-[2.25rem] border border-sand-100 shadow-[0_30px_60px_-25px_rgba(138,84,39,0.35)] sm:h-[420px] sm:rounded-[3rem]">
-          <Image
-            src="/assets/cat-banner.jpg"
+          <img
+            src={bannerImage}
             alt="بوتیک نان و شیرینی فلوریش"
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 1024px"
             className="absolute inset-0 h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-l from-black/80 via-black/30 to-transparent" />

@@ -696,19 +696,30 @@ export function adminBulkDeleteCustomers(ids: string[]) {
 /* Site status (public)                                                */
 /* ------------------------------------------------------------------ */
 
+const DEFAULT_MENU_BANNER_IMAGE = "/assets/cat-banner.jpg";
+
 export async function getSiteStatus(): Promise<{
   siteClosed: boolean;
   walletCashbackPercent: number;
+  menuBannerImage: string;
 }> {
   try {
     // An operational toggle — never served stale from the SSR data cache;
     // the client also polls this directly to catch admin changes mid-session.
-    return await apiFetch<{ siteClosed: boolean; walletCashbackPercent: number }>(
-      "/api/settings/status",
-      { next: { revalidate: 0 } },
-    );
+    const data = await apiFetch<{
+      siteClosed: boolean;
+      walletCashbackPercent: number;
+      menuBannerImage: string | null;
+    }>("/api/settings/status", { next: { revalidate: 0 } });
+    return {
+      siteClosed: data.siteClosed,
+      walletCashbackPercent: data.walletCashbackPercent,
+      menuBannerImage: data.menuBannerImage
+        ? apiUploadUrl(data.menuBannerImage)
+        : DEFAULT_MENU_BANNER_IMAGE,
+    };
   } catch {
-    return { siteClosed: false, walletCashbackPercent: 0 };
+    return { siteClosed: false, walletCashbackPercent: 0, menuBannerImage: DEFAULT_MENU_BANNER_IMAGE };
   }
 }
 
@@ -722,6 +733,7 @@ export interface AdminSettings {
   maxDeliveryRadiusKm: number;
   siteClosed: boolean;
   walletCashbackPercent: number;
+  menuBannerImage: string | null;
 }
 
 export function adminGetSettings() {

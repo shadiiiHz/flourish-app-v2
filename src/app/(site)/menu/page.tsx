@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function MenuPage() {
-  const [categoriesByTab, { walletCashbackPercent }] = await Promise.all([
+  const [categoriesByTab, { walletCashbackPercent, menuBannerImage }] = await Promise.all([
     getCatalog(),
     getSiteStatus(),
   ]);
@@ -21,6 +21,7 @@ export default async function MenuPage() {
       tabs={CATEGORY_TABS}
       categoriesByTab={categoriesByTab}
       walletCashbackPercent={walletCashbackPercent}
+      bannerImage={menuBannerImage}
     />
   );
 }

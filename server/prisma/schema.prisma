@@ -228,6 +228,11 @@ model Settings {
    * customer's wallet as cashback once the order is paid.
    */
   walletCashbackPercent Int      @default(0)
+  /**
+   * Overrides the default banner image on the public menu page. Null means the
+   * built-in /assets/cat-banner.jpg ships as-is.
+   */
+  menuBannerImage       String?
   updatedAt             DateTime @updatedAt
 }
 
