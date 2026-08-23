@@ -113,11 +113,31 @@ npm ci
 (cd server && npm ci)
 
 # 6. Database schema
+# Dump the whole database right before applying any migration, so a bad migration
+# can be rolled back by hand. Kept one level up from APP_DIR (a sibling of the app
+# dir) so `rsync --delete` never wipes it, and only the last 10 dumps are kept.
+BACKUP_DIR="$(dirname "$APP_DIR")/flourish-db-backups"
+mkdir -p "$BACKUP_DIR"
+echo "==> Backing up database before migration"
+$SUDO docker compose exec -T db pg_dump -U flourish flourish | gzip > "$BACKUP_DIR/pre-migrate-$(date +%Y%m%d-%H%M%S).sql.gz"
+ls -1t "$BACKUP_DIR"/pre-migrate-*.sql.gz | tail -n +11 | xargs -r rm --
+
 echo "==> Running Prisma migrate + generate"
 (cd server && npx prisma generate && npx prisma migrate deploy)
 
-echo "==> Seeding catalog / admin user (safe to re-run — upserts only)"
-(cd server && npm run seed)
+# seed.ts no longer touches the catalog (categories/products) at all — it only
+# upserts the admin login — so it's safe to leave this unconditional. As a second
+# safety net against ever resurrecting deleted data by accident, it also only runs
+# on the very first deploy: the marker lives one level up from APP_DIR (a sibling
+# of the app dir), a location `rsync --delete` never reaches.
+SEED_MARKER="$(dirname "$APP_DIR")/.flourish-seeded"
+if [ ! -f "$SEED_MARKER" ]; then
+  echo "==> Seeding admin user (first deploy only)"
+  (cd server && npm run seed)
+  touch "$SEED_MARKER"
+else
+  echo "==> Already seeded on a previous deploy — skipping"
+fi
 
 # 7. Build
 echo "==> Building backend"
