@@ -162,10 +162,26 @@ function Footer() {
           </div>
 
           <div className="border-t border-white/50 px-6 py-5 sm:px-10">
-            <p className="text-center text-xs text-cocoa-500 sm:text-sm">
-              تمامی حقوق مادی و معنوی، متعلق به بوتیک نان و شیرینی فلوریش است. ©{" "}
-              {currentPersianYear}
-            </p>
+            <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+              <p className="text-center text-xs text-cocoa-500 sm:text-right sm:text-sm">
+                تمامی حقوق مادی و معنوی، متعلق به بوتیک نان و شیرینی فلوریش است. ©{" "}
+                {currentPersianYear}
+              </p>
+              <a
+                referrerPolicy="origin"
+                target="_blank"
+                rel="noreferrer"
+                href="https://trustseal.enamad.ir/?id=7423133&Code=D18Zie0mygvhVIIgi8e2pcZIH3cTEhSP"
+              >
+                <img
+                  referrerPolicy="origin"
+                  src="https://trustseal.enamad.ir/logo.aspx?id=7423133&Code=D18Zie0mygvhVIIgi8e2pcZIH3cTEhSP"
+                  alt="نماد اعتماد الکترونیکی"
+                  data-code="D18Zie0mygvhVIIgi8e2pcZIH3cTEhSP"
+                  className="h-16 w-16 cursor-pointer"
+                />
+              </a>
+            </div>
           </div>
         </motion.div>
       </div>

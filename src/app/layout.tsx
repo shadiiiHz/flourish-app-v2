@@ -3,23 +3,30 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "18441547",
+  title: "بوتیک نان و شیرینی | فلوریش",
   description: "فلوریش، بوتیک نان و شیرینی مدرن با محصولات دست‌ساز و تازه.",
   icons: {
     icon: "/assets/logo-placeholder.png",
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="fa" dir="rtl">
       <head>
-        <meta name="enamad" content="18441547"/>
         {/* Loaded by the browser instead of next/font/google: next build on
             this server can't reliably reach fonts.googleapis.com at build
             time, but end users' browsers can. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap"
