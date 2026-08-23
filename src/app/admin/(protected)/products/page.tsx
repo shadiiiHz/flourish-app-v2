@@ -447,6 +447,11 @@ function AdminProductsPage() {
     [categories],
   );
 
+  const categorySlugById = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.slug])),
+    [categories],
+  );
+
   const columns = useMemo<GridColDef<AdminProduct>[]>(
     () => [
       {
@@ -544,10 +549,59 @@ function AdminProductsPage() {
     [categoryTitleById],
   );
 
+  // Separate from the on-screen `columns` above: this is the exact column set
+  // "آپلود گروهی محصولات" (POST /api/admin/products/bulk-import) expects, so
+  // exporting the table and re-uploading the file works as a round-trip.
+  const csvExportColumns = useMemo<GridColDef<AdminProduct>[]>(
+    () => [
+      { field: "title", headerName: "عنوان", valueGetter: (_, row) => row.title },
+      {
+        field: "category",
+        headerName: "دسته‌بندی",
+        valueGetter: (_, row) => row.category?.slug ?? categorySlugById.get(row.categoryId) ?? "",
+      },
+      { field: "price", headerName: "قیمت", valueGetter: (_, row) => row.price },
+      {
+        field: "discountPercent",
+        headerName: "درصد تخفیف",
+        valueGetter: (_, row) => row.discountPercent ?? "",
+      },
+      { field: "weight", headerName: "وزن", valueGetter: (_, row) => row.weight ?? "" },
+      {
+        field: "variants",
+        headerName: "انواع محصول",
+        valueGetter: (_, row) =>
+          row.variants
+            .map((v) => [v.title, v.price, v.weight ?? "", v.stock ?? ""].join(":"))
+            .join(";"),
+      },
+      { field: "description", headerName: "توضیحات", valueGetter: (_, row) => row.description ?? "" },
+      { field: "ingredients", headerName: "ترکیبات", valueGetter: (_, row) => row.ingredients ?? "" },
+      {
+        field: "servingSize",
+        headerName: "مناسب برای",
+        valueGetter: (_, row) => row.servingSize ?? "",
+      },
+      { field: "stock", headerName: "موجودی", valueGetter: (_, row) => row.stock ?? "" },
+      { field: "isNew", headerName: "جدید", valueGetter: (_, row) => (row.isNew ? "بله" : "خیر") },
+      {
+        field: "isAvailable",
+        headerName: "موجود",
+        valueGetter: (_, row) => (row.isAvailable ? "بله" : "خیر"),
+      },
+      {
+        field: "allowPreorder",
+        headerName: "پیش‌سفارش",
+        valueGetter: (_, row) => (row.allowPreorder ? "بله" : "خیر"),
+      },
+    ],
+    [categorySlugById],
+  );
+
   const handleExportAll = useCallback(async () => {
     const all = await fetchAllPages((p, ps) => adminGetProducts(p, ps, debouncedSearch));
-    downloadCsv("products.csv", buildCsv(columns, all));
-  }, [columns, debouncedSearch]);
+    downloadCsv("products.csv", buildCsv(csvExportColumns, all));
+  }, [csvExportColumns, debouncedSearch]);
 
   return (
     <div>
@@ -1007,6 +1061,7 @@ function AdminProductsPage() {
           onRowSelectionModelChange={setSelectionModel}
           selectedCount={selectedIds.length}
           onBulkDelete={() => setBulkDeleteOpen(true)}
+          exportColumns={csvExportColumns}
           exportFileName="products"
           onExportAll={handleExportAll}
           bulkDeleteLabel="حذف گروهی محصولات"

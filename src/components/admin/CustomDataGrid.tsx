@@ -150,6 +150,7 @@ export function CustomDataGrid<R extends GridValidRowModel>({
   selectedCount,
   onBulkDelete,
   bulkDeleteLabel,
+  exportColumns,
   exportFileName,
   onExportAll,
   ...props
@@ -202,7 +203,7 @@ export function CustomDataGrid<R extends GridValidRowModel>({
           selectedCount,
           onBulkDelete,
           bulkDeleteLabel,
-          exportColumns: props.columns as GridColDef[],
+          exportColumns: exportColumns ?? (props.columns as GridColDef[]),
           exportFileName,
           onExportAll,
         },
