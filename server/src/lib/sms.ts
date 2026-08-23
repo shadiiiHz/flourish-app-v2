@@ -36,35 +36,48 @@ export async function sendSms(to: string, text: string): Promise<void> {
 }
 
 interface PatternSmsResponse {
-  recId?: number;
-  status?: string;
+  Value?: string;
+  RetStatus?: number;
+  StrRetStatus?: string;
 }
 
 /**
- * Sends an SMS via MeliPayamak's shared-line pattern API
- * (https://console.melipayamak.com/api/send/shared/{apikey}), using a
- * pre-approved template (bodyId) with placeholder values in args, instead
- * of a dedicated sender line + free text like sendSms above.
+ * Sends an SMS via the "خط خدماتی اشتراکی" (shared service line) REST API
+ * (https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber), using a
+ * pre-approved template (bodyId) with placeholder values, instead of a
+ * dedicated sender line + free text like sendSms above.
+ *
+ * This is a different MeliPayamak product from sendSms's console API —
+ * auth is username + password (the account's ApiKey goes in the password
+ * field per MeliPayamak's docs), and placeholder values are joined with
+ * ";" into a single text field rather than a JSON array.
  */
 export async function sendPatternSms(
   to: string,
   bodyId: number,
   args: string[],
 ): Promise<void> {
-  const res = await fetch(
-    `https://console.melipayamak.com/api/send/shared/${env.melipayamakApiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bodyId, to, args }),
-    },
-  );
+  const res = await fetch("https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: env.melipayamakUsername,
+      password: env.melipayamakApiKey,
+      text: args.join(";"),
+      to,
+      bodyId,
+    }),
+  });
   const data = (await res.json()) as PatternSmsResponse;
 
-  if (!res.ok || !data.recId) {
+  if (!res.ok || data.RetStatus !== 1) {
     console.error(`MeliPayamak pattern SMS failed for ${to}: HTTP ${res.status} — ${JSON.stringify(data)}`);
-    throw new Error(data.status || `MeliPayamak pattern SMS failed with status ${res.status}`);
+    throw new Error(
+      data.StrRetStatus && data.StrRetStatus !== "InvalidData"
+        ? data.StrRetStatus
+        : `MeliPayamak pattern SMS rejected (code ${data.Value})`,
+    );
   }
 
-  console.info(`MeliPayamak pattern SMS to ${to}: recId ${data.recId}`);
+  console.info(`MeliPayamak pattern SMS to ${to}: recId ${data.Value}`);
 }

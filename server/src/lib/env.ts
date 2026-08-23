@@ -16,6 +16,7 @@ export const env = {
   adminSeedName: process.env.ADMIN_SEED_NAME ?? "مدیر فلوریش",
   melipayamakApiKey: process.env.MELIPAYAMAK_API_KEY,
   melipayamakSender: process.env.MELIPAYAMAK_SENDER,
+  melipayamakUsername: process.env.MELIPAYAMAK_USERNAME,
   melipayamakOtpBodyId: process.env.MELIPAYAMAK_OTP_BODY_ID
     ? Number(process.env.MELIPAYAMAK_OTP_BODY_ID)
     : undefined,
