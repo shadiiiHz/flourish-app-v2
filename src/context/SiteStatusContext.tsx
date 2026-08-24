@@ -6,7 +6,23 @@ import { getSiteStatus } from "@/lib/api";
 interface SiteStatusContextValue {
   /** When true, only preorders can be placed — instant ordering is closed site-wide. */
   siteClosed: boolean;
+  /** The raw manual "close the site" toggle, independent of business hours. */
+  manuallyClosed: boolean;
+  /** Whether the automatic business-hours window is in effect. */
+  businessHoursEnabled: boolean;
+  /** "HH:mm" in Tehran time. */
+  businessHoursStart: string;
+  /** "HH:mm" in Tehran time. */
+  businessHoursEnd: string;
 }
+
+const DEFAULT_STATUS: SiteStatusContextValue = {
+  siteClosed: false,
+  manuallyClosed: false,
+  businessHoursEnabled: false,
+  businessHoursStart: "09:00",
+  businessHoursEnd: "22:30",
+};
 
 const SiteStatusContext = createContext<SiteStatusContextValue | null>(null);
 
@@ -18,20 +34,24 @@ const SiteStatusContext = createContext<SiteStatusContextValue | null>(null);
 const POLL_INTERVAL_MS = 15_000;
 
 export function SiteStatusProvider({
-  siteClosed: initialSiteClosed,
   children,
-}: {
-  siteClosed: boolean;
-  children: ReactNode;
-}) {
-  const [siteClosed, setSiteClosed] = useState(initialSiteClosed);
+  ...initialStatus
+}: Partial<SiteStatusContextValue> & { children: ReactNode }) {
+  const [status, setStatus] = useState<SiteStatusContextValue>({
+    ...DEFAULT_STATUS,
+    ...initialStatus,
+  });
 
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
-      getSiteStatus().then(({ siteClosed }) => {
-        if (!cancelled) setSiteClosed(siteClosed);
-      });
+      getSiteStatus().then(
+        ({ siteClosed, manuallyClosed, businessHoursEnabled, businessHoursStart, businessHoursEnd }) => {
+          if (!cancelled) {
+            setStatus({ siteClosed, manuallyClosed, businessHoursEnabled, businessHoursStart, businessHoursEnd });
+          }
+        },
+      );
     };
     refresh();
     const interval = window.setInterval(refresh, POLL_INTERVAL_MS);
@@ -41,9 +61,7 @@ export function SiteStatusProvider({
     };
   }, []);
 
-  return (
-    <SiteStatusContext.Provider value={{ siteClosed }}>{children}</SiteStatusContext.Provider>
-  );
+  return <SiteStatusContext.Provider value={status}>{children}</SiteStatusContext.Provider>;
 }
 
 export function useSiteStatus() {

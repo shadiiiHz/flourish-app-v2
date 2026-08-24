@@ -29,9 +29,17 @@ function CartOverlay() {
 export default function SiteShell({
   children,
   siteClosed = false,
+  manuallyClosed = false,
+  businessHoursEnabled = false,
+  businessHoursStart = "09:00",
+  businessHoursEnd = "22:30",
 }: {
   children: ReactNode;
   siteClosed?: boolean;
+  manuallyClosed?: boolean;
+  businessHoursEnabled?: boolean;
+  businessHoursStart?: string;
+  businessHoursEnd?: string;
 }) {
   const router = useRouter();
 
@@ -45,7 +53,13 @@ export default function SiteShell({
   }, [router]);
 
   return (
-    <SiteStatusProvider siteClosed={siteClosed}>
+    <SiteStatusProvider
+      siteClosed={siteClosed}
+      manuallyClosed={manuallyClosed}
+      businessHoursEnabled={businessHoursEnabled}
+      businessHoursStart={businessHoursStart}
+      businessHoursEnd={businessHoursEnd}
+    >
       <div className="relative min-h-svh overflow-x-clip bg-cream text-cocoa-900">
         <div
           aria-hidden="true"

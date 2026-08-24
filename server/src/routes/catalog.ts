@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { getSettings } from "../lib/shipping.js";
+import { isSiteOpen } from "../lib/businessHours.js";
 
 export const catalogRouter = Router();
 
@@ -10,7 +11,11 @@ catalogRouter.get(
   asyncHandler(async (_req, res) => {
     const settings = await getSettings();
     res.json({
-      siteClosed: settings.siteClosed,
+      siteClosed: !isSiteOpen(settings),
+      manuallyClosed: settings.siteClosed,
+      businessHoursEnabled: settings.businessHoursEnabled,
+      businessHoursStart: settings.businessHoursStart,
+      businessHoursEnd: settings.businessHoursEnd,
       walletCashbackPercent: settings.walletCashbackPercent,
       menuBannerImage: settings.menuBannerImage,
     });

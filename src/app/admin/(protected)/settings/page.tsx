@@ -6,6 +6,7 @@ import * as Yup from "yup";
 import {
   ArrowDown,
   ArrowUp,
+  Clock,
   ImagePlus,
   KeyRound,
   Store,
@@ -56,6 +57,9 @@ interface FormValues {
   shippingCostOver5Km: string;
   maxDeliveryRadiusKm: string;
   siteClosed: boolean;
+  businessHoursEnabled: boolean;
+  businessHoursStart: string;
+  businessHoursEnd: string;
 }
 
 const EMPTY_FORM: FormValues = {
@@ -63,7 +67,12 @@ const EMPTY_FORM: FormValues = {
   shippingCostOver5Km: "0",
   maxDeliveryRadiusKm: "8",
   siteClosed: false,
+  businessHoursEnabled: true,
+  businessHoursStart: "09:00",
+  businessHoursEnd: "22:30",
 };
+
+const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const validationSchema = Yup.object({
   shippingCostUpTo5Km: Yup.number()
@@ -75,6 +84,8 @@ const validationSchema = Yup.object({
   maxDeliveryRadiusKm: Yup.number()
     .typeError("شعاع باید عدد باشد")
     .min(1, "شعاع باید حداقل ۱ کیلومتر باشد"),
+  businessHoursStart: Yup.string().matches(TIME_REGEX, "ساعت نامعتبر است"),
+  businessHoursEnd: Yup.string().matches(TIME_REGEX, "ساعت نامعتبر است"),
 });
 
 function AdminSettingsPage() {
@@ -94,6 +105,9 @@ function AdminSettingsPage() {
           shippingCostOver5Km: Number(values.shippingCostOver5Km) || 0,
           maxDeliveryRadiusKm: Number(values.maxDeliveryRadiusKm) || 8,
           siteClosed: values.siteClosed,
+          businessHoursEnabled: values.businessHoursEnabled,
+          businessHoursStart: values.businessHoursStart,
+          businessHoursEnd: values.businessHoursEnd,
         });
         setSuccess(true);
       } catch (err) {
@@ -113,6 +127,9 @@ function AdminSettingsPage() {
             shippingCostOver5Km: String(s.shippingCostOver5Km),
             maxDeliveryRadiusKm: String(s.maxDeliveryRadiusKm),
             siteClosed: s.siteClosed,
+            businessHoursEnabled: s.businessHoursEnabled,
+            businessHoursStart: s.businessHoursStart,
+            businessHoursEnd: s.businessHoursEnd,
           },
         });
         setMenuBannerImage(s.menuBannerImage);
@@ -278,6 +295,71 @@ function AdminSettingsPage() {
           />
           تعطیلی سایت — فقط امکان ثبت پیش‌سفارش
         </label>
+
+        <div className="my-5 h-px bg-cocoa-900/10" />
+
+        <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
+          <Clock className="h-4.5 w-4.5 text-sand-500" />
+          ساعت کاری
+        </h2>
+        <p className="mt-1 text-xs text-cocoa-500">
+          خارج از این بازه، سایت به‌صورت خودکار تعطیل می‌شود و فقط امکان
+          ثبت پیش‌سفارش وجود دارد — مستقل از تعطیلی دستی بالا.
+        </p>
+        <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+          <input
+            type="checkbox"
+            name="businessHoursEnabled"
+            checked={formik.values.businessHoursEnabled}
+            onChange={formik.handleChange}
+            className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+          />
+          محدود کردن سفارش‌گیری به ساعت کاری
+        </label>
+        {formik.values.businessHoursEnabled && (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                از ساعت
+              </label>
+              <input
+                type="time"
+                dir="ltr"
+                name="businessHoursStart"
+                value={formik.values.businessHoursStart}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+              />
+              {formik.touched.businessHoursStart &&
+                formik.errors.businessHoursStart && (
+                  <p className="mt-1 text-xs font-semibold text-danger-500">
+                    {formik.errors.businessHoursStart}
+                  </p>
+                )}
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                تا ساعت
+              </label>
+              <input
+                type="time"
+                dir="ltr"
+                name="businessHoursEnd"
+                value={formik.values.businessHoursEnd}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+              />
+              {formik.touched.businessHoursEnd &&
+                formik.errors.businessHoursEnd && (
+                  <p className="mt-1 text-xs font-semibold text-danger-500">
+                    {formik.errors.businessHoursEnd}
+                  </p>
+                )}
+            </div>
+          </div>
+        )}
 
         <div className="my-5 h-px bg-cocoa-900/10" />
 

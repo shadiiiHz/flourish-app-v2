@@ -700,6 +700,10 @@ const DEFAULT_MENU_BANNER_IMAGE = "/assets/cat-banner.jpg";
 
 export async function getSiteStatus(): Promise<{
   siteClosed: boolean;
+  manuallyClosed: boolean;
+  businessHoursEnabled: boolean;
+  businessHoursStart: string;
+  businessHoursEnd: string;
   walletCashbackPercent: number;
   menuBannerImage: string;
 }> {
@@ -708,18 +712,34 @@ export async function getSiteStatus(): Promise<{
     // the client also polls this directly to catch admin changes mid-session.
     const data = await apiFetch<{
       siteClosed: boolean;
+      manuallyClosed: boolean;
+      businessHoursEnabled: boolean;
+      businessHoursStart: string;
+      businessHoursEnd: string;
       walletCashbackPercent: number;
       menuBannerImage: string | null;
     }>("/api/settings/status", { next: { revalidate: 0 } });
     return {
       siteClosed: data.siteClosed,
+      manuallyClosed: data.manuallyClosed,
+      businessHoursEnabled: data.businessHoursEnabled,
+      businessHoursStart: data.businessHoursStart,
+      businessHoursEnd: data.businessHoursEnd,
       walletCashbackPercent: data.walletCashbackPercent,
       menuBannerImage: data.menuBannerImage
         ? apiUploadUrl(data.menuBannerImage)
         : DEFAULT_MENU_BANNER_IMAGE,
     };
   } catch {
-    return { siteClosed: false, walletCashbackPercent: 0, menuBannerImage: DEFAULT_MENU_BANNER_IMAGE };
+    return {
+      siteClosed: false,
+      manuallyClosed: false,
+      businessHoursEnabled: false,
+      businessHoursStart: "09:00",
+      businessHoursEnd: "22:30",
+      walletCashbackPercent: 0,
+      menuBannerImage: DEFAULT_MENU_BANNER_IMAGE,
+    };
   }
 }
 
@@ -732,6 +752,9 @@ export interface AdminSettings {
   shippingCostOver5Km: number;
   maxDeliveryRadiusKm: number;
   siteClosed: boolean;
+  businessHoursEnabled: boolean;
+  businessHoursStart: string;
+  businessHoursEnd: string;
   walletCashbackPercent: number;
   menuBannerImage: string | null;
 }

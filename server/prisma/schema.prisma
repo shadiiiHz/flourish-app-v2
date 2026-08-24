@@ -224,6 +224,15 @@ model Settings {
    */
   siteClosed            Boolean  @default(false)
   /**
+   * When true, instant ordering is also closed automatically outside of
+   * [businessHoursStart, businessHoursEnd) in Asia/Tehran time, independent of siteClosed.
+   */
+  businessHoursEnabled  Boolean  @default(true)
+  /** "HH:mm" in Asia/Tehran time. */
+  businessHoursStart    String   @default("09:00")
+  /** "HH:mm" in Asia/Tehran time. */
+  businessHoursEnd      String   @default("22:30")
+  /**
    * Percent of an order's item subtotal (pre-tax, pre-discount, pre-shipping) credited to the
    * customer's wallet as cashback once the order is paid.
    */

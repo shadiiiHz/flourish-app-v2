@@ -3,15 +3,21 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { getSettings } from "../../lib/shipping.js";
+import { isValidTimeString } from "../../lib/businessHours.js";
 import { deleteUploadedFile } from "../../lib/uploads.js";
 
 export const adminSettingsRouter = Router();
+
+const timeString = z.string().refine(isValidTimeString, { message: "قالب ساعت باید HH:mm باشد" });
 
 const settingsSchema = z.object({
   shippingCostUpTo5Km: z.number().int().nonnegative().optional(),
   shippingCostOver5Km: z.number().int().nonnegative().optional(),
   maxDeliveryRadiusKm: z.number().int().positive().optional(),
   siteClosed: z.boolean().optional(),
+  businessHoursEnabled: z.boolean().optional(),
+  businessHoursStart: timeString.optional(),
+  businessHoursEnd: timeString.optional(),
   walletCashbackPercent: z.number().int().min(0).max(100).optional(),
   menuBannerImage: z.string().optional(),
 });

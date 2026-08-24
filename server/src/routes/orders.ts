@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { calculateShipping, getSettings } from "../lib/shipping.js";
+import { isSiteOpen } from "../lib/businessHours.js";
 import { requestZarinpalPayment, verifyZarinpalPayment } from "../lib/zarinpal.js";
 import { TAX_RATE, getDiscountedPrice } from "../lib/pricing.js";
 import { env } from "../lib/env.js";
@@ -60,7 +61,7 @@ ordersRouter.post(
     }
 
     const settings = await getSettings();
-    if (settings.siteClosed && orderType !== "preorder") {
+    if (!isSiteOpen(settings) && orderType !== "preorder") {
       res
         .status(400)
         .json({ error: "امروز فلوریش تعطیل است و فقط ثبت پیش‌سفارش امکان‌پذیر است" });
