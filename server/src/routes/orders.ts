@@ -9,6 +9,24 @@ import { requestZarinpalPayment, verifyZarinpalPayment } from "../lib/zarinpal.j
 import { TAX_RATE, getDiscountedPrice } from "../lib/pricing.js";
 import { env } from "../lib/env.js";
 import { redeemWallet, refundWalletHold } from "../lib/wallet.js";
+import { sendPatternSms } from "../lib/sms.js";
+import { formatOrderNumber } from "../lib/orderNumber.js";
+
+/**
+ * Notifies the admin phone over SMS right after an order is registered.
+ * Best-effort only — a MeliPayamak failure (no credit, rejected number, etc.)
+ * must never fail order creation for the customer, so errors are just logged.
+ */
+async function notifyAdminOfNewOrder(orderNumber: number): Promise<void> {
+  if (!env.melipayamakApiKey || !env.melipayamakAdminOrderBodyId || !env.adminNotifyPhone) return;
+  try {
+    await sendPatternSms(env.adminNotifyPhone, env.melipayamakAdminOrderBodyId, [
+      formatOrderNumber(orderNumber),
+    ]);
+  } catch (err) {
+    console.error("Failed to notify admin of new order:", err);
+  }
+}
 
 export const ordersRouter = Router();
 
@@ -188,6 +206,8 @@ ordersRouter.post(
       },
       include: { items: true },
     });
+
+    await notifyAdminOfNewOrder(order.orderNumber);
 
     if (walletAmountUsed > 0) {
       await redeemWallet(customerId, walletAmountUsed, order.id);
