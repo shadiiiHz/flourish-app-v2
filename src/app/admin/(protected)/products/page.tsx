@@ -218,12 +218,12 @@ function AdminProductsPage() {
           images: values.images,
           weight: String(values.weightValue).trim()
             ? `${String(values.weightValue).trim()} ${values.weightUnit}`
-            : undefined,
-          ingredients: values.ingredients.trim() || undefined,
-          servingSize: values.servingSize.trim() || undefined,
+            : null,
+          ingredients: values.ingredients.trim() || null,
+          servingSize: values.servingSize.trim() || null,
           discountPercent: values.discountPercent
             ? Number(values.discountPercent)
-            : undefined,
+            : null,
           stock: values.stock ? Number(values.stock) : null,
           isNew: values.isNew,
           isAvailable: values.isAvailable,
