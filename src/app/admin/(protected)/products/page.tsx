@@ -758,8 +758,7 @@ function AdminProductsPage() {
                 }
               }}
               onBlur={formik.handleBlur}
-              disabled={!formik.values.isAvailable}
-              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400 disabled:bg-sand-50 disabled:text-cocoa-400"
+              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
             />
             {formik.touched.stock && formik.errors.stock && (
               <p className="mt-1 text-xs font-semibold text-danger-500">
@@ -860,20 +859,28 @@ function AdminProductsPage() {
             />
             نمایش در «آیتم‌های جدید»
           </label>
-          <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
-            <input
-              type="checkbox"
-              name="isAvailable"
-              checked={formik.values.isAvailable}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                formik.setFieldValue("isAvailable", checked);
-                if (!checked) formik.setFieldValue("stock", "0");
-              }}
-              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
-            />
-            موجود و قابل سفارش در سایت
-          </label>
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+              <input
+                type="checkbox"
+                name="isAvailable"
+                checked={formik.values.isAvailable}
+                disabled={formik.values.stock !== "" && Number(formik.values.stock) === 0}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  formik.setFieldValue("isAvailable", checked);
+                  if (!checked) formik.setFieldValue("stock", "0");
+                }}
+                className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              موجود و قابل سفارش در سایت
+            </label>
+            {formik.values.stock !== "" && Number(formik.values.stock) === 0 && (
+              <p className="mt-1 text-xs text-cocoa-500">
+                موجودی صفره — برای فعال کردن این گزینه، اول یه عدد بزرگ‌تر از صفر یا خالی (بدون محدودیت) برای موجودی وارد کنید.
+              </p>
+            )}
+          </div>
           <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
             <input
               type="checkbox"
