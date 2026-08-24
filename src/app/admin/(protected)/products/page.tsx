@@ -100,7 +100,7 @@ const validationSchema = Yup.object({
     .nullable()
     .transform((v, orig) => (orig === "" ? null : v)),
   ingredients: Yup.string().trim(),
-  servingSize: Yup.string().trim().required("مناسب برای الزامی است"),
+  servingSize: Yup.string().trim(),
   discountPercent: Yup.number()
     .typeError("درصد تخفیف باید عدد باشد")
     .min(0, "حداقل صفر")
