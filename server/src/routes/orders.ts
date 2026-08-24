@@ -13,9 +13,12 @@ import { sendPatternSms } from "../lib/sms.js";
 import { formatOrderNumber } from "../lib/orderNumber.js";
 
 /**
- * Notifies the admin phone over SMS right after an order is registered.
+ * Notifies the admin phone over SMS once an order is actually paid — either
+ * immediately (fully covered by wallet balance) or after the customer
+ * completes payment at Zarinpal and is redirected back — never at order
+ * creation, so an abandoned/failed gateway payment doesn't page the admin.
  * Best-effort only — a MeliPayamak failure (no credit, rejected number, etc.)
- * must never fail order creation for the customer, so errors are just logged.
+ * must never fail the request, so errors are just logged.
  */
 async function notifyAdminOfNewOrder(orderNumber: number): Promise<void> {
   if (!env.melipayamakApiKey || !env.melipayamakAdminOrderBodyId || !env.adminNotifyPhone) return;
@@ -207,8 +210,6 @@ ordersRouter.post(
       include: { items: true },
     });
 
-    await notifyAdminOfNewOrder(order.orderNumber);
-
     if (walletAmountUsed > 0) {
       await redeemWallet(customerId, walletAmountUsed, order.id);
     }
@@ -222,6 +223,7 @@ ordersRouter.post(
         include: { items: true },
       });
       await prisma.cartItem.deleteMany({ where: { customerId } });
+      await notifyAdminOfNewOrder(order.orderNumber);
       res.status(201).json({ order: paidOrder, paymentUrl: null });
       return;
     }
@@ -291,6 +293,7 @@ ordersRouter.get(
     if (order.customerId) {
       await prisma.cartItem.deleteMany({ where: { customerId: order.customerId } });
     }
+    await notifyAdminOfNewOrder(order.orderNumber);
     res.redirect(`${env.appUrl}/checkout/result?status=paid&orderId=${order.id}`);
   }),
 );
