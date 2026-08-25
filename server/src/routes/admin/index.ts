@@ -9,6 +9,7 @@ import { adminSettingsRouter } from "./settings.js";
 import { adminDiscountCodesRouter } from "./discountCodes.js";
 import { adminWalletRouter } from "./wallet.js";
 import { adminHeroSlidesRouter } from "./heroSlides.js";
+import { adminComboRouter } from "./combo.js";
 
 export const adminRouter = Router();
 
@@ -22,3 +23,4 @@ adminRouter.use("/settings", adminSettingsRouter);
 adminRouter.use("/discount-codes", adminDiscountCodesRouter);
 adminRouter.use("/wallet", adminWalletRouter);
 adminRouter.use("/hero-slides", adminHeroSlidesRouter);
+adminRouter.use("/combo", adminComboRouter);

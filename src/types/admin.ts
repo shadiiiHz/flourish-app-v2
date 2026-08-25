@@ -52,6 +52,19 @@ export interface AdminProduct {
   variants: AdminVariant[];
 }
 
+export interface AdminComboProduct {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  discountPercent?: number | null;
+  images: string[];
+  isAvailable: boolean;
+  sortOrder: number;
+  /** Null means it stays until manually deleted. */
+  comboExpiresAt?: string | null;
+}
+
 export interface AdminOrder extends Order {
   customerId?: string | null;
 }

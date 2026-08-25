@@ -49,15 +49,20 @@ adminProductsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const search = parseSearch(req);
-    const where = search
-      ? {
-          OR: [
-            { title: { contains: search, mode: "insensitive" as const } },
-            { description: { contains: search, mode: "insensitive" as const } },
-            { category: { title: { contains: search, mode: "insensitive" as const } } },
-          ],
-        }
-      : undefined;
+    // Combo products (no category, homepage-only) are managed on their own
+    // admin tab — never mix them into the regular catalog product list.
+    const where: Prisma.ProductWhereInput = {
+      isCombo: false,
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: "insensitive" as const } },
+              { description: { contains: search, mode: "insensitive" as const } },
+              { category: { title: { contains: search, mode: "insensitive" as const } } },
+            ],
+          }
+        : {}),
+    };
 
     const pagination = parsePagination(req);
     const [products, total] = await prisma.$transaction([

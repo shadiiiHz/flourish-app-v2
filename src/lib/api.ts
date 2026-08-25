@@ -7,6 +7,7 @@ import type {
 } from "../config/siteConfig";
 import type {
   AdminCategory,
+  AdminComboProduct,
   AdminCustomer,
   AdminDiscountCode,
   AdminHeroSlide,
@@ -188,6 +189,14 @@ export async function getNewProducts(): Promise<MenuItem[]> {
     next: { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] },
   });
   return data.map((p) => mapProduct(p, p.category.title));
+}
+
+/** Combo products have no category — labeled "کمبو" instead for the product detail badge. */
+export async function getComboProducts(): Promise<MenuItem[]> {
+  const data = await apiFetch<ApiProduct[]>("/api/products/combo", {
+    next: { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] },
+  });
+  return data.map((p) => mapProduct(p, "کمبو"));
 }
 
 export interface HeroSlide {
@@ -545,6 +554,34 @@ export function adminUpdateHeroSlide(id: string, payload: Record<string, unknown
 
 export function adminDeleteHeroSlide(id: string) {
   return apiFetch(`/api/admin/hero-slides/${id}`, { method: "DELETE" });
+}
+
+export function adminGetComboProducts(page = 1, pageSize = 20, search = "") {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  return apiFetch<Paginated<AdminComboProduct>>(`/api/admin/combo?${params.toString()}`);
+}
+
+export function adminCreateComboProduct(payload: Record<string, unknown>) {
+  return apiFetch<AdminComboProduct>("/api/admin/combo", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminUpdateComboProduct(id: string, payload: Record<string, unknown>) {
+  return apiFetch<AdminComboProduct>(`/api/admin/combo/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminDeleteComboProduct(id: string) {
+  return apiFetch(`/api/admin/combo/${id}`, { method: "DELETE" });
+}
+
+export function adminBulkDeleteComboProducts(ids: string[]) {
+  return adminBulkDelete("/api/admin/combo", ids);
 }
 
 export function adminGetProducts(page = 1, pageSize = 20, search = "") {

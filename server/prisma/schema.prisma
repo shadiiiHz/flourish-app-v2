@@ -67,8 +67,9 @@ model Category {
 
 model Product {
   id              String           @id @default(cuid())
-  categoryId      String
-  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  /// Null only for combo products (isCombo=true) — they have no category and never appear on /menu.
+  categoryId      String?
+  category        Category?        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   title           String
   description     String           @default("")
   price           Int
@@ -82,6 +83,10 @@ model Product {
   isAvailable     Boolean          @default(true)
   allowPreorder   Boolean          @default(true)
   sortOrder       Int              @default(0)
+  /// Homepage-only combo item (no category) shown in its own section, never on /menu.
+  isCombo         Boolean          @default(false)
+  /// Combo items only. Null means it stays until the admin deletes it.
+  comboExpiresAt  DateTime?
   variants        ProductVariant[]
   orderItems      OrderItem[]
   cartItems       CartItem[]

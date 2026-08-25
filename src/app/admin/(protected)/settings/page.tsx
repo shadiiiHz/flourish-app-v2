@@ -272,9 +272,10 @@ function AdminSettingsPage() {
     <div>
       <h1 className="font-display text-xl font-bold text-cocoa-900">تنظیمات</h1>
 
+      <div className="mt-4 columns-1 gap-4 lg:columns-2">
       <form
         onSubmit={formik.handleSubmit}
-        className="mt-4 max-w-xl rounded-[1.5rem] border border-sand-100 bg-white p-5"
+        className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5"
       >
         <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
           <Store className="h-4.5 w-4.5 text-sand-500" />
@@ -480,7 +481,7 @@ function AdminSettingsPage() {
 
       <form
         onSubmit={passwordFormik.handleSubmit}
-        className="mt-4 max-w-xl rounded-[1.5rem] border border-sand-100 bg-white p-5"
+        className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5"
       >
         <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
           <KeyRound className="h-4.5 w-4.5 text-sand-500" />
@@ -571,7 +572,7 @@ function AdminSettingsPage() {
         </button>
       </form>
 
-      <div className="mt-4 max-w-xl rounded-[1.5rem] border border-sand-100 bg-white p-5">
+      <div className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
           <ImagePlus className="h-4.5 w-4.5 text-sand-500" />
           بنر صفحه منو
@@ -627,7 +628,7 @@ function AdminSettingsPage() {
         )}
       </div>
 
-      <div className="mt-4 max-w-xl rounded-[1.5rem] border border-sand-100 bg-white p-5">
+      <div className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
           <ImagePlus className="h-4.5 w-4.5 text-sand-500" />
           اسلایدر صفحه اصلی
@@ -748,6 +749,7 @@ function AdminSettingsPage() {
             {heroError}
           </p>
         )}
+      </div>
       </div>
     </div>
   );

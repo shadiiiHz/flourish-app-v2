@@ -59,3 +59,18 @@ catalogRouter.get(
     res.json(products);
   }),
 );
+
+catalogRouter.get(
+  "/products/combo",
+  asyncHandler(async (_req, res) => {
+    const products = await prisma.product.findMany({
+      where: {
+        isCombo: true,
+        OR: [{ comboExpiresAt: null }, { comboExpiresAt: { gt: new Date() } }],
+      },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      include: { variants: true },
+    });
+    res.json(products);
+  }),
+);

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronRight,
+  Gift,
   LayoutDashboard,
   LogOut,
   Package,
@@ -23,6 +24,7 @@ import MuiAdminProvider from "@/components/admin/MuiAdminProvider";
 const NAV_ITEMS = [
   { href: "/admin", exact: true, label: "داشبورد", icon: LayoutDashboard },
   { href: "/admin/products", exact: false, label: "محصولات", icon: Package },
+  { href: "/admin/combo", exact: false, label: "کمبو", icon: Gift },
   { href: "/admin/categories", exact: false, label: "دسته‌بندی‌ها", icon: Tags },
   { href: "/admin/orders", exact: false, label: "سفارش‌ها", icon: ShoppingBag },
   { href: "/admin/customers", exact: false, label: "مشتریان", icon: Users },
