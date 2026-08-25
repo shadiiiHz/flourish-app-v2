@@ -41,7 +41,7 @@ function CategoryMenuView({
   );
 
   const [activeSection, setActiveSection] = useState<PageSection>("menu");
-  const [activeGroup, setActiveGroup] = useState<CategoryTabId>("drinks");
+  const [activeGroup, setActiveGroup] = useState<CategoryTabId>("bakery");
   const [activeCategoryId, setActiveCategoryId] = useState<string>("");
   const [headerHeight, setHeaderHeight] = useState(0);
   const navRef = useRef<HTMLDivElement>(null);

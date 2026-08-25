@@ -88,8 +88,8 @@ export function apiUploadUrl(path?: string | null) {
 /* ------------------------------------------------------------------ */
 
 export const CATEGORY_TABS: CategoryTab[] = [
-  { id: "drinks", label: "نوشیدنی" },
   { id: "bakery", label: "نان و شیرینی" },
+  { id: "drinks", label: "نوشیدنی" },
 ];
 
 interface ApiVariant {
