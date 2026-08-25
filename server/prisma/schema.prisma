@@ -66,32 +66,34 @@ model Category {
 }
 
 model Product {
-  id              String           @id @default(cuid())
+  id                   String           @id @default(cuid())
   /// Null only for combo products (isCombo=true) — they have no category and never appear on /menu.
-  categoryId      String?
-  category        Category?        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  title           String
-  description     String           @default("")
-  price           Int
-  images          String[]         @default([])
-  weight          String?
-  ingredients     String?
-  servingSize     String?
-  discountPercent Int?
-  stock           Int?
-  isNew           Boolean          @default(false)
-  isAvailable     Boolean          @default(true)
-  allowPreorder   Boolean          @default(true)
-  sortOrder       Int              @default(0)
+  categoryId           String?
+  category             Category?        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  title                String
+  description          String           @default("")
+  price                Int
+  images               String[]         @default([])
+  weight               String?
+  ingredients          String?
+  servingSize          String?
+  discountPercent      Int?
+  stock                Int?
+  isNew                Boolean          @default(false)
+  isAvailable          Boolean          @default(true)
+  allowPreorder        Boolean          @default(true)
+  sortOrder            Int              @default(0)
   /// Homepage-only combo item (no category) shown in its own section, never on /menu.
-  isCombo         Boolean          @default(false)
+  isCombo              Boolean          @default(false)
   /// Combo items only. Null means it stays until the admin deletes it.
-  comboExpiresAt  DateTime?
-  variants        ProductVariant[]
-  orderItems      OrderItem[]
-  cartItems       CartItem[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  comboExpiresAt       DateTime?
+  /// Combo items only. Shows a "N days left" ribbon on the card — only meaningful when comboExpiresAt is set.
+  comboShowExpiryBadge Boolean          @default(false)
+  variants             ProductVariant[]
+  orderItems           OrderItem[]
+  cartItems            CartItem[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 }
 
 model ProductVariant {
@@ -233,9 +235,13 @@ model Settings {
    * [businessHoursStart, businessHoursEnd) in Asia/Tehran time, independent of siteClosed.
    */
   businessHoursEnabled  Boolean  @default(true)
-  /** "HH:mm" in Asia/Tehran time. */
+  /**
+   * "HH:mm" in Asia/Tehran time.
+   */
   businessHoursStart    String   @default("09:00")
-  /** "HH:mm" in Asia/Tehran time. */
+  /**
+   * "HH:mm" in Asia/Tehran time.
+   */
   businessHoursEnd      String   @default("22:30")
   /**
    * Percent of an order's item subtotal (pre-tax, pre-discount, pre-shipping) credited to the

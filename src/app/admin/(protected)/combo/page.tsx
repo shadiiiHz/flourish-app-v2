@@ -36,6 +36,7 @@ interface FormValues {
   image: string;
   noExpiry: boolean;
   expiresAt: string;
+  showExpiryBadge: boolean;
 }
 
 const EMPTY_FORM: FormValues = {
@@ -46,6 +47,7 @@ const EMPTY_FORM: FormValues = {
   image: "",
   noExpiry: true,
   expiresAt: "",
+  showExpiryBadge: false,
 };
 
 const validationSchema = Yup.object({
@@ -159,6 +161,7 @@ function AdminComboPage() {
           discountPercent: values.discountPercent ? Number(values.discountPercent) : null,
           images: values.image ? [values.image] : [],
           comboExpiresAt: values.noExpiry ? null : localDateTimeToIso(values.expiresAt),
+          comboShowExpiryBadge: !values.noExpiry && values.showExpiryBadge,
         };
         if (editingId) {
           await adminUpdateComboProduct(editingId, payload);
@@ -193,6 +196,7 @@ function AdminComboPage() {
         image: item.images[0] ?? "",
         noExpiry: !item.comboExpiresAt,
         expiresAt: isoToLocalDateTime(item.comboExpiresAt),
+        showExpiryBadge: !!item.comboShowExpiryBadge,
       },
     });
     setError(null);
@@ -474,7 +478,11 @@ function AdminComboPage() {
               <input
                 type="checkbox"
                 checked={formik.values.noExpiry}
-                onChange={(e) => formik.setFieldValue("noExpiry", e.target.checked)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  formik.setFieldValue("noExpiry", checked);
+                  if (checked) formik.setFieldValue("showExpiryBadge", false);
+                }}
                 className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
               />
               بدون تاریخ انقضا — تا زمانی که خودم حذفش کنم
@@ -495,6 +503,15 @@ function AdminComboPage() {
                     {formik.errors.expiresAt}
                   </p>
                 )}
+                <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+                  <input
+                    type="checkbox"
+                    checked={formik.values.showExpiryBadge}
+                    onChange={(e) => formik.setFieldValue("showExpiryBadge", e.target.checked)}
+                    className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+                  />
+                  نمایش برچسب «چند روز مانده» روی کارت کمبو (گوشه‌ی بالا-چپ)
+                </label>
               </div>
             )}
           </div>

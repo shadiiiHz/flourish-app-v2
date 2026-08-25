@@ -133,6 +133,11 @@ interface ApiNewProduct extends ApiProduct {
   category: { title: string };
 }
 
+interface ApiComboProduct extends ApiProduct {
+  comboExpiresAt?: string | null;
+  comboShowExpiryBadge?: boolean;
+}
+
 function mapVariant(v: ApiVariant): MenuItemVariant {
   return {
     id: v.id,
@@ -192,11 +197,20 @@ export async function getNewProducts(): Promise<MenuItem[]> {
 }
 
 /** Combo products have no category — labeled "کمبو" instead for the product detail badge. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export async function getComboProducts(): Promise<MenuItem[]> {
-  const data = await apiFetch<ApiProduct[]>("/api/products/combo", {
+  const data = await apiFetch<ApiComboProduct[]>("/api/products/combo", {
     next: { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] },
   });
-  return data.map((p) => mapProduct(p, "کمبو"));
+  return data.map((p) => {
+    const item = mapProduct(p, "کمبو");
+    if (p.comboShowExpiryBadge && p.comboExpiresAt) {
+      const daysLeft = Math.ceil((new Date(p.comboExpiresAt).getTime() - Date.now()) / DAY_MS);
+      if (daysLeft > 0) item.comboDaysLeft = daysLeft;
+    }
+    return item;
+  });
 }
 
 export interface HeroSlide {

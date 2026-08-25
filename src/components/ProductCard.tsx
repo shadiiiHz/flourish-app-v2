@@ -57,6 +57,11 @@ function ProductCard({
               {item.discountPercent!.toLocaleString("fa-IR")}٪ تخفیف
             </span>
           )}
+          {item.comboDaysLeft !== undefined && (
+            <span className="pointer-events-none absolute -left-9 top-4 z-20 flex h-6 w-32 -rotate-45 items-center justify-center bg-sand-400 text-center text-[10px] font-bold leading-none text-white shadow-[0_6px_16px_-6px_rgba(0,0,0,0.55)]">
+              {item.comboDaysLeft.toLocaleString("fa-IR")} روز مانده
+            </span>
+          )}
           <ProductImageSlider
             images={item.images}
             alt={item.title}

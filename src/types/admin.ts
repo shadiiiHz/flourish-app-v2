@@ -63,6 +63,8 @@ export interface AdminComboProduct {
   sortOrder: number;
   /** Null means it stays until manually deleted. */
   comboExpiresAt?: string | null;
+  /** Shows a "N days left" ribbon on the card — only meaningful when comboExpiresAt is set. */
+  comboShowExpiryBadge?: boolean;
 }
 
 export interface AdminOrder extends Order {

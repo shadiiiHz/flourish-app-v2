@@ -30,6 +30,8 @@ export interface MenuItem {
   isAvailable: boolean
   allowPreorder: boolean
   variants?: MenuItemVariant[]
+  /** Combo items only, when the admin opted in — days left until the combo expires. */
+  comboDaysLeft?: number
 }
 
 export interface Category {

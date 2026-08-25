@@ -23,6 +23,8 @@ const comboSchema = z.object({
   sortOrder: z.number().int().optional(),
   /** ISO datetime string, or null to keep the combo up until it's manually deleted. */
   comboExpiresAt: z.string().datetime().nullable().optional(),
+  /** Shows a "N days left" ribbon on the card — only meaningful when comboExpiresAt is set. */
+  comboShowExpiryBadge: z.boolean().optional(),
 });
 
 const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) });
