@@ -23,7 +23,7 @@ function OrderTypeModal() {
     setInstant,
     setPreorder,
   } = useOrderType();
-  const { siteClosed } = useSiteStatus();
+  const { siteClosed, manuallyClosed, businessHoursEnabled } = useSiteStatus();
   const [mounted, setMounted] = useState(false);
   const [selectedType, setSelectedType] = useState<OrderType>("instant");
   const [selectedDate, setSelectedDate] = useState<string>(DATE_OPTIONS[0].iso);
@@ -134,7 +134,9 @@ function OrderTypeModal() {
               <div className="p-5 sm:p-6">
                 {siteClosed && (
                   <p className="mb-4 rounded-xl bg-sand-50 p-3 text-center text-xs font-semibold text-sand-500">
-                    امروز فلوریش تعطیل است و فقط امکان ثبت پیش‌سفارش وجود دارد.
+                    {!manuallyClosed && businessHoursEnabled
+                      ? "در حال حاضر، فلوریش تعطیل است. اما امکان پیش‌سفارش وجود دارد."
+                      : "امروز فلوریش تعطیل است و فقط امکان ثبت پیش‌سفارش وجود دارد."}
                   </p>
                 )}
                 <div className="grid grid-cols-2 gap-3">

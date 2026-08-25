@@ -3,11 +3,9 @@
 import { Store } from "lucide-react";
 import { useOrderType } from "@/context/OrderTypeContext";
 import { useSiteStatus } from "@/context/SiteStatusContext";
-import { toPersianDigits } from "@/lib/formatNumber";
 
 function SiteClosedBanner() {
-  const { siteClosed, manuallyClosed, businessHoursEnabled, businessHoursStart, businessHoursEnd } =
-    useSiteStatus();
+  const { siteClosed, manuallyClosed, businessHoursEnabled } = useSiteStatus();
   const { openModal } = useOrderType();
 
   if (!siteClosed) return null;
@@ -16,9 +14,7 @@ function SiteClosedBanner() {
   // it's the deliberate "we're off today" signal, not an automatic side effect.
   const message =
     !manuallyClosed && businessHoursEnabled
-      ? `فلوریش خارج از ساعت کاری (${toPersianDigits(businessHoursStart)} الی ${toPersianDigits(
-          businessHoursEnd,
-        )}) تعطیل است، اما امکان ثبت پیش‌سفارش وجود دارد.`
+      ? "در حال حاضر، فلوریش تعطیل است. اما امکان پیش‌سفارش وجود دارد."
       : "امروز فلوریش تعطیل است، اما امکان ثبت پیش‌سفارش وجود دارد.";
 
   return (
