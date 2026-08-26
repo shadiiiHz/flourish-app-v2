@@ -5,6 +5,7 @@ import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 import { deleteUploadedFiles } from "../../lib/uploads.js";
 import { syncProductVariants } from "../../lib/variants.js";
+import { validateVariantStockSum } from "../../lib/variantStock.js";
 import { variantSchema } from "./products.js";
 
 export const adminComboRouter = Router();
@@ -22,6 +23,7 @@ const comboSchema = z.object({
   discountPercent: z.number().int().min(0).max(100).nullable().optional(),
   images: z.array(z.string()).optional(),
   isAvailable: z.boolean().optional(),
+  stock: z.number().int().nonnegative().nullable().optional(),
   sortOrder: z.number().int().optional(),
   /** ISO datetime string, or null to keep the combo up until it's manually deleted. */
   comboExpiresAt: z.string().datetime().nullable().optional(),
@@ -65,6 +67,11 @@ adminComboRouter.post(
       return;
     }
     const { comboExpiresAt, variants, ...data } = parsed.data;
+    const stockError = validateVariantStockSum(data.stock, variants ?? []);
+    if (stockError) {
+      res.status(400).json({ error: stockError });
+      return;
+    }
     const product = await prisma.product.create({
       data: {
         ...data,
@@ -95,6 +102,15 @@ adminComboRouter.put(
             include: { variants: true },
           })
         : null;
+
+    if (variants) {
+      const effectiveStock = data.stock !== undefined ? data.stock : previous?.stock;
+      const stockError = validateVariantStockSum(effectiveStock, variants);
+      if (stockError) {
+        res.status(400).json({ error: stockError });
+        return;
+      }
+    }
 
     const product = await prisma.$transaction(async (tx) => {
       await tx.product.update({

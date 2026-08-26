@@ -60,6 +60,8 @@ export interface AdminComboProduct {
   discountPercent?: number | null;
   images: string[];
   isAvailable: boolean;
+  /** Null/undefined means unlimited. When set and the combo has variants, each variant's stock must be set and sum to this. */
+  stock?: number | null;
   sortOrder: number;
   /** Null means it stays until manually deleted. */
   comboExpiresAt?: string | null;

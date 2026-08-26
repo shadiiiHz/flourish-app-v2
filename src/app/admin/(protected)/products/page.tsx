@@ -85,6 +85,27 @@ function parseWeight(weight: string | null | undefined): {
   };
 }
 
+/**
+ * When the product has a finite total stock and at least one named variant,
+ * every variant must carry its own stock and they must add up exactly to
+ * that total — otherwise variant stock is independent/optional as before.
+ */
+function validateVariantStock(stock: string, variants: AdminVariant[]): string | null {
+  if (stock === "") return null;
+  const active = variants.filter((v) => v.title.trim());
+  if (active.length === 0) return null;
+  const missing = active.some((v) => v.stock == null || v.stock === ("" as unknown));
+  if (missing) {
+    return "چون موجودی کل محصول مشخص شده، باید برای همهٔ انواع هم موجودی مشخص کنید (نامحدود مجاز نیست)";
+  }
+  const sum = active.reduce((total, v) => total + Number(v.stock), 0);
+  const total = Number(stock);
+  if (sum !== total) {
+    return `مجموع موجودی انواع (${sum.toLocaleString("fa-IR")}) باید دقیقاً با موجودی کل محصول (${total.toLocaleString("fa-IR")}) برابر باشد`;
+  }
+  return null;
+}
+
 const validationSchema = Yup.object({
   categoryId: Yup.string().required("ابتدا یک دسته‌بندی ایجاد کنید"),
   title: Yup.string().trim().required("عنوان الزامی است"),
@@ -211,6 +232,11 @@ function AdminProductsPage() {
     validationSchema,
     onSubmit: async (values, helpers) => {
       setError(null);
+      const stockError = validateVariantStock(values.stock, values.variants);
+      if (stockError) {
+        setError(stockError);
+        return;
+      }
       try {
         const payload = {
           categoryId: values.categoryId,
@@ -968,6 +994,22 @@ function AdminProductsPage() {
               <Plus className="h-3.5 w-3.5" /> افزودن نوع
             </button>
           </div>
+          {formik.values.stock !== "" && formik.values.variants.some((v) => v.title.trim()) && (
+            <p
+              className={`mt-1.5 text-xs font-semibold ${
+                validateVariantStock(formik.values.stock, formik.values.variants)
+                  ? "text-danger-500"
+                  : "text-sand-500"
+              }`}
+            >
+              مجموع موجودی انواع:{" "}
+              {formik.values.variants
+                .filter((v) => v.title.trim())
+                .reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+                .toLocaleString("fa-IR")}{" "}
+              از {Number(formik.values.stock).toLocaleString("fa-IR")}
+            </p>
+          )}
 
           <div className="mt-2 flex flex-col gap-2">
             {formik.values.variants.map((v, i) => (
@@ -1036,14 +1078,28 @@ function AdminProductsPage() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <input
-                  placeholder="توضیحات این نوع (اختیاری)"
-                  value={v.description ?? ""}
-                  onChange={(e) =>
-                    updateVariant(i, { description: e.target.value })
-                  }
-                  className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
-                />
+                <div className="flex gap-2">
+                  <input
+                    placeholder="توضیحات این نوع (اختیاری)"
+                    value={v.description ?? ""}
+                    onChange={(e) =>
+                      updateVariant(i, { description: e.target.value })
+                    }
+                    className="flex-1 rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="موجودی این نوع"
+                    value={v.stock ?? ""}
+                    onChange={(e) =>
+                      updateVariant(i, {
+                        stock: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                    className="w-28 shrink-0 rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                  />
+                </div>
                 <div className="flex items-center gap-2">
                   <img
                     src={v.image ? apiUploadUrl(v.image) : "/assets/placeholder.png"}

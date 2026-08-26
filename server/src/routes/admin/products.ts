@@ -8,6 +8,7 @@ import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 import { deleteUploadedFiles } from "../../lib/uploads.js";
 import { syncProductVariants } from "../../lib/variants.js";
+import { validateVariantStockSum } from "../../lib/variantStock.js";
 
 export const adminProductsRouter = Router();
 
@@ -89,6 +90,11 @@ adminProductsRouter.post(
       return;
     }
     const { variants, ...data } = parsed.data;
+    const stockError = validateVariantStockSum(data.stock, variants ?? []);
+    if (stockError) {
+      res.status(400).json({ error: stockError });
+      return;
+    }
     const product = await prisma.product.create({
       data: {
         ...data,
@@ -300,6 +306,15 @@ adminProductsRouter.put(
             include: { variants: true },
           })
         : null;
+
+    if (variants) {
+      const effectiveStock = data.stock !== undefined ? data.stock : previous?.stock;
+      const stockError = validateVariantStockSum(effectiveStock, variants);
+      if (stockError) {
+        res.status(400).json({ error: stockError });
+        return;
+      }
+    }
 
     const product = await prisma.$transaction(async (tx) => {
       await tx.product.update({ where: { id: req.params.id }, data });

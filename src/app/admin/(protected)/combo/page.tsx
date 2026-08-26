@@ -34,6 +34,7 @@ interface FormValues {
   price: string;
   discountPercent: string;
   image: string;
+  stock: string;
   noExpiry: boolean;
   expiresAt: string;
   showExpiryBadge: boolean;
@@ -46,11 +47,33 @@ const EMPTY_FORM: FormValues = {
   price: "",
   discountPercent: "",
   image: "",
+  stock: "",
   noExpiry: true,
   expiresAt: "",
   showExpiryBadge: false,
   variants: [],
 };
+
+/**
+ * When the combo has a finite total stock and at least one named variant,
+ * every variant must carry its own stock and they must add up exactly to
+ * that total — otherwise variant stock is independent/optional as before.
+ */
+function validateVariantStock(stock: string, variants: AdminVariant[]): string | null {
+  if (stock === "") return null;
+  const active = variants.filter((v) => v.title.trim());
+  if (active.length === 0) return null;
+  const missing = active.some((v) => v.stock == null || v.stock === ("" as unknown));
+  if (missing) {
+    return "چون موجودی کل کمبو مشخص شده، باید برای همهٔ انواع هم موجودی مشخص کنید (نامحدود مجاز نیست)";
+  }
+  const sum = active.reduce((total, v) => total + Number(v.stock), 0);
+  const total = Number(stock);
+  if (sum !== total) {
+    return `مجموع موجودی انواع (${sum.toLocaleString("fa-IR")}) باید دقیقاً با موجودی کل کمبو (${total.toLocaleString("fa-IR")}) برابر باشد`;
+  }
+  return null;
+}
 
 const validationSchema = Yup.object({
   title: Yup.string().trim().required("عنوان الزامی است"),
@@ -165,6 +188,11 @@ function AdminComboPage() {
     validationSchema,
     onSubmit: async (values, helpers) => {
       setError(null);
+      const stockError = validateVariantStock(values.stock, values.variants);
+      if (stockError) {
+        setError(stockError);
+        return;
+      }
       try {
         const payload = {
           title: values.title.trim(),
@@ -172,6 +200,7 @@ function AdminComboPage() {
           price: Number(values.price) || 0,
           discountPercent: values.discountPercent ? Number(values.discountPercent) : null,
           images: values.image ? [values.image] : [],
+          stock: values.stock ? Number(values.stock) : null,
           comboExpiresAt: values.noExpiry ? null : localDateTimeToIso(values.expiresAt),
           comboShowExpiryBadge: !values.noExpiry && values.showExpiryBadge,
           variants: values.variants
@@ -217,6 +246,7 @@ function AdminComboPage() {
         price: String(item.price),
         discountPercent: item.discountPercent ? String(item.discountPercent) : "",
         image: item.images[0] ?? "",
+        stock: item.stock != null ? String(item.stock) : "",
         noExpiry: !item.comboExpiresAt,
         expiresAt: isoToLocalDateTime(item.comboExpiresAt),
         showExpiryBadge: !!item.comboShowExpiryBadge,
@@ -341,6 +371,7 @@ function AdminComboPage() {
         headerName: "انواع کمبو",
         valueGetter: (_, row) => (row.variants.length > 0 ? "دارد" : "ندارد"),
       },
+      { field: "stock", headerName: "موجودی", valueGetter: (_, row) => row.stock ?? "نامحدود" },
       {
         field: "comboExpiresAt",
         headerName: "انقضا",
@@ -488,6 +519,19 @@ function AdminComboPage() {
               </p>
             )}
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-cocoa-600">موجودی</label>
+            <input
+              type="number"
+              min={0}
+              placeholder="خالی = بدون محدودیت"
+              name="stock"
+              value={formik.values.stock}
+              onChange={(e) => formik.setFieldValue("stock", e.target.value)}
+              onBlur={formik.handleBlur}
+              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+            />
+          </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs font-semibold text-cocoa-600">
               توضیح (اختیاری)
@@ -592,6 +636,22 @@ function AdminComboPage() {
               <Plus className="h-3.5 w-3.5" /> افزودن نوع
             </button>
           </div>
+          {formik.values.stock !== "" && formik.values.variants.some((v) => v.title.trim()) && (
+            <p
+              className={`mt-1.5 text-xs font-semibold ${
+                validateVariantStock(formik.values.stock, formik.values.variants)
+                  ? "text-danger-500"
+                  : "text-sand-500"
+              }`}
+            >
+              مجموع موجودی انواع:{" "}
+              {formik.values.variants
+                .filter((v) => v.title.trim())
+                .reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+                .toLocaleString("fa-IR")}{" "}
+              از {Number(formik.values.stock).toLocaleString("fa-IR")}
+            </p>
+          )}
 
           <div className="mt-2 flex flex-col gap-2">
             {formik.values.variants.map((v, i) => (
@@ -623,12 +683,26 @@ function AdminComboPage() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <input
-                  placeholder="توضیحات این نوع (اختیاری)"
-                  value={v.description ?? ""}
-                  onChange={(e) => updateVariant(i, { description: e.target.value })}
-                  className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
-                />
+                <div className="flex gap-2">
+                  <input
+                    placeholder="توضیحات این نوع (اختیاری)"
+                    value={v.description ?? ""}
+                    onChange={(e) => updateVariant(i, { description: e.target.value })}
+                    className="flex-1 rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="موجودی این نوع"
+                    value={v.stock ?? ""}
+                    onChange={(e) =>
+                      updateVariant(i, {
+                        stock: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                    className="w-28 shrink-0 rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                  />
+                </div>
                 <div className="flex items-center gap-2">
                   <img
                     src={v.image ? apiUploadUrl(v.image) : "/assets/placeholder.png"}
