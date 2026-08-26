@@ -7,6 +7,7 @@ import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 import { deleteUploadedFiles } from "../../lib/uploads.js";
+import { syncProductVariants } from "../../lib/variants.js";
 
 export const adminProductsRouter = Router();
 
@@ -20,11 +21,11 @@ const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) });
 export const variantSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   price: z.number().int().nonnegative(),
-  weight: z.string().optional(),
-  stock: z.number().int().nonnegative().optional(),
-  image: z.string().optional(),
+  weight: z.string().nullable().optional(),
+  stock: z.number().int().nonnegative().nullable().optional(),
+  image: z.string().nullable().optional(),
 });
 
 const productSchema = z.object({
@@ -301,17 +302,17 @@ adminProductsRouter.put(
         : null;
 
     const product = await prisma.$transaction(async (tx) => {
+      await tx.product.update({ where: { id: req.params.id }, data });
       if (variants) {
-        await tx.productVariant.deleteMany({ where: { productId: req.params.id } });
+        await syncProductVariants(
+          tx,
+          req.params.id,
+          (previous?.variants ?? []).map((v) => v.id),
+          variants,
+        );
       }
-      return tx.product.update({
+      return tx.product.findUniqueOrThrow({
         where: { id: req.params.id },
-        data: {
-          ...data,
-          variants: variants
-            ? { create: variants.map(({ id: _id, ...v }) => v) }
-            : undefined,
-        },
         include: { variants: true, category: true },
       });
     });

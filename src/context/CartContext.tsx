@@ -14,6 +14,7 @@ import { useAuth } from "./AuthContext";
 import { useOrderType } from "./OrderTypeContext";
 import {
   addMyCartItem,
+  apiUploadUrl,
   clearMyCart,
   getMyCart,
   removeMyCartItem,
@@ -73,7 +74,7 @@ function mapApiCartItem(item: ApiCartItem): CartLineInternal {
     title: item.title,
     variantTitle: item.variantTitle ?? undefined,
     price: item.price,
-    image: item.image ?? undefined,
+    image: item.image ? apiUploadUrl(item.image) : undefined,
     quantity: item.quantity,
     maxQuantity: item.maxQuantity ?? undefined,
   };

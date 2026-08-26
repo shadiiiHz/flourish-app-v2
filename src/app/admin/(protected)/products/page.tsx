@@ -135,6 +135,8 @@ function AdminProductsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadingVariantIndex, setUploadingVariantIndex] = useState<number | null>(null);
+  const variantFileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [deletingProduct, setDeletingProduct] = useState<AdminProduct | null>(
     null,
   );
@@ -232,15 +234,16 @@ function AdminProductsPage() {
           variants: values.variants
             .filter((v) => v.title.trim())
             .map((v) => ({
+              id: v.id,
               title: v.title.trim(),
-              description: v.description?.trim() || undefined,
+              description: v.description?.trim() || null,
               price: Number(v.price) || 0,
-              weight: v.weight || undefined,
+              weight: v.weight || null,
               stock:
                 v.stock != null && v.stock !== ("" as unknown)
                   ? Number(v.stock)
-                  : undefined,
-              image: v.image || undefined,
+                  : null,
+              image: v.image || null,
             })),
         };
 
@@ -333,6 +336,18 @@ function AdminProductsPage() {
       "variants",
       formik.values.variants.filter((_, i) => i !== index),
     );
+  };
+
+  const handleVariantUpload = async (index: number, file: File) => {
+    setUploadingVariantIndex(index);
+    try {
+      const { url } = await adminUploadImage(file);
+      updateVariant(index, { image: url });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "خطا در آپلود تصویر");
+    } finally {
+      setUploadingVariantIndex(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -1029,6 +1044,47 @@ function AdminProductsPage() {
                   }
                   className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
                 />
+                <div className="flex items-center gap-2">
+                  <img
+                    src={v.image ? apiUploadUrl(v.image) : "/assets/placeholder.png"}
+                    alt=""
+                    className="h-9 w-9 rounded-lg border border-sand-100 object-cover"
+                  />
+                  <input
+                    ref={(el) => {
+                      variantFileInputRefs.current[i] = el;
+                    }}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleVariantUpload(i, file);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => variantFileInputRefs.current[i]?.click()}
+                    disabled={uploadingVariantIndex === i}
+                    className="flex items-center gap-1 rounded-lg border border-cocoa-900/10 px-2.5 py-1.5 text-[11px] font-semibold text-cocoa-600 transition hover:border-sand-400 disabled:opacity-60"
+                  >
+                    <Upload className="h-3 w-3" />
+                    {uploadingVariantIndex === i
+                      ? "در حال آپلود…"
+                      : v.image
+                        ? "تغییر عکس"
+                        : "افزودن عکس (اختیاری)"}
+                  </button>
+                  {v.image && (
+                    <button
+                      type="button"
+                      onClick={() => updateVariant(i, { image: undefined })}
+                      className="text-[11px] font-semibold text-danger-500 hover:underline"
+                    >
+                      حذف عکس
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

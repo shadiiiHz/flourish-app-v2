@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 import { deleteUploadedFiles } from "../../lib/uploads.js";
+import { syncProductVariants } from "../../lib/variants.js";
 import { variantSchema } from "./products.js";
 
 export const adminComboRouter = Router();
@@ -96,18 +97,25 @@ adminComboRouter.put(
         : null;
 
     const product = await prisma.$transaction(async (tx) => {
-      if (variants) {
-        await tx.productVariant.deleteMany({ where: { productId: req.params.id } });
-      }
-      return tx.product.update({
+      await tx.product.update({
         where: { id: req.params.id, isCombo: true },
         data: {
           ...data,
           ...(comboExpiresAt !== undefined
             ? { comboExpiresAt: comboExpiresAt ? new Date(comboExpiresAt) : null }
             : {}),
-          variants: variants ? { create: variants.map(({ id: _id, ...v }) => v) } : undefined,
         },
+      });
+      if (variants) {
+        await syncProductVariants(
+          tx,
+          req.params.id,
+          (previous?.variants ?? []).map((v) => v.id),
+          variants,
+        );
+      }
+      return tx.product.findUniqueOrThrow({
+        where: { id: req.params.id },
         include: { variants: true },
       });
     });
