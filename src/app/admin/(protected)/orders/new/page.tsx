@@ -242,7 +242,7 @@ function AdminNewOrderPage() {
                 {[selectedCustomer.firstName, selectedCustomer.lastName].filter(Boolean).join(" ") ||
                   "بدون نام"}
               </p>
-              <p className="text-xs text-cocoa-500" dir="ltr">
+              <p className="mt-1 text-xs text-cocoa-500">
                 {selectedCustomer.phone}
               </p>
               {customerDetail && (
