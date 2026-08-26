@@ -15,6 +15,7 @@ import {
 } from "@/lib/api";
 import type { AdminCustomer, AdminProduct } from "@/types/admin";
 import { normalizeDigits, PHONE_REGEX } from "@/utils/phone";
+import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 
 interface OrderLine {
   key: string;
@@ -366,8 +367,8 @@ function AdminNewOrderPage() {
               type="text"
               inputMode="numeric"
               dir="ltr"
-              value={manualSubtotal}
-              onChange={(e) => setManualSubtotal(e.target.value.replace(/\D/g, ""))}
+              value={formatThousands(manualSubtotal)}
+              onChange={(e) => setManualSubtotal(digitsOnly(e.target.value))}
               placeholder="0"
               className="w-full max-w-xs rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
             />

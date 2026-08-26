@@ -141,9 +141,10 @@ function CartVariantModal({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h4 className="truncate text-sm font-bold text-cocoa-900 sm:text-base">
-                    {variant.title}
-                  </h4>
+                  <MarqueeText
+                    text={variant.title}
+                    className="text-sm font-bold text-cocoa-900 sm:text-base"
+                  />
                   {(variantDescription || variant.weight) && (
                     <MarqueeText
                       text={[
