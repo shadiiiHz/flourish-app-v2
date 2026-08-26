@@ -65,6 +65,7 @@ export interface AdminComboProduct {
   comboExpiresAt?: string | null;
   /** Shows a "N days left" ribbon on the card — only meaningful when comboExpiresAt is set. */
   comboShowExpiryBadge?: boolean;
+  variants: AdminVariant[];
 }
 
 export interface AdminOrder extends Order {

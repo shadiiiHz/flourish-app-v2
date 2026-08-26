@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 import { deleteUploadedFiles } from "../../lib/uploads.js";
+import { variantSchema } from "./products.js";
 
 export const adminComboRouter = Router();
 
@@ -25,6 +26,7 @@ const comboSchema = z.object({
   comboExpiresAt: z.string().datetime().nullable().optional(),
   /** Shows a "N days left" ribbon on the card — only meaningful when comboExpiresAt is set. */
   comboShowExpiryBadge: z.boolean().optional(),
+  variants: z.array(variantSchema).optional(),
 });
 
 const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) });
@@ -43,6 +45,7 @@ adminComboRouter.get(
       prisma.product.findMany({
         where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        include: { variants: true },
         skip: pagination.skip,
         take: pagination.take,
       }),
@@ -60,13 +63,15 @@ adminComboRouter.post(
       res.status(400).json({ error: "اطلاعات کمبو نامعتبر است" });
       return;
     }
-    const { comboExpiresAt, ...data } = parsed.data;
+    const { comboExpiresAt, variants, ...data } = parsed.data;
     const product = await prisma.product.create({
       data: {
         ...data,
         isCombo: true,
         comboExpiresAt: comboExpiresAt ? new Date(comboExpiresAt) : null,
+        variants: variants ? { create: variants.map(({ id: _id, ...v }) => v) } : undefined,
       },
+      include: { variants: true },
     });
     res.status(201).json(product);
   }),
@@ -80,27 +85,49 @@ adminComboRouter.put(
       res.status(400).json({ error: "اطلاعات کمبو نامعتبر است" });
       return;
     }
-    const { comboExpiresAt, ...data } = parsed.data;
+    const { comboExpiresAt, variants, ...data } = parsed.data;
 
     const previous =
-      data.images !== undefined
-        ? await prisma.product.findUnique({ where: { id: req.params.id } })
+      variants || data.images !== undefined
+        ? await prisma.product.findUnique({
+            where: { id: req.params.id },
+            include: { variants: true },
+          })
         : null;
 
-    const product = await prisma.product.update({
-      where: { id: req.params.id, isCombo: true },
-      data: {
-        ...data,
-        ...(comboExpiresAt !== undefined
-          ? { comboExpiresAt: comboExpiresAt ? new Date(comboExpiresAt) : null }
-          : {}),
-      },
+    const product = await prisma.$transaction(async (tx) => {
+      if (variants) {
+        await tx.productVariant.deleteMany({ where: { productId: req.params.id } });
+      }
+      return tx.product.update({
+        where: { id: req.params.id, isCombo: true },
+        data: {
+          ...data,
+          ...(comboExpiresAt !== undefined
+            ? { comboExpiresAt: comboExpiresAt ? new Date(comboExpiresAt) : null }
+            : {}),
+          variants: variants ? { create: variants.map(({ id: _id, ...v }) => v) } : undefined,
+        },
+        include: { variants: true },
+      });
     });
 
-    if (previous && data.images !== undefined) {
-      const removed = previous.images.filter((img) => !product.images.includes(img));
-      if (removed.length > 0) await deleteUploadedFiles(removed);
+    const orphaned: (string | null | undefined)[] = [];
+    if (data.images !== undefined && previous) {
+      orphaned.push(...previous.images.filter((url) => !product.images.includes(url)));
     }
+    if (variants && previous) {
+      const newVariantImages = new Set(
+        product.variants.map((v) => v.image).filter((v): v is string => !!v),
+      );
+      orphaned.push(
+        ...previous.variants
+          .map((v) => v.image)
+          .filter((url): url is string => !!url && !newVariantImages.has(url)),
+      );
+    }
+    await deleteUploadedFiles(orphaned);
+
     res.json(product);
   }),
 );
@@ -115,10 +142,13 @@ adminComboRouter.delete(
     }
     const products = await prisma.product.findMany({
       where: { id: { in: parsed.data.ids }, isCombo: true },
-      select: { images: true },
+      include: { variants: { select: { image: true } } },
     });
     await prisma.product.deleteMany({ where: { id: { in: parsed.data.ids }, isCombo: true } });
-    await deleteUploadedFiles(products.flatMap((p) => p.images));
+    await deleteUploadedFiles([
+      ...products.flatMap((p) => p.images),
+      ...products.flatMap((p) => p.variants.map((v) => v.image)),
+    ]);
     res.status(204).end();
   }),
 );
@@ -128,8 +158,9 @@ adminComboRouter.delete(
   asyncHandler(async (req, res) => {
     const product = await prisma.product.delete({
       where: { id: req.params.id, isCombo: true },
+      include: { variants: { select: { image: true } } },
     });
-    if (product.images.length > 0) await deleteUploadedFiles(product.images);
+    await deleteUploadedFiles([...product.images, ...product.variants.map((v) => v.image)]);
     res.status(204).end();
   }),
 );

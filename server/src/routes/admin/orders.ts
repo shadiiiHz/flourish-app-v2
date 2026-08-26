@@ -273,7 +273,7 @@ adminOrdersRouter.post(
     if (appliedDiscount?.isPersonal) {
       await prisma.discountCode.update({
         where: { id: appliedDiscount.id },
-        data: { usedAt: new Date() },
+        data: { usedAt: new Date(), isActive: false },
       });
     }
 

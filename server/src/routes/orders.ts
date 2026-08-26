@@ -245,7 +245,7 @@ ordersRouter.post(
       if (appliedDiscount?.isPersonal) {
         await prisma.discountCode.update({
           where: { id: appliedDiscount.id },
-          data: { usedAt: new Date() },
+          data: { usedAt: new Date(), isActive: false },
         });
       }
       if (orderType !== "preorder") {
@@ -328,7 +328,7 @@ ordersRouter.get(
       // Only personal (customer-scoped) codes are single-use — consume it now that payment is confirmed.
       await prisma.discountCode.updateMany({
         where: { code: order.discountCode, customerId: { not: null }, usedAt: null },
-        data: { usedAt: new Date() },
+        data: { usedAt: new Date(), isActive: false },
       });
     }
     if (order.orderType !== "preorder") {

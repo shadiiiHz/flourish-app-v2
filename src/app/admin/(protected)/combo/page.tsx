@@ -26,7 +26,7 @@ import {
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import ConfirmModal from "@/components/ConfirmModal";
-import type { AdminComboProduct } from "@/types/admin";
+import type { AdminComboProduct, AdminVariant } from "@/types/admin";
 
 interface FormValues {
   title: string;
@@ -37,6 +37,7 @@ interface FormValues {
   noExpiry: boolean;
   expiresAt: string;
   showExpiryBadge: boolean;
+  variants: AdminVariant[];
 }
 
 const EMPTY_FORM: FormValues = {
@@ -48,6 +49,7 @@ const EMPTY_FORM: FormValues = {
   noExpiry: true,
   expiresAt: "",
   showExpiryBadge: false,
+  variants: [],
 };
 
 const validationSchema = Yup.object({
@@ -62,6 +64,14 @@ const validationSchema = Yup.object({
     is: false,
     then: (schema) => schema.required("تاریخ و ساعت انقضا را وارد کنید"),
   }),
+  variants: Yup.array().of(
+    Yup.object({
+      title: Yup.string(),
+      price: Yup.number()
+        .typeError("قیمت باید عدد باشد")
+        .min(0, "قیمت نمی‌تواند منفی باشد"),
+    }),
+  ),
 });
 
 /** Converts a <input type="datetime-local"> value (browser-local, no timezone) into a UTC ISO string. */
@@ -162,6 +172,16 @@ function AdminComboPage() {
           images: values.image ? [values.image] : [],
           comboExpiresAt: values.noExpiry ? null : localDateTimeToIso(values.expiresAt),
           comboShowExpiryBadge: !values.noExpiry && values.showExpiryBadge,
+          variants: values.variants
+            .filter((v) => v.title.trim())
+            .map((v) => ({
+              title: v.title.trim(),
+              description: v.description?.trim() || undefined,
+              price: Number(v.price) || 0,
+              stock:
+                v.stock != null && v.stock !== ("" as unknown) ? Number(v.stock) : undefined,
+              image: v.image || undefined,
+            })),
         };
         if (editingId) {
           await adminUpdateComboProduct(editingId, payload);
@@ -197,9 +217,31 @@ function AdminComboPage() {
         noExpiry: !item.comboExpiresAt,
         expiresAt: isoToLocalDateTime(item.comboExpiresAt),
         showExpiryBadge: !!item.comboShowExpiryBadge,
+        variants: item.variants,
       },
     });
     setError(null);
+  };
+
+  const addVariant = () => {
+    formik.setFieldValue("variants", [
+      ...formik.values.variants,
+      { title: "", description: "", price: 0 },
+    ]);
+  };
+
+  const updateVariant = (index: number, patch: Partial<AdminVariant>) => {
+    formik.setFieldValue(
+      "variants",
+      formik.values.variants.map((v, i) => (i === index ? { ...v, ...patch } : v)),
+    );
+  };
+
+  const removeVariant = (index: number) => {
+    formik.setFieldValue(
+      "variants",
+      formik.values.variants.filter((_, i) => i !== index),
+    );
   };
 
   const handleUpload = async (file: File) => {
@@ -278,6 +320,11 @@ function AdminComboPage() {
           ) : (
             `${row.price.toLocaleString("fa-IR")} تومان`
           ),
+      },
+      {
+        field: "variants",
+        headerName: "انواع کمبو",
+        valueGetter: (_, row) => (row.variants.length > 0 ? "دارد" : "ندارد"),
       },
       {
         field: "comboExpiresAt",
@@ -514,6 +561,61 @@ function AdminComboPage() {
                 </label>
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-cocoa-600">
+              انواع کمبو (اختیاری — مثلاً سایزهای مختلف)
+            </label>
+            <button
+              type="button"
+              onClick={addVariant}
+              className="flex items-center gap-1 text-xs font-bold text-sand-500 hover:text-sand-600"
+            >
+              <Plus className="h-3.5 w-3.5" /> افزودن نوع
+            </button>
+          </div>
+
+          <div className="mt-2 flex flex-col gap-2">
+            {formik.values.variants.map((v, i) => (
+              <div key={i} className="flex flex-col gap-2 rounded-xl border border-sand-100 p-2.5">
+                <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+                  <input
+                    placeholder="عنوان"
+                    value={v.title}
+                    onChange={(e) => updateVariant(i, { title: e.target.value })}
+                    className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                  />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    placeholder="قیمت"
+                    value={v.price ? formatThousands(String(v.price)) : ""}
+                    onChange={(e) =>
+                      updateVariant(i, { price: Number(digitsOnly(e.target.value)) || 0 })
+                    }
+                    className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeVariant(i)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-danger-500 transition hover:bg-danger-50"
+                    aria-label="حذف نوع"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <input
+                  placeholder="توضیحات این نوع (اختیاری)"
+                  value={v.description ?? ""}
+                  onChange={(e) => updateVariant(i, { description: e.target.value })}
+                  className="rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                />
+              </div>
+            ))}
           </div>
         </div>
 

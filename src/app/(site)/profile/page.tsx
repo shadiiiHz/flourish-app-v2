@@ -36,6 +36,7 @@ import {
 } from "@/types/order";
 import { formatPreorderDateWithWeekday } from "@/lib/preorder";
 import { formatOrderNumber } from "@/lib/orderNumber";
+import { PERSIAN_MONTHS, daysInJalaliMonth, gregorianToJalali, jalaliToGregorian } from "@/lib/jalali";
 import AddressesPanel from "@/components/AddressesPanel";
 import ChangePasswordPanel from "@/components/ChangePasswordPanel";
 import Preloader from "@/components/Preloader";
@@ -460,13 +461,13 @@ function InfoField({
   );
 }
 
-/** Round-trips a stored ISO birthdate to the "YYYY-MM-DD" a date input expects — read via UTC getters since a date-only string is anchored to UTC midnight. */
-function isoToDateInputValue(iso: string | null | undefined): string {
-  if (!iso) return "";
+/** Reads a stored ISO birthdate as Jalali year/month/day — via UTC getters since a date-only string is anchored to UTC midnight. */
+function isoToJalaliParts(iso: string | null | undefined): { jy: string; jm: string; jd: string } {
+  if (!iso) return { jy: "", jm: "", jd: "" };
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  if (Number.isNaN(d.getTime())) return { jy: "", jm: "", jd: "" };
+  const { jy, jm, jd } = gregorianToJalali(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+  return { jy: String(jy), jm: String(jm), jd: String(jd) };
 }
 
 /** Formats a stored ISO birthdate as a Persian (Jalali) calendar date, e.g. "۵ شهریور ۱۴۰۴". */
@@ -533,10 +534,45 @@ function ProfileInfoPanel() {
   const [lastName, setLastName] = useState(user?.lastName ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
-  const [birthDate, setBirthDate] = useState(isoToDateInputValue(user?.birthDate));
+  const initialJalali = isoToJalaliParts(user?.birthDate);
+  const [birthYear, setBirthYear] = useState(initialJalali.jy);
+  const [birthMonth, setBirthMonth] = useState(initialJalali.jm);
+  const [birthDay, setBirthDay] = useState(initialJalali.jd);
   const [avatar, setAvatar] = useState(user?.avatar);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const currentJalaliYear = (() => {
+    const now = new Date();
+    return gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate()).jy;
+  })();
+  const jalaliYears = Array.from({ length: 100 }, (_, i) => currentJalaliYear - i);
+  const maxDay = birthMonth
+    ? daysInJalaliMonth(Number(birthYear) || currentJalaliYear, Number(birthMonth))
+    : 31;
+  const jalaliDays = Array.from({ length: maxDay }, (_, i) => i + 1);
+
+  const handleMonthChange = (value: string) => {
+    setBirthMonth(value);
+    const max = daysInJalaliMonth(Number(birthYear) || currentJalaliYear, Number(value));
+    if (birthDay && Number(birthDay) > max) setBirthDay("");
+  };
+
+  const handleYearChange = (value: string) => {
+    setBirthYear(value);
+    if (birthMonth) {
+      const max = daysInJalaliMonth(Number(value), Number(birthMonth));
+      if (birthDay && Number(birthDay) > max) setBirthDay("");
+    }
+  };
+
+  const birthDateIso =
+    birthYear && birthMonth && birthDay
+      ? (() => {
+          const { gy, gm, gd } = jalaliToGregorian(Number(birthYear), Number(birthMonth), Number(birthDay));
+          return new Date(Date.UTC(gy, gm - 1, gd)).toISOString();
+        })()
+      : null;
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -563,7 +599,7 @@ function ProfileInfoPanel() {
       phone: cleanPhone,
       // Once set, the birthdate is locked — omit it so re-submitting the rest of the
       // form (name, phone, ...) doesn't hit the backend's "already set" rejection.
-      ...(user?.birthDate ? {} : { birthDate: birthDate ? new Date(birthDate).toISOString() : null }),
+      ...(user?.birthDate ? {} : { birthDate: birthDateIso }),
     });
   };
 
@@ -653,22 +689,53 @@ function ProfileInfoPanel() {
 
           <div>
             <InfoField label="تاریخ تولد (اختیاری)">
-              <div className="relative">
-                <Cake className="pointer-events-none absolute right-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-sand-400" />
-                {user?.birthDate ? (
+              {user?.birthDate ? (
+                <div className="relative">
+                  <Cake className="pointer-events-none absolute right-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-sand-400" />
                   <div className="w-full rounded-2xl border border-cocoa-900/10 bg-sand-50/60 py-3.5 pl-4 pr-11 text-right text-base text-cocoa-500">
                     {formatJalaliDate(user.birthDate)}
                   </div>
-                ) : (
-                  <input
-                    type="date"
-                    dir="ltr"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                    className="w-full rounded-2xl border border-cocoa-900/10 bg-white py-3.5 pl-4 pr-11 text-right text-base text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25"
-                  />
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <select
+                    value={birthDay}
+                    onChange={(e) => setBirthDay(e.target.value)}
+                    className="w-1/3 rounded-2xl border border-cocoa-900/10 bg-white px-2 py-3.5 text-center text-base text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25"
+                  >
+                    <option value="">روز</option>
+                    {jalaliDays.map((d) => (
+                      <option key={d} value={d}>
+                        {toPersianDigits(String(d))}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={birthMonth}
+                    onChange={(e) => handleMonthChange(e.target.value)}
+                    className="w-1/3 rounded-2xl border border-cocoa-900/10 bg-white px-2 py-3.5 text-center text-base text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25"
+                  >
+                    <option value="">ماه</option>
+                    {PERSIAN_MONTHS.map((name, i) => (
+                      <option key={name} value={i + 1}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={birthYear}
+                    onChange={(e) => handleYearChange(e.target.value)}
+                    className="w-1/3 rounded-2xl border border-cocoa-900/10 bg-white px-2 py-3.5 text-center text-base text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25"
+                  >
+                    <option value="">سال</option>
+                    {jalaliYears.map((y) => (
+                      <option key={y} value={y}>
+                        {toPersianDigits(String(y))}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </InfoField>
             <p className="mt-1.5 flex items-center gap-1.5 px-1 text-xs text-cocoa-500">
               <Gift className="h-3.5 w-3.5 shrink-0 text-sand-400" />
