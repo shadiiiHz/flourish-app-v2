@@ -694,7 +694,9 @@ export function adminUpdateOrderPaymentStatus(id: string, paymentStatus: "pendin
 
 export interface AdminCreateOrderPayload {
   customerId: string;
-  items: { productId: string; variantId?: string; quantity: number }[];
+  items?: { productId: string; variantId?: string; quantity: number }[];
+  /** Skips per-product entry entirely — a single generic line item is created with this as its price. */
+  manualSubtotal?: number;
   deliveryMethod: DeliveryMethod;
   addressId?: string;
   addressText?: string;

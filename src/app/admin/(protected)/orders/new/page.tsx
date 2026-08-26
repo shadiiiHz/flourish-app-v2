@@ -47,6 +47,8 @@ function AdminNewOrderPage() {
   const [productSearch, setProductSearch] = useState("");
   const [productResults, setProductResults] = useState<AdminProduct[]>([]);
   const [items, setItems] = useState<OrderLine[]>([]);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualSubtotal, setManualSubtotal] = useState("");
 
   const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("pickup");
   const [addressId, setAddressId] = useState("");
@@ -161,7 +163,9 @@ function AdminNewOrderPage() {
 
   const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i.key !== key));
 
-  const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+  const subtotal = manualMode
+    ? Number(manualSubtotal) || 0
+    : items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
 
   const handleSubmit = async () => {
     setError(null);
@@ -169,7 +173,12 @@ function AdminNewOrderPage() {
       setError("یک مشتری انتخاب کنید");
       return;
     }
-    if (items.length === 0) {
+    if (manualMode) {
+      if (!manualSubtotal || Number(manualSubtotal) <= 0) {
+        setError("جمع کل اقلام را وارد کنید");
+        return;
+      }
+    } else if (items.length === 0) {
       setError("حداقل یک محصول اضافه کنید");
       return;
     }
@@ -181,11 +190,15 @@ function AdminNewOrderPage() {
     try {
       const payload: AdminCreateOrderPayload = {
         customerId: selectedCustomer.id,
-        items: items.map((i) => ({
-          productId: i.productId,
-          variantId: i.variantId,
-          quantity: i.quantity,
-        })),
+        ...(manualMode
+          ? { manualSubtotal: Number(manualSubtotal) }
+          : {
+              items: items.map((i) => ({
+                productId: i.productId,
+                variantId: i.variantId,
+                quantity: i.quantity,
+              })),
+            }),
         deliveryMethod,
         addressId: deliveryMethod === "delivery" && addressId ? addressId : undefined,
         addressText: deliveryMethod === "delivery" && !addressId ? addressText.trim() : undefined,
@@ -314,7 +327,57 @@ function AdminNewOrderPage() {
 
       {/* Products */}
       <div className="mt-4 rounded-[1.5rem] border border-sand-100 bg-white p-5">
-        <h2 className="text-sm font-bold text-cocoa-900">محصولات</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-cocoa-900">محصولات</h2>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setManualMode(false);
+                setManualSubtotal("");
+              }}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                !manualMode ? "bg-sand-500 text-white" : "border border-cocoa-900/10 text-cocoa-700"
+              }`}
+            >
+              افزودن محصول به محصول
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setManualMode(true);
+                setItems([]);
+              }}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                manualMode ? "bg-sand-500 text-white" : "border border-cocoa-900/10 text-cocoa-700"
+              }`}
+            >
+              فقط جمع کل اقلام
+            </button>
+          </div>
+        </div>
+
+        {manualMode ? (
+          <div className="mt-3">
+            <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+              جمع کل اقلام (تومان)
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              dir="ltr"
+              value={manualSubtotal}
+              onChange={(e) => setManualSubtotal(e.target.value.replace(/\D/g, ""))}
+              placeholder="0"
+              className="w-full max-w-xs rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+            />
+            <p className="mt-1.5 text-xs text-cocoa-500">
+              بدون انتخاب تک‌تک محصولات — یک قلم عمومی با همین مبلغ در سفارش ثبت می‌شود. مالیات و
+              تخفیف طبق معمول روی همین مبلغ حساب می‌شود.
+            </p>
+          </div>
+        ) : (
+          <>
         <input
           type="text"
           value={productSearch}
@@ -413,6 +476,8 @@ function AdminNewOrderPage() {
               <span>{money(subtotal)}</span>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
 

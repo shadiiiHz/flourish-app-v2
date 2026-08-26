@@ -74,7 +74,9 @@ const orderItemInputSchema = z.object({
 const createOrderSchema = z
   .object({
     customerId: z.string().min(1),
-    items: z.array(orderItemInputSchema).min(1, "حداقل یک آیتم باید انتخاب شود"),
+    items: z.array(orderItemInputSchema).optional(),
+    /** Bypasses picking real products entirely — a single generic line item is created at this price. */
+    manualSubtotal: z.number().int().positive().optional(),
     deliveryMethod: z.enum(["delivery", "pickup"]).default("delivery"),
     addressId: z.string().optional(),
     addressText: z.string().optional(),
@@ -84,6 +86,9 @@ const createOrderSchema = z
     paymentStatus: z.enum(["pending", "paid"]).default("pending"),
     customerName: z.string().optional(),
     note: z.string().optional(),
+  })
+  .refine((data) => (data.items && data.items.length > 0) || data.manualSubtotal != null, {
+    message: "حداقل یک آیتم اضافه کنید یا جمع کل اقلام را وارد کنید",
   })
   .refine((data) => data.deliveryMethod !== "delivery" || !!data.addressId || !!data.addressText, {
     message: "برای ارسال باید یک آدرس (ثبت‌شده یا دستی) مشخص شود",
@@ -109,6 +114,7 @@ adminOrdersRouter.post(
     const {
       customerId,
       items,
+      manualSubtotal,
       deliveryMethod,
       addressId,
       addressText,
@@ -155,43 +161,53 @@ adminOrdersRouter.post(
       };
     }
 
-    const productIds = [...new Set(items.map((i) => i.productId))];
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      include: { variants: true },
-    });
-    const productById = new Map(products.map((p) => [p.id, p]));
-
     const orderItems: {
-      productId: string;
+      productId?: string;
       variantId?: string;
       title: string;
       variantTitle?: string;
       price: number;
       quantity: number;
     }[] = [];
-    for (const item of items) {
-      const product = productById.get(item.productId);
-      if (!product) {
-        res.status(400).json({ error: "یکی از محصولات انتخاب‌شده یافت نشد" });
-        return;
-      }
-      const variant = item.variantId
-        ? product.variants.find((v) => v.id === item.variantId)
-        : undefined;
-      if (item.variantId && !variant) {
-        res.status(400).json({ error: `نوع انتخاب‌شده برای «${product.title}» یافت نشد` });
-        return;
-      }
-      const basePrice = variant ? variant.price : product.price;
+
+    if (manualSubtotal != null) {
+      // Admin chose to skip picking real products and just entered a total.
       orderItems.push({
-        productId: product.id,
-        variantId: variant?.id,
-        title: product.title,
-        variantTitle: variant?.title,
-        price: getDiscountedPrice(basePrice, product.discountPercent),
-        quantity: item.quantity,
+        title: "اقلام سفارش (بدون جزئیات)",
+        price: manualSubtotal,
+        quantity: 1,
       });
+    } else {
+      const productIds = [...new Set(items!.map((i) => i.productId))];
+      const products = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        include: { variants: true },
+      });
+      const productById = new Map(products.map((p) => [p.id, p]));
+
+      for (const item of items!) {
+        const product = productById.get(item.productId);
+        if (!product) {
+          res.status(400).json({ error: "یکی از محصولات انتخاب‌شده یافت نشد" });
+          return;
+        }
+        const variant = item.variantId
+          ? product.variants.find((v) => v.id === item.variantId)
+          : undefined;
+        if (item.variantId && !variant) {
+          res.status(400).json({ error: `نوع انتخاب‌شده برای «${product.title}» یافت نشد` });
+          return;
+        }
+        const basePrice = variant ? variant.price : product.price;
+        orderItems.push({
+          productId: product.id,
+          variantId: variant?.id,
+          title: product.title,
+          variantTitle: variant?.title,
+          price: getDiscountedPrice(basePrice, product.discountPercent),
+          quantity: item.quantity,
+        });
+      }
     }
 
     const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
