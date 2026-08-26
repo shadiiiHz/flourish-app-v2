@@ -1,8 +1,29 @@
 import { prisma } from "./prisma.js";
 import { generateBirthdayDiscountCode } from "./discountCodes.js";
 import { isSameTehranCalendarDate, isSameTehranMonthDay } from "./tehranDate.js";
+import { env } from "./env.js";
+import { sendPatternSms } from "./sms.js";
 
 const MAX_GENERATION_ATTEMPTS = 10;
+
+/**
+ * Texts the customer their new birthday discount code — best-effort, same as
+ * notifyAdminOfNewOrder in orders.ts: a MeliPayamak failure (no credit,
+ * rejected number, unset body id) must never fail the code-creation request.
+ * {0} in the approved template is the customer's first name (falling back to
+ * "مشتری" when they haven't set one), {1} is the code.
+ */
+async function notifyCustomerOfBirthdayDiscount(customerId: string, code: string): Promise<void> {
+  if (!env.melipayamakBirthdayBodyId) return;
+  const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+  if (!customer) return;
+  const name = customer.firstName?.trim() || "مشتری";
+  try {
+    await sendPatternSms(customer.phone, env.melipayamakBirthdayBodyId, [name, code]);
+  } catch (err) {
+    console.error("Failed to send birthday discount SMS:", err);
+  }
+}
 
 /**
  * Read-only lookup for the customer's own profile page: is there already a
@@ -93,6 +114,8 @@ export async function createBirthdayDiscountCode(
       data: { actionedAt: new Date(), isRead: true },
     });
   }
+
+  await notifyCustomerOfBirthdayDiscount(customerId, created.code);
 
   return created;
 }
