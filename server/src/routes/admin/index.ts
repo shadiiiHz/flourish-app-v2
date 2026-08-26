@@ -10,6 +10,7 @@ import { adminDiscountCodesRouter } from "./discountCodes.js";
 import { adminWalletRouter } from "./wallet.js";
 import { adminHeroSlidesRouter } from "./heroSlides.js";
 import { adminComboRouter } from "./combo.js";
+import { adminMessagesRouter } from "./messages.js";
 
 export const adminRouter = Router();
 
@@ -24,3 +25,4 @@ adminRouter.use("/discount-codes", adminDiscountCodesRouter);
 adminRouter.use("/wallet", adminWalletRouter);
 adminRouter.use("/hero-slides", adminHeroSlidesRouter);
 adminRouter.use("/combo", adminComboRouter);
+adminRouter.use("/messages", adminMessagesRouter);

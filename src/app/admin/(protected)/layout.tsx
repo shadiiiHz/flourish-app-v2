@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Bell,
   ChevronRight,
   Gift,
   LayoutDashboard,
@@ -18,11 +19,14 @@ import {
   Wallet,
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
+import { adminGetUnreadMessageCount } from "@/lib/api";
+import { toPersianDigits } from "@/lib/formatNumber";
 import Preloader from "@/components/Preloader";
 import MuiAdminProvider from "@/components/admin/MuiAdminProvider";
 
 const NAV_ITEMS = [
   { href: "/admin", exact: true, label: "داشبورد", icon: LayoutDashboard },
+  { href: "/admin/messages", exact: false, label: "پیام‌ها", icon: Bell },
   { href: "/admin/products", exact: false, label: "محصولات", icon: Package },
   { href: "/admin/combo", exact: false, label: "کمبو", icon: Gift },
   { href: "/admin/categories", exact: false, label: "دسته‌بندی‌ها", icon: Tags },
@@ -32,6 +36,9 @@ const NAV_ITEMS = [
   { href: "/admin/wallet", exact: false, label: "کیف پول", icon: Wallet },
   { href: "/admin/settings", exact: false, label: "تنظیمات", icon: Settings },
 ];
+
+/** Polls the admin-messages unread count so the nav badge stays current without a page reload. */
+const UNREAD_POLL_INTERVAL_MS = 15_000;
 
 const SIDEBAR_COLLAPSED_KEY = "flourish-admin-sidebar-collapsed";
 
@@ -44,10 +51,29 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true");
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    const refresh = () => {
+      adminGetUnreadMessageCount()
+        .then(({ count }) => {
+          if (!cancelled) setUnreadCount(count);
+        })
+        .catch(() => {});
+    };
+    refresh();
+    const interval = window.setInterval(refresh, UNREAD_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [isAuthenticated, pathname]);
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -129,6 +155,7 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
           <nav className="flex flex-1 flex-col gap-1">
             {NAV_ITEMS.map(({ href, exact, label, icon: Icon }) => {
               const isActive = isActivePath(pathname, href, exact);
+              const showBadge = href === "/admin/messages" && unreadCount > 0;
               return (
                 <Link
                   key={href}
@@ -139,7 +166,14 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
                   } ${isActive ? "bg-sand-50 text-sand-500" : "text-cocoa-700 hover:bg-sand-50/60"}`}
                 >
                   {!collapsed && label}
-                  <Icon className="h-4.5 w-4.5 shrink-0" />
+                  <span className="relative flex shrink-0 items-center">
+                    <Icon className="h-4.5 w-4.5" />
+                    {showBadge && (
+                      <span className="absolute -left-2.5 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-bold text-white">
+                        {unreadCount > 99 ? "۹۹+" : toPersianDigits(String(unreadCount))}
+                      </span>
+                    )}
+                  </span>
                 </Link>
               );
             })}
@@ -182,17 +216,23 @@ export default function AdminProtectedLayout({ children }: { children: ReactNode
           <nav className="flex gap-1 overflow-x-auto border-b border-sand-100 bg-white/80 px-3 py-2 backdrop-blur-xl md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NAV_ITEMS.map(({ href, exact, label }) => {
               const isActive = isActivePath(pathname, href, exact);
+              const showBadge = href === "/admin/messages" && unreadCount > 0;
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`relative shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                     isActive
                       ? "bg-sand-400 text-white"
                       : "border border-sand-100 bg-white text-cocoa-600"
                   }`}
                 >
                   {label}
+                  {showBadge && (
+                    <span className="absolute -left-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-bold text-white">
+                      {unreadCount > 99 ? "۹۹+" : toPersianDigits(String(unreadCount))}
+                    </span>
+                  )}
                 </Link>
               );
             })}

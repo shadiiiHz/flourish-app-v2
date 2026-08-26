@@ -11,6 +11,7 @@ import type {
   AdminCustomer,
   AdminDiscountCode,
   AdminHeroSlide,
+  AdminMessage,
   AdminOrder,
   AdminProduct,
   AdminWalletTransaction,
@@ -250,7 +251,10 @@ export interface CustomerAuthUser {
   lastName?: string;
   email?: string;
   avatar?: string;
+  birthDate?: string;
   walletBalance: number;
+  /** Only present on GET /me, only on the customer's birthday, only while unused. */
+  birthdayDiscount?: { code: string; percent: number } | null;
 }
 
 export function customerRequestOtp(phone: string) {
@@ -302,6 +306,8 @@ export interface UpdateProfilePayload {
   email?: string;
   avatar?: string;
   phone?: string;
+  /** ISO datetime string, or null to clear it. */
+  birthDate?: string | null;
 }
 
 export function updateMyProfile(payload: UpdateProfilePayload) {
@@ -861,6 +867,30 @@ export function adminDeleteDiscountCode(id: string) {
 
 export function adminBulkDeleteDiscountCodes(ids: string[]) {
   return adminBulkDelete("/api/admin/discount-codes", ids);
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin messages (notification inbox)                                 */
+/* ------------------------------------------------------------------ */
+
+export function adminGetMessages(page = 1, pageSize = 20) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  return apiFetch<Paginated<AdminMessage>>(`/api/admin/messages?${params.toString()}`);
+}
+
+export function adminGetUnreadMessageCount() {
+  return apiFetch<{ count: number }>("/api/admin/messages/unread-count");
+}
+
+export function adminMarkMessageRead(id: string) {
+  return apiFetch<AdminMessage>(`/api/admin/messages/${id}/read`, { method: "PATCH" });
+}
+
+export function adminCreateBirthdayDiscountFromMessage(id: string, percent: number) {
+  return apiFetch<AdminDiscountCode>(`/api/admin/messages/${id}/birthday-discount`, {
+    method: "POST",
+    body: JSON.stringify({ percent }),
+  });
 }
 
 /* ------------------------------------------------------------------ */

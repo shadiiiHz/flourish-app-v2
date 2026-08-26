@@ -26,6 +26,7 @@ export const env = {
   adminNotifyPhone: process.env.ADMIN_NOTIFY_PHONE,
   zarinpalMerchantId: process.env.ZARINPAL_MERCHANT_ID,
   zarinpalSandbox: process.env.ZARINPAL_SANDBOX === "true",
+  revalidateSecret: process.env.REVALIDATE_SECRET,
   apiUrl: process.env.API_URL ?? `http://localhost:${Number(process.env.PORT ?? 4000)}`,
   appUrl: process.env.APP_URL ?? process.env.CORS_ORIGIN ?? "http://localhost:5173",
   storeLat: Number(process.env.STORE_LAT ?? 36.6549149),

@@ -47,6 +47,9 @@ adminDiscountCodesRouter.get(
     const [items, total] = await prisma.$transaction([
       prisma.discountCode.findMany({
         where,
+        include: {
+          customer: { select: { id: true, phone: true, firstName: true, lastName: true } },
+        },
         orderBy: { createdAt: "desc" },
         skip: pagination.skip,
         take: pagination.take,

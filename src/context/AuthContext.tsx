@@ -26,7 +26,9 @@ export interface AuthUser {
   lastName?: string;
   email?: string;
   avatar?: string;
+  birthDate?: string;
   walletBalance: number;
+  birthdayDiscount?: { code: string; percent: number } | null;
 }
 
 export type AuthView = "otp-phone" | "otp-verify" | "password";
@@ -46,7 +48,9 @@ interface AuthContextValue {
   requestPasswordChange: (newPassword: string) => Promise<void>;
   confirmPasswordChange: (code: string) => Promise<boolean>;
   updateProfile: (
-    data: Partial<Pick<AuthUser, "firstName" | "lastName" | "email" | "avatar" | "phone">>,
+    data: Partial<Pick<AuthUser, "firstName" | "lastName" | "email" | "avatar" | "phone">> & {
+      birthDate?: string | null;
+    },
   ) => void;
   logout: () => void;
   toast: string | null;
@@ -133,7 +137,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(nextUser);
         notify("تغییرات با موفقیت ثبت شد");
       })
-      .catch(() => notify("ثبت تغییرات با خطا مواجه شد"));
+      .catch((err) =>
+        notify(err instanceof ApiError ? err.message : "ثبت تغییرات با خطا مواجه شد"),
+      );
   };
 
   const logout = () => {

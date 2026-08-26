@@ -6,6 +6,8 @@ import { parsePagination, parseSearch, paginatedResult } from "../../lib/paginat
 import { creditWalletCashback, redeemWallet, reverseWalletCashback } from "../../lib/wallet.js";
 import { calculateShipping } from "../../lib/shipping.js";
 import { TAX_RATE, getDiscountedPrice } from "../../lib/pricing.js";
+import { isSameTehranCalendarDate } from "../../lib/tehranDate.js";
+import { decrementStockForItems } from "../../lib/stock.js";
 
 export const adminOrdersRouter = Router();
 
@@ -124,7 +126,7 @@ adminOrdersRouter.post(
       return;
     }
 
-    let appliedDiscount: { code: string; percent: number } | null = null;
+    let appliedDiscount: { id: string; code: string; percent: number; isPersonal: boolean } | null = null;
     if (discountCode) {
       const discount = await prisma.discountCode.findUnique({
         where: { code: discountCode.toUpperCase() },
@@ -133,7 +135,24 @@ adminOrdersRouter.post(
         res.status(400).json({ error: "کد تخفیف معتبر نیست" });
         return;
       }
-      appliedDiscount = { code: discount.code, percent: discount.percent };
+      if (discount.customerId && discount.customerId !== customerId) {
+        res.status(400).json({ error: "این کد تخفیف مخصوص این مشتری نیست" });
+        return;
+      }
+      if (discount.usedAt) {
+        res.status(400).json({ error: "این کد تخفیف قبلاً استفاده شده است" });
+        return;
+      }
+      if (discount.validOnDate && !isSameTehranCalendarDate(discount.validOnDate, new Date())) {
+        res.status(400).json({ error: "این کد تخفیف امروز معتبر نیست" });
+        return;
+      }
+      appliedDiscount = {
+        id: discount.id,
+        code: discount.code,
+        percent: discount.percent,
+        isPersonal: !!discount.customerId,
+      };
     }
 
     const productIds = [...new Set(items.map((i) => i.productId))];
@@ -250,6 +269,15 @@ adminOrdersRouter.post(
     if (walletAmountUsed > 0) {
       await redeemWallet(customerId, walletAmountUsed, order.id);
     }
+
+    if (appliedDiscount?.isPersonal) {
+      await prisma.discountCode.update({
+        where: { id: appliedDiscount.id },
+        data: { usedAt: new Date() },
+      });
+    }
+
+    await decrementStockForItems(order.items);
 
     res.status(201).json(order);
   }),

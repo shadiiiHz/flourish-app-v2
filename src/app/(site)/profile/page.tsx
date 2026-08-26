@@ -5,15 +5,19 @@ import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Cake,
   Camera,
   CalendarClock,
   ChevronLeft,
   ChevronRight,
+  Copy,
+  Gift,
   KeyRound,
   Landmark,
   LogOut,
   MapPin,
   Menu,
+  PartyPopper,
   ShoppingBag,
   User,
   Wallet as WalletIcon,
@@ -456,12 +460,80 @@ function InfoField({
   );
 }
 
+/** Round-trips a stored ISO birthdate to the "YYYY-MM-DD" a date input expects — read via UTC getters since a date-only string is anchored to UTC midnight. */
+function isoToDateInputValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+/** Formats a stored ISO birthdate as a Persian (Jalali) calendar date, e.g. "۵ شهریور ۱۴۰۴". */
+function formatJalaliDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("fa-IR", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(d);
+}
+
+function BirthdayDiscountBanner() {
+  const { user } = useAuth();
+  const [copied, setCopied] = useState(false);
+  const discount = user?.birthdayDiscount;
+  if (!discount) return null;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(discount.code).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="relative mb-6 overflow-hidden rounded-[1.75rem] border border-sand-200/70 bg-gradient-to-br from-sand-50 via-cream to-sand-100 p-5 shadow-[0_20px_50px_-30px_rgba(164,72,25,0.45)] sm:rounded-[2rem] sm:p-6">
+      <PartyPopper className="pointer-events-none absolute -left-4 -top-4 h-24 w-24 rotate-12 text-sand-300/40" />
+      <div className="relative flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sand-500 text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)]">
+            <Cake className="h-6 w-6" />
+          </span>
+          <div>
+            <p className="font-display text-sm font-bold text-cocoa-900 sm:text-base">
+              تولدت مبارک! 🎂
+            </p>
+            <p className="mt-0.5 text-xs text-cocoa-600 sm:text-sm">
+              فلوریش امروز {toPersianDigits(String(discount.percent))}٪ تخفیف بهت هدیه داده — فقط
+              امروز و فقط یک‌بار قابل استفاده‌ست.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          dir="ltr"
+          className="flex w-full shrink-0 items-center justify-center gap-2 rounded-full border-2 border-dashed border-sand-400 bg-white/70 px-4 py-2.5 text-sm font-bold text-cocoa-900 transition hover:bg-white sm:w-auto"
+        >
+          <Copy className="h-3.5 w-3.5 text-sand-500" />
+          {discount.code}
+          {copied && <span className="text-xs font-semibold text-sand-500">(کپی شد)</span>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProfileInfoPanel() {
   const { user, updateProfile } = useAuth();
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
   const [lastName, setLastName] = useState(user?.lastName ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
+  const [birthDate, setBirthDate] = useState(isoToDateInputValue(user?.birthDate));
   const [avatar, setAvatar] = useState(user?.avatar);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -483,11 +555,22 @@ function ProfileInfoPanel() {
     }
     setPhoneError(null);
     setPhone(cleanPhone);
-    updateProfile({ firstName, lastName, email, avatar, phone: cleanPhone });
+    updateProfile({
+      firstName,
+      lastName,
+      email,
+      avatar,
+      phone: cleanPhone,
+      // Once set, the birthdate is locked — omit it so re-submitting the rest of the
+      // form (name, phone, ...) doesn't hit the backend's "already set" rejection.
+      ...(user?.birthDate ? {} : { birthDate: birthDate ? new Date(birthDate).toISOString() : null }),
+    });
   };
 
   return (
-    <GlassCard>
+    <>
+      <BirthdayDiscountBanner />
+      <GlassCard>
       <form
         onSubmit={handleSubmit}
         className="flex flex-col items-center gap-6"
@@ -567,6 +650,33 @@ function ProfileInfoPanel() {
               className="w-full rounded-2xl border border-cocoa-900/10 bg-white px-4 py-3.5 text-right text-base text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25"
             />
           </InfoField>
+
+          <div>
+            <InfoField label="تاریخ تولد (اختیاری)">
+              <div className="relative">
+                <Cake className="pointer-events-none absolute right-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-sand-400" />
+                {user?.birthDate ? (
+                  <div className="w-full rounded-2xl border border-cocoa-900/10 bg-sand-50/60 py-3.5 pl-4 pr-11 text-right text-base text-cocoa-500">
+                    {formatJalaliDate(user.birthDate)}
+                  </div>
+                ) : (
+                  <input
+                    type="date"
+                    dir="ltr"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    className="w-full rounded-2xl border border-cocoa-900/10 bg-white py-3.5 pl-4 pr-11 text-right text-base text-cocoa-900 outline-none transition focus:border-sand-400 focus:ring-2 focus:ring-sand-400/25"
+                  />
+                )}
+              </div>
+            </InfoField>
+            <p className="mt-1.5 flex items-center gap-1.5 px-1 text-xs text-cocoa-500">
+              <Gift className="h-3.5 w-3.5 shrink-0 text-sand-400" />
+              {user?.birthDate
+                ? "تاریخ تولد یک‌بار ثبت می‌شه و دیگه قابل ویرایش نیست"
+                : "روز تولدت یه کد تخفیف ویژه از فلوریش برات فعال می‌شه 🎂 — بعد از ثبت، دیگه قابل تغییر نیست"}
+            </p>
+          </div>
         </div>
 
         <button
@@ -576,7 +686,8 @@ function ProfileInfoPanel() {
           اعمال تغییرات
         </button>
       </form>
-    </GlassCard>
+      </GlassCard>
+    </>
   );
 }
 

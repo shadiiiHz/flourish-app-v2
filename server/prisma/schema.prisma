@@ -120,11 +120,15 @@ model Customer {
   lastName           String?
   email              String?
   avatar             String?
+  /// Optional — only the month/day are used, to generate a birthday discount code each year.
+  birthDate          DateTime?
   walletBalance      Int                 @default(0)
   orders             Order[]
   addresses          Address[]
   cartItems          CartItem[]
   walletTransactions WalletTransaction[]
+  discountCodes      DiscountCode[]
+  adminMessages      AdminMessage[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 }
@@ -209,13 +213,26 @@ model OrderItem {
   quantity     Int
 }
 
+enum DiscountCodeSource {
+  manual
+  birthday
+}
+
 model DiscountCode {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  percent   Int
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String             @id @default(cuid())
+  code        String             @unique
+  percent     Int
+  isActive    Boolean            @default(true)
+  source      DiscountCodeSource @default(manual)
+  /// Set only for a personal, single-customer code (e.g. birthday codes). Null means anyone can use it.
+  customerId  String?
+  customer    Customer?          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// Restricts the code to one specific calendar day (Asia/Tehran). Null means no date restriction.
+  validOnDate DateTime?
+  /// Set once redeemed on an order — only enforced for customer-scoped codes; generic codes stay reusable.
+  usedAt      DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 }
 
 model Settings {
@@ -280,4 +297,24 @@ model AdminUser {
   role         String   @default("admin")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+enum AdminMessageType {
+  birthday
+}
+
+/// A notification inbox for the admin — e.g. "it's this customer's birthday, generate their discount code".
+model AdminMessage {
+  id         String           @id @default(cuid())
+  type       AdminMessageType
+  customerId String?
+  customer   Customer?        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title      String
+  body       String
+  isRead     Boolean          @default(false)
+  /// Set once the action tied to this message (e.g. generating a discount code) has been taken.
+  actionedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([customerId])
 }

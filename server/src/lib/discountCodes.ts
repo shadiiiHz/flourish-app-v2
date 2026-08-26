@@ -9,3 +9,14 @@ export function generateDiscountCode(): string {
   }
   return code;
 }
+
+const BIRTHDAY_SUFFIX_LENGTH = 4;
+
+/** A themed, personal code for a customer's yearly birthday discount, e.g. "FLOURISH-BDAY-A1B2". */
+export function generateBirthdayDiscountCode(): string {
+  let suffix = "";
+  for (let i = 0; i < BIRTHDAY_SUFFIX_LENGTH; i++) {
+    suffix += CODE_CHARSET[Math.floor(Math.random() * CODE_CHARSET.length)];
+  }
+  return `FLOURISH-BDAY-${suffix}`;
+}

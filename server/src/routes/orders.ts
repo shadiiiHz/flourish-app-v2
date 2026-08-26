@@ -11,6 +11,8 @@ import { env } from "../lib/env.js";
 import { redeemWallet, refundWalletHold } from "../lib/wallet.js";
 import { sendPatternSms } from "../lib/sms.js";
 import { formatOrderNumber } from "../lib/orderNumber.js";
+import { isSameTehranCalendarDate } from "../lib/tehranDate.js";
+import { decrementStockForItems } from "../lib/stock.js";
 
 /**
  * Notifies the admin phone over SMS once an order is actually paid — either
@@ -69,7 +71,7 @@ ordersRouter.post(
       parsed.data;
     const { sub: customerId, phone: customerPhone } = req.customer!;
 
-    let appliedDiscount: { code: string; percent: number } | null = null;
+    let appliedDiscount: { id: string; code: string; percent: number; isPersonal: boolean } | null = null;
     if (discountCode) {
       const discount = await prisma.discountCode.findUnique({
         where: { code: discountCode.toUpperCase() },
@@ -78,7 +80,24 @@ ordersRouter.post(
         res.status(400).json({ error: "کد تخفیف معتبر نیست" });
         return;
       }
-      appliedDiscount = { code: discount.code, percent: discount.percent };
+      if (discount.customerId && discount.customerId !== customerId) {
+        res.status(400).json({ error: "این کد تخفیف مخصوص شما نیست" });
+        return;
+      }
+      if (discount.usedAt) {
+        res.status(400).json({ error: "این کد تخفیف قبلاً استفاده شده است" });
+        return;
+      }
+      if (discount.validOnDate && !isSameTehranCalendarDate(discount.validOnDate, new Date())) {
+        res.status(400).json({ error: "این کد تخفیف امروز معتبر نیست" });
+        return;
+      }
+      appliedDiscount = {
+        id: discount.id,
+        code: discount.code,
+        percent: discount.percent,
+        isPersonal: !!discount.customerId,
+      };
     }
 
     const settings = await getSettings();
@@ -223,6 +242,15 @@ ordersRouter.post(
         include: { items: true },
       });
       await prisma.cartItem.deleteMany({ where: { customerId } });
+      if (appliedDiscount?.isPersonal) {
+        await prisma.discountCode.update({
+          where: { id: appliedDiscount.id },
+          data: { usedAt: new Date() },
+        });
+      }
+      if (orderType !== "preorder") {
+        await decrementStockForItems(orderItems);
+      }
       await notifyAdminOfNewOrder(order.orderNumber);
       res.status(201).json({ order: paidOrder, paymentUrl: null });
       return;
@@ -252,7 +280,10 @@ ordersRouter.post(
 ordersRouter.get(
   "/:id/payment/callback",
   asyncHandler(async (req, res) => {
-    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+    const order = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { items: true },
+    });
     const authority = typeof req.query.Authority === "string" ? req.query.Authority : undefined;
     const status = typeof req.query.Status === "string" ? req.query.Status : undefined;
 
@@ -292,6 +323,16 @@ ordersRouter.get(
     });
     if (order.customerId) {
       await prisma.cartItem.deleteMany({ where: { customerId: order.customerId } });
+    }
+    if (order.discountCode) {
+      // Only personal (customer-scoped) codes are single-use — consume it now that payment is confirmed.
+      await prisma.discountCode.updateMany({
+        where: { code: order.discountCode, customerId: { not: null }, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+    }
+    if (order.orderType !== "preorder") {
+      await decrementStockForItems(order.items);
     }
     await notifyAdminOfNewOrder(order.orderNumber);
     res.redirect(`${env.appUrl}/checkout/result?status=paid&orderId=${order.id}`);

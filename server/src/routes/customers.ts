@@ -17,6 +17,8 @@ const updateProfileSchema = z.object({
   email: z.string().optional(),
   avatar: z.string().optional(),
   phone: z.string().min(5).optional(),
+  /** ISO datetime string, or null to clear it. Only the month/day are used, for the birthday discount. */
+  birthDate: z.string().datetime().nullable().optional(),
 });
 
 customersRouter.patch(
@@ -27,10 +29,21 @@ customersRouter.patch(
       res.status(400).json({ error: "اطلاعات معتبر نیست" });
       return;
     }
+    const { birthDate, ...rest } = parsed.data;
+    if (birthDate !== undefined) {
+      const existing = await prisma.customer.findUnique({ where: { id: req.customer!.sub } });
+      if (existing?.birthDate) {
+        res.status(400).json({ error: "تاریخ تولد فقط یک‌بار قابل ثبت است و دیگر قابل ویرایش نیست" });
+        return;
+      }
+    }
     try {
       const customer = await prisma.customer.update({
         where: { id: req.customer!.sub },
-        data: parsed.data,
+        data: {
+          ...rest,
+          ...(birthDate !== undefined ? { birthDate: birthDate ? new Date(birthDate) : null } : {}),
+        },
       });
       res.json({
         phone: customer.phone,
@@ -39,6 +52,7 @@ customersRouter.patch(
         lastName: customer.lastName ?? undefined,
         email: customer.email ?? undefined,
         avatar: customer.avatar ?? undefined,
+        birthDate: customer.birthDate?.toISOString(),
         walletBalance: customer.walletBalance,
       });
     } catch {

@@ -71,11 +71,23 @@ export interface AdminOrder extends Order {
   customerId?: string | null;
 }
 
+export type DiscountCodeSource = "manual" | "birthday";
+
 export interface AdminDiscountCode {
   id: string;
   code: string;
   percent: number;
   isActive: boolean;
+  source: DiscountCodeSource;
+  customerId?: string | null;
+  customer?: {
+    id: string;
+    phone: string;
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
+  validOnDate?: string | null;
+  usedAt?: string | null;
   createdAt: string;
 }
 
@@ -105,3 +117,22 @@ export interface AdminCustomer {
 
 export type { WalletTransactionType, WalletTransaction as AdminWalletTransaction } from "./order";
 export { WALLET_TRANSACTION_TYPE_LABELS } from "./order";
+
+export type AdminMessageType = "birthday";
+
+export interface AdminMessage {
+  id: string;
+  type: AdminMessageType;
+  customerId?: string | null;
+  customer?: {
+    id: string;
+    phone: string;
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
+  title: string;
+  body: string;
+  isRead: boolean;
+  actionedAt?: string | null;
+  createdAt: string;
+}

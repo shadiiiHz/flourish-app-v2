@@ -22,7 +22,7 @@ import {
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import ConfirmModal from "@/components/ConfirmModal";
-import { digitsOnly } from "@/lib/formatNumber";
+import { digitsOnly, toPersianDigits } from "@/lib/formatNumber";
 import type { AdminDiscountCode } from "@/types/admin";
 
 type Mode = "manual" | "auto";
@@ -51,12 +51,15 @@ function AdminDiscountCodesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
-  const [deletingCode, setDeletingCode] = useState<AdminDiscountCode | null>(null);
+  const [deletingCode, setDeletingCode] = useState<AdminDiscountCode | null>(
+    null,
+  );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>(
-    { type: "include", ids: new Set() },
-  );
+  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>({
+    type: "include",
+    ids: new Set(),
+  });
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const selectedIds = useMemo(
     () =>
@@ -115,10 +118,15 @@ function AdminDiscountCodesPage() {
             setError("کد تخفیف باید حداقل ۳ کاراکتر باشد");
             return;
           }
-          const created = await adminCreateManualDiscountCode(code, Number(values.percent));
+          const created = await adminCreateManualDiscountCode(
+            code,
+            Number(values.percent),
+          );
           setCreatedCode(created.code);
         } else {
-          const created = await adminGenerateDiscountCode(Number(values.percent));
+          const created = await adminGenerateDiscountCode(
+            Number(values.percent),
+          );
           setCreatedCode(created.code);
         }
         formik.resetForm({ values: EMPTY_FORM });
@@ -136,7 +144,9 @@ function AdminDiscountCodesPage() {
       await adminUpdateDiscountCode(row.id, { isActive: !row.isActive });
       load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "خطا در بروزرسانی وضعیت");
+      setError(
+        err instanceof ApiError ? err.message : "خطا در بروزرسانی وضعیت",
+      );
     }
   };
 
@@ -196,10 +206,65 @@ function AdminDiscountCodesPage() {
         ),
       },
       {
+        field: "source",
+        headerName: "نوع",
+        width: 100,
+        valueFormatter: (_, row) =>
+          row.source === "birthday" ? "تولد" : "دستی",
+        renderCell: ({ row }) =>
+          row.source === "birthday" ? (
+            <span className="rounded-full bg-sand-50 px-2.5 py-1 text-xs font-bold text-sand-500">
+              🎂 تولد
+            </span>
+          ) : (
+            <span className="text-cocoa-500">دستی</span>
+          ),
+      },
+      {
+        field: "customer",
+        headerName: "مشتری",
+        flex: 1,
+        minWidth: 160,
+        valueGetter: (_, row) =>
+          row.customer
+            ? [row.customer.firstName, row.customer.lastName]
+                .filter(Boolean)
+                .join(" ") || row.customer.phone
+            : "",
+        renderCell: ({ row }) =>
+          row.customer ? (
+            <span className="text-center text-cocoa-500">
+              {toPersianDigits(row.customer.phone)}
+            </span>
+          ) : (
+            <span className="text-cocoa-400">عمومی — برای همه</span>
+          ),
+      },
+      {
+        field: "usedAt",
+        headerName: "استفاده",
+        width: 110,
+        valueFormatter: (_, row) =>
+          row.usedAt ? "استفاده‌شده" : row.customer ? "استفاده‌نشده" : "—",
+        renderCell: ({ row }) =>
+          !row.customer ? (
+            <span className="text-cocoa-400">—</span>
+          ) : row.usedAt ? (
+            <span className="text-xs font-semibold text-cocoa-500">
+              استفاده‌شده
+            </span>
+          ) : (
+            <span className="text-xs font-semibold text-sand-500">
+              استفاده‌نشده
+            </span>
+          ),
+      },
+      {
         field: "createdAt",
         headerName: "تاریخ ایجاد",
         width: 130,
-        valueGetter: (_, row) => new Date(row.createdAt).toLocaleDateString("fa-IR"),
+        valueGetter: (_, row) =>
+          new Date(row.createdAt).toLocaleDateString("fa-IR"),
       },
       {
         field: "actions",
@@ -244,21 +309,27 @@ function AdminDiscountCodesPage() {
   );
 
   const handleExportAll = useCallback(async () => {
-    const all = await fetchAllPages((p, ps) => adminGetDiscountCodes(p, ps, debouncedSearch));
+    const all = await fetchAllPages((p, ps) =>
+      adminGetDiscountCodes(p, ps, debouncedSearch),
+    );
     downloadCsv("discount-codes.csv", buildCsv(columns, all));
   }, [columns, debouncedSearch]);
 
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl font-bold text-cocoa-900">کدهای تخفیف</h1>
+        <h1 className="font-display text-xl font-bold text-cocoa-900">
+          کدهای تخفیف
+        </h1>
       </div>
 
       <form
         onSubmit={formik.handleSubmit}
         className="mt-4 rounded-[1.5rem] border border-sand-100 bg-white p-5"
       >
-        <h2 className="text-sm font-bold text-cocoa-900">افزودن کد تخفیف جدید</h2>
+        <h2 className="text-sm font-bold text-cocoa-900">
+          افزودن کد تخفیف جدید
+        </h2>
 
         <div className="mt-3 flex w-fit gap-1 rounded-full border border-sand-100 bg-sand-50/60 p-1">
           <button
@@ -313,7 +384,9 @@ function AdminDiscountCodesPage() {
               name="percent"
               placeholder="مثلاً ۲۰"
               value={formik.values.percent}
-              onChange={(e) => formik.setFieldValue("percent", digitsOnly(e.target.value))}
+              onChange={(e) =>
+                formik.setFieldValue("percent", digitsOnly(e.target.value))
+              }
               onBlur={formik.handleBlur}
               className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
             />
@@ -327,14 +400,20 @@ function AdminDiscountCodesPage() {
 
         {formik.values.mode === "auto" && (
           <p className="mt-3 text-xs text-cocoa-500">
-            کد تخفیف به صورت خودکار و یکتا تولید می‌شود؛ فقط کافی است درصد تخفیف را مشخص کنید.
+            کد تخفیف به صورت خودکار و یکتا تولید می‌شود؛ فقط کافی است درصد تخفیف
+            را مشخص کنید.
           </p>
         )}
 
-        {error && <p className="mt-3 text-xs font-semibold text-danger-500">{error}</p>}
+        {error && (
+          <p className="mt-3 text-xs font-semibold text-danger-500">{error}</p>
+        )}
         {createdCode && (
           <p className="mt-3 text-xs font-semibold text-sand-500">
-            کد تخفیف ایجاد شد: <span dir="ltr" className="font-mono">{createdCode}</span>
+            کد تخفیف ایجاد شد:{" "}
+            <span dir="ltr" className="font-mono">
+              {createdCode}
+            </span>
           </p>
         )}
 
@@ -375,11 +454,15 @@ function AdminDiscountCodesPage() {
         isOpen={!!deletingCode}
         title="حذف کد تخفیف"
         description={
-          deletingCode ? `آیا مطمئنید می‌خواهید کد تخفیف «${deletingCode.code}» را حذف کنید؟` : undefined
+          deletingCode
+            ? `آیا مطمئنید می‌خواهید کد تخفیف «${deletingCode.code}» را حذف کنید؟`
+            : undefined
         }
         confirmLabel="بله، حذف شود"
         cancelLabel="انصراف"
-        onConfirm={() => (deletingCode ? handleDelete(deletingCode.id) : undefined)}
+        onConfirm={() =>
+          deletingCode ? handleDelete(deletingCode.id) : undefined
+        }
         onClose={() => setDeletingCode(null)}
       />
 

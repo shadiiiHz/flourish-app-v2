@@ -8,6 +8,7 @@ import { loginOtpStore, passwordChangeOtpStore } from "../lib/otpStore.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { sendSms, sendPatternSms } from "../lib/sms.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { ensureBirthdayMessage, getActiveBirthdayDiscount } from "../lib/birthdayDiscount.js";
 
 export const customerAuthRouter = Router();
 
@@ -56,6 +57,7 @@ function toAuthUser(customer: {
   lastName: string | null;
   email: string | null;
   avatar: string | null;
+  birthDate: Date | null;
   walletBalance: number;
 }) {
   return {
@@ -65,6 +67,7 @@ function toAuthUser(customer: {
     lastName: customer.lastName ?? undefined,
     email: customer.email ?? undefined,
     avatar: customer.avatar ?? undefined,
+    birthDate: customer.birthDate?.toISOString(),
     walletBalance: customer.walletBalance,
   };
 }
@@ -148,7 +151,9 @@ customerAuthRouter.get(
       res.status(401).json({ error: "کاربر یافت نشد" });
       return;
     }
-    res.json(toAuthUser(customer));
+    await ensureBirthdayMessage(customer.id, customer.birthDate);
+    const birthdayDiscount = await getActiveBirthdayDiscount(customer.id);
+    res.json({ ...toAuthUser(customer), birthdayDiscount });
   }),
 );
 
