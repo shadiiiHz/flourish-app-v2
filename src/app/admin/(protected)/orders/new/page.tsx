@@ -390,9 +390,7 @@ function AdminNewOrderPage() {
           <div className="mt-2 flex flex-col gap-1.5">
             {productResults.map((product) =>
               product.variants.length > 0
-                ? product.variants
-                    .filter((variant) => variant.stock !== 0)
-                    .map((variant) => (
+                ? product.variants.map((variant) => (
                       <button
                         key={`${product.id}:${variant.id}`}
                         type="button"
@@ -408,7 +406,7 @@ function AdminNewOrderPage() {
                         </span>
                       </button>
                     ))
-                : product.stock !== 0 && (
+                : (
                     <button
                       key={product.id}
                       type="button"

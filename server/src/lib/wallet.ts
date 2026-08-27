@@ -44,7 +44,14 @@ export async function refundWalletHold(orderId: string) {
   });
 }
 
-/** Credits cashback for an order once it's marked as delivered, based on the admin-configured percent of the item subtotal. Safe to call more than once — only the first call (per delivery) actually credits. */
+/**
+ * Credits cashback for an order once it's marked as delivered, based on the
+ * admin-configured percent of the item subtotal actually paid out of pocket
+ * — any part of the subtotal covered by wallet balance (which can only have
+ * come from previously-earned cashback) is excluded, so cashback can't be
+ * recycled into more cashback on money that was itself a reward. Safe to
+ * call more than once — only the first call (per delivery) actually credits.
+ */
 export async function creditWalletCashback(orderId: string) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !order.customerId) return;
@@ -52,7 +59,8 @@ export async function creditWalletCashback(orderId: string) {
   const settings = await getSettings();
   const percent = settings.walletCashbackPercent;
   if (percent <= 0) return;
-  const cashback = Math.floor((order.subtotal * percent) / 100);
+  const netSubtotal = Math.max(0, order.subtotal - order.walletAmountUsed);
+  const cashback = Math.floor((netSubtotal * percent) / 100);
   if (cashback <= 0) return;
   await prisma.$transaction(async (tx) => {
     // Claim the credit atomically: only proceeds if no cashback is outstanding yet, so
