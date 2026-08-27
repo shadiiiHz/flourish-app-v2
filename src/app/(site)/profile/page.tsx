@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -482,10 +482,56 @@ function formatJalaliDate(iso: string): string {
   }).format(d);
 }
 
+const BIRTHDAY_BURST_EMOJIS = ["🎉", "🎂", "🎈", "🥳", "✨", "🎁"];
+
+/** A one-time confetti-style emoji burst from the center of the screen, shown once when the birthday banner first appears. */
+function BirthdayBurst() {
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 18 }, (_, i) => {
+        const angle = (i / 18) * Math.PI * 2 + Math.random() * 0.3;
+        const distance = 110 + Math.random() * 150;
+        return {
+          id: i,
+          emoji: BIRTHDAY_BURST_EMOJIS[i % BIRTHDAY_BURST_EMOJIS.length],
+          x: Math.cos(angle) * distance,
+          y: Math.sin(angle) * distance,
+          rotate: (Math.random() - 0.5) * 180,
+          delay: Math.random() * 0.15,
+        };
+      }),
+    [],
+  );
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-100 flex items-center justify-center overflow-hidden">
+      {particles.map((p) => (
+        <motion.span
+          key={p.id}
+          className="absolute text-3xl sm:text-4xl"
+          initial={{ opacity: 1, scale: 0.4, x: 0, y: 0, rotate: 0 }}
+          animate={{ opacity: 0, scale: 1, x: p.x, y: p.y, rotate: p.rotate }}
+          transition={{ duration: 1.4, delay: p.delay, ease: "easeOut" }}
+        >
+          {p.emoji}
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
 function BirthdayDiscountBanner() {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [showBurst, setShowBurst] = useState(true);
   const discount = user?.birthdayDiscount;
+
+  useEffect(() => {
+    if (!discount) return;
+    const timer = window.setTimeout(() => setShowBurst(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [discount]);
+
   if (!discount) return null;
 
   const handleCopy = () => {
@@ -496,6 +542,8 @@ function BirthdayDiscountBanner() {
   };
 
   return (
+    <>
+    <AnimatePresence>{showBurst && <BirthdayBurst />}</AnimatePresence>
     <div className="relative mb-6 overflow-hidden rounded-[1.75rem] border border-sand-200/70 bg-gradient-to-br from-sand-50 via-cream to-sand-100 p-5 shadow-[0_20px_50px_-30px_rgba(164,72,25,0.45)] sm:rounded-[2rem] sm:p-6">
       <PartyPopper className="pointer-events-none absolute -left-4 -top-4 h-24 w-24 rotate-12 text-sand-300/40" />
       <div className="relative flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -525,6 +573,7 @@ function BirthdayDiscountBanner() {
         </button>
       </div>
     </div>
+    </>
   );
 }
 
