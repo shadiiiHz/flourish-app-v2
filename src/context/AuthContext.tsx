@@ -52,6 +52,8 @@ interface AuthContextValue {
       birthDate?: string | null;
     },
   ) => void;
+  /** Re-fetches the current user (e.g. a just-generated birthday discount code) without a full page reload. */
+  refreshUser: () => void;
   logout: () => void;
   toast: string | null;
   notify: (message: string) => void;
@@ -142,6 +144,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
   };
 
+  const refreshUser: AuthContextValue["refreshUser"] = () => {
+    customerAuthMe()
+      .then(setUser)
+      .catch(() => {
+        // best-effort — a failed background refresh just leaves the existing user state as-is
+      });
+  };
+
   const logout = () => {
     customerLogout().catch(() => {
       // best-effort — the cookie clears client-side regardless of the request outcome
@@ -168,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     requestPasswordChange,
     confirmPasswordChange,
     updateProfile,
+    refreshUser,
     logout,
     toast,
     notify,

@@ -940,7 +940,7 @@ function SidebarDrawer({
 }
 
 function ProfilePageContent() {
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading, logout, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -967,6 +967,12 @@ function ProfilePageContent() {
   }, [requestedTab, pathname, router]);
 
   const selectTab = (tab: ProfileTab) => {
+    // AuthProvider only fetches /me once, on the very first page load — so
+    // anything that changed on the account since then (a birthday code the
+    // admin just generated, an updated wallet balance, ...) wouldn't show up
+    // without a manual browser refresh. Re-checking on every tab switch
+    // keeps it current without needing a full reload.
+    refreshUser();
     if (tab === "info") router.push(pathname, { scroll: false });
     else router.push(`${pathname}?tab=${tab}`, { scroll: false });
   };
