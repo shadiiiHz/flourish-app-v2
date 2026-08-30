@@ -45,10 +45,9 @@ export async function getActiveBirthdayDiscount(
 
 /**
  * On the customer's birthday (Tehran calendar), makes sure the admin has a
- * notification about it — once per birthday, not once per page load. Called
- * from GET /api/customers/auth/me so it fires without needing a cron job.
- * Does not create a discount code; the admin picks the percent and creates
- * it themselves from the message (see createBirthdayDiscountCode).
+ * notification about it — once per birthday, not once per check. Does not
+ * create a discount code; the admin picks the percent and creates it
+ * themselves from the message (see createBirthdayDiscountCode).
  */
 export async function ensureBirthdayMessage(
   customerId: string,
@@ -76,6 +75,36 @@ export async function ensureBirthdayMessage(
       body: `امروز تولد ${name} است. یک کد تخفیف تولد براش ایجاد کن.`,
     },
   });
+}
+
+/** Runs ensureBirthdayMessage for every customer who has a birthDate on file. */
+async function checkAllCustomerBirthdays(): Promise<void> {
+  const customers = await prisma.customer.findMany({
+    where: { birthDate: { not: null } },
+    select: { id: true, birthDate: true },
+  });
+  for (const customer of customers) {
+    await ensureBirthdayMessage(customer.id, customer.birthDate);
+  }
+}
+
+const BIRTHDAY_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Starts the daily background sweep that notifies the admin of every
+ * customer whose birthday is today, independent of whether that customer
+ * ever opens the app. This app has no external task scheduler, so a plain
+ * interval on the running Node process stands in for a cron job — call this
+ * once, from the server entrypoint, after it starts listening.
+ */
+export function startBirthdayCheckCron(): void {
+  const check = () => {
+    checkAllCustomerBirthdays().catch((err) => {
+      console.error("Failed to check customer birthdays:", err);
+    });
+  };
+  check();
+  setInterval(check, BIRTHDAY_CHECK_INTERVAL_MS);
 }
 
 /**

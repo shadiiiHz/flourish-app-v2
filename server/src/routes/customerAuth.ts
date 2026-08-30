@@ -8,7 +8,7 @@ import { loginOtpStore, passwordChangeOtpStore } from "../lib/otpStore.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { sendSms, sendPatternSms } from "../lib/sms.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
-import { ensureBirthdayMessage, getActiveBirthdayDiscount } from "../lib/birthdayDiscount.js";
+import { getActiveBirthdayDiscount } from "../lib/birthdayDiscount.js";
 
 export const customerAuthRouter = Router();
 
@@ -151,7 +151,6 @@ customerAuthRouter.get(
       res.status(401).json({ error: "کاربر یافت نشد" });
       return;
     }
-    await ensureBirthdayMessage(customer.id, customer.birthDate);
     const birthdayDiscount = await getActiveBirthdayDiscount(customer.id);
     res.json({ ...toAuthUser(customer), birthdayDiscount });
   }),
