@@ -363,6 +363,11 @@ adminOrdersRouter.delete(
       res.status(400).json({ error: "شناسه‌های نامعتبر" });
       return;
     }
+    // Any cashback already paid out for a delivered order must be clawed back
+    // from the customer's wallet before the order itself disappears.
+    for (const id of parsed.data.ids) {
+      await reverseWalletCashback(id);
+    }
     await prisma.order.deleteMany({ where: { id: { in: parsed.data.ids } } });
     res.status(204).end();
   }),
