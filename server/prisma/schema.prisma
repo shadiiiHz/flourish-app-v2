@@ -42,6 +42,7 @@ enum WalletTransactionType {
   redeem
   refund
   cashback_reversal
+  cashback_expired
 }
 
 model HeroSlide {
@@ -274,19 +275,31 @@ model Settings {
 }
 
 model WalletTransaction {
-  id           String                @id @default(cuid())
-  customerId   String
-  customer     Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  type         WalletTransactionType
+  id              String                @id @default(cuid())
+  customerId      String
+  customer        Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type            WalletTransactionType
   /**
    * Signed amount in Toman — positive for credits (cashback, refund), negative for debits (redeem).
    */
-  amount       Int
-  balanceAfter Int
-  orderId      String?
-  order        Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  note         String?
-  createdAt    DateTime              @default(now())
+  amount          Int
+  balanceAfter    Int
+  orderId         String?
+  order           Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  note            String?
+  /**
+   * Only set on "cashback" rows: how much of that specific cashback grant is
+   * still unspent. Consumed (FIFO, oldest grant first) as the customer spends
+   * from their wallet, and zeroed out early if the underlying order's
+   * cashback is reversed. Whatever is still positive once expiresAt passes
+   * gets clawed back — see expireStaleWalletCashback in lib/wallet.ts.
+   */
+  remainingAmount Int?
+  /**
+   * Only set on "cashback" rows: when this grant's one-month usage window ends.
+   */
+  expiresAt       DateTime?
+  createdAt       DateTime              @default(now())
 }
 
 model AdminUser {
