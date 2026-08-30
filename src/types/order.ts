@@ -62,13 +62,19 @@ export interface Order {
   createdAt: string;
 }
 
-export type WalletTransactionType = "cashback" | "redeem" | "refund" | "cashback_reversal";
+export type WalletTransactionType =
+  | "cashback"
+  | "redeem"
+  | "refund"
+  | "cashback_reversal"
+  | "cashback_expired";
 
 export const WALLET_TRANSACTION_TYPE_LABELS: Record<WalletTransactionType, string> = {
   cashback: "پاداش خرید",
   redeem: "استفاده در سفارش",
   refund: "بازگشت وجه",
   cashback_reversal: "کسر بابت لغو سفارش",
+  cashback_expired: "کسر بابت انقضای پاداش",
 };
 
 export interface WalletTransaction {
