@@ -1,16 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Wallet as WalletIcon } from "lucide-react";
+import { Eye, Undo2, Wallet as WalletIcon } from "lucide-react";
 import type { GridColDef } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import ConfirmModal from "@/components/ConfirmModal";
 import {
   ApiError,
   adminGetCustomerWalletTransactions,
   adminGetSettings,
   adminGetWalletCustomers,
+  adminReverseCashbackTransaction,
   adminUpdateSettings,
 } from "@/lib/api";
 import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
@@ -114,6 +116,9 @@ function AdminWalletPage() {
 
   const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomer | null>(null);
   const [transactions, setTransactions] = useState<AdminWalletTransaction[] | null>(null);
+  const [reverseTarget, setReverseTarget] = useState<AdminWalletTransaction | null>(null);
+  const [reversing, setReversing] = useState(false);
+  const [reverseError, setReverseError] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
@@ -149,6 +154,22 @@ function AdminWalletPage() {
     setTransactions(null);
     const res = await adminGetCustomerWalletTransactions(customer.id);
     setTransactions(res.items);
+  };
+
+  const handleReverseCashback = async () => {
+    if (!reverseTarget) return;
+    setReverseError(null);
+    setReversing(true);
+    try {
+      await adminReverseCashbackTransaction(reverseTarget.id);
+      setReverseTarget(null);
+      if (selectedCustomer) await openTransactions(selectedCustomer);
+      load();
+    } catch (err) {
+      setReverseError(err instanceof ApiError ? err.message : "خطا در بازگشت پاداش");
+    } finally {
+      setReversing(false);
+    }
   };
 
   const columns = useMemo<GridColDef<AdminCustomer>[]>(
@@ -249,6 +270,9 @@ function AdminWalletPage() {
                 .join(" ") || "بدون نام"}
             </DialogTitle>
             <DialogContent dividers>
+              {reverseError && (
+                <p className="mb-3 text-xs font-semibold text-danger-500">{reverseError}</p>
+              )}
               {!transactions ? (
                 <p className="text-xs text-cocoa-500">در حال بارگذاری…</p>
               ) : transactions.length > 0 ? (
@@ -266,12 +290,29 @@ function AdminWalletPage() {
                           {new Date(tx.createdAt).toLocaleDateString("fa-IR")}
                         </span>
                       </div>
-                      <span
-                        className={`font-semibold ${tx.amount >= 0 ? "text-sand-500" : "text-danger-500"}`}
-                      >
-                        {tx.amount.toLocaleString("fa-IR")}
-                        {tx.amount >= 0 ? "+" : ""} تومان
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-semibold ${tx.amount >= 0 ? "text-sand-500" : "text-danger-500"}`}
+                        >
+                          {tx.amount.toLocaleString("fa-IR")}
+                          {tx.amount >= 0 ? "+" : ""} تومان
+                        </span>
+                        {tx.type === "cashback" && tx.orderId && (
+                          <button
+                            type="button"
+                            disabled={reversing}
+                            onClick={() => {
+                              setReverseError(null);
+                              setReverseTarget(tx);
+                            }}
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-danger-500/30 text-danger-500 transition hover:bg-danger-500/10 disabled:opacity-40"
+                            aria-label="بازگرداندن این پاداش"
+                            title="بازگرداندن این پاداش"
+                          >
+                            <Undo2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -282,6 +323,19 @@ function AdminWalletPage() {
           </>
         )}
       </Dialog>
+
+      <ConfirmModal
+        isOpen={!!reverseTarget}
+        title="بازگرداندن پاداش خرید"
+        description={
+          reverseTarget
+            ? `مبلغ ${reverseTarget.amount.toLocaleString("fa-IR")} تومان از کیف پول مشتری کسر می‌شود. این کار قابل بازگشت نیست.`
+            : undefined
+        }
+        confirmLabel="بازگرداندن"
+        onConfirm={handleReverseCashback}
+        onClose={() => setReverseTarget(null)}
+      />
     </div>
   );
 }

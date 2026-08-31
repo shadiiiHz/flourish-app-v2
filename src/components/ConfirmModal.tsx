@@ -49,8 +49,10 @@ function ConfirmModal({
   return createPortal(
     <AnimatePresence>
       {isOpen && (
+        // Above MUI's Dialog (z-index 1300 by default) so a confirm prompt opened
+        // from within an already-open admin Dialog still lands on top of it.
         <motion.div
-          className="fixed inset-0 z-100 overflow-y-auto"
+          className="fixed inset-0 z-[1400] overflow-y-auto"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
