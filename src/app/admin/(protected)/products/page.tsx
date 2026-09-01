@@ -85,6 +85,11 @@ function parseWeight(weight: string | null | undefined): {
   };
 }
 
+/** A product toggled available can still be effectively out of stock — stock hits 0 via orders without isAvailable changing. */
+function isEffectivelyAvailable(row: { isAvailable: boolean; stock?: number | null }): boolean {
+  return row.isAvailable && row.stock !== 0;
+}
+
 /**
  * When the product has a finite total stock and at least one named variant,
  * every variant must carry its own stock and they must add up exactly to
@@ -544,16 +549,16 @@ function AdminProductsPage() {
         width: 110,
         align: "center",
         headerAlign: "center",
-        valueFormatter: (_, row) => (row.isAvailable ? "موجود" : "ناموجود"),
+        valueFormatter: (_, row) => (isEffectivelyAvailable(row) ? "موجود" : "ناموجود"),
         renderCell: ({ row }) => (
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold ${
-              row.isAvailable
+              isEffectivelyAvailable(row)
                 ? "bg-sand-50 text-sand-500"
                 : "bg-danger-50 text-danger-500"
             }`}
           >
-            {row.isAvailable ? "موجود" : "ناموجود"}
+            {isEffectivelyAvailable(row) ? "موجود" : "ناموجود"}
           </span>
         ),
       },
