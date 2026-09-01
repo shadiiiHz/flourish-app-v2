@@ -89,7 +89,7 @@ export interface AdminDiscountCode {
     firstName?: string | null;
     lastName?: string | null;
   } | null;
-  validOnDate?: string | null;
+  expiresAt?: string | null;
   usedAt?: string | null;
   createdAt: string;
 }

@@ -482,6 +482,18 @@ function formatJalaliDate(iso: string): string {
   }).format(d);
 }
 
+/** Formats a real ISO timestamp as a Persian (Jalali) calendar date in Tehran time, e.g. "۵ شهریور ۱۴۰۴". */
+function formatJalaliDateTehran(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("fa-IR", {
+    timeZone: "Asia/Tehran",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(d);
+}
+
 const BIRTHDAY_BURST_EMOJIS = ["🎉", "🎂", "🎈", "🥳", "✨", "🎁"];
 
 /** A one-time confetti-style emoji burst from the center of the screen, shown once when the birthday banner first appears. */
@@ -553,11 +565,11 @@ function BirthdayDiscountBanner() {
           </span>
           <div>
             <p className="font-display text-sm font-bold text-cocoa-900 sm:text-base">
-              تولدت مبارک! 🎂
+              کد تخفیف تولدت آماده‌ست! 🎂
             </p>
             <p className="mt-0.5 text-xs text-cocoa-600 sm:text-sm">
-              فلوریش امروز {toPersianDigits(String(discount.percent))}٪ تخفیف بهت هدیه داده — فقط
-              امروز و فقط یک‌بار قابل استفاده‌ست.
+              فلوریش {toPersianDigits(String(discount.percent))}٪ تخفیف تولد بهت هدیه داده — فقط
+              یک‌بار قابل استفاده‌ست و تا {formatJalaliDateTehran(discount.expiresAt)} اعتبار داره.
             </p>
           </div>
         </div>

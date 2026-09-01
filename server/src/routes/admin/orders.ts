@@ -6,7 +6,6 @@ import { parsePagination, parseSearch, paginatedResult } from "../../lib/paginat
 import { creditWalletCashback, redeemWallet, reverseWalletCashback } from "../../lib/wallet.js";
 import { calculateShipping } from "../../lib/shipping.js";
 import { TAX_RATE, getDiscountedPrice } from "../../lib/pricing.js";
-import { isSameTehranCalendarDate } from "../../lib/tehranDate.js";
 import { decrementStockForItems } from "../../lib/stock.js";
 
 export const adminOrdersRouter = Router();
@@ -149,8 +148,8 @@ adminOrdersRouter.post(
         res.status(400).json({ error: "این کد تخفیف قبلاً استفاده شده است" });
         return;
       }
-      if (discount.validOnDate && !isSameTehranCalendarDate(discount.validOnDate, new Date())) {
-        res.status(400).json({ error: "این کد تخفیف امروز معتبر نیست" });
+      if (discount.expiresAt && discount.expiresAt.getTime() < Date.now()) {
+        res.status(400).json({ error: "این کد تخفیف منقضی شده است" });
         return;
       }
       appliedDiscount = {

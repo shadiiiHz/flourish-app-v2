@@ -28,7 +28,7 @@ export interface AuthUser {
   avatar?: string;
   birthDate?: string;
   walletBalance: number;
-  birthdayDiscount?: { code: string; percent: number } | null;
+  birthdayDiscount?: { code: string; percent: number; expiresAt: string } | null;
 }
 
 export type AuthView = "otp-phone" | "otp-verify" | "password";

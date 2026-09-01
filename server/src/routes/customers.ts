@@ -5,6 +5,7 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { getDiscountedPrice } from "../lib/pricing.js";
 import { parsePagination, paginatedResult } from "../lib/pagination.js";
+import { ensureBirthdayMessage } from "../lib/birthdayDiscount.js";
 import type { Prisma } from "@prisma/client";
 
 export const customersRouter = Router();
@@ -45,6 +46,9 @@ customersRouter.patch(
           ...(birthDate !== undefined ? { birthDate: birthDate ? new Date(birthDate) : null } : {}),
         },
       });
+      if (birthDate) {
+        await ensureBirthdayMessage(customer.id, customer.birthDate);
+      }
       res.json({
         phone: customer.phone,
         hasPassword: !!customer.passwordHash,

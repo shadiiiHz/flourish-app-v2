@@ -253,8 +253,8 @@ export interface CustomerAuthUser {
   avatar?: string;
   birthDate?: string;
   walletBalance: number;
-  /** Only present on GET /me, only on the customer's birthday, only while unused. */
-  birthdayDiscount?: { code: string; percent: number } | null;
+  /** Only present on GET /me, while an unexpired birthday discount code exists for the customer and is still unused. */
+  birthdayDiscount?: { code: string; percent: number; expiresAt: string } | null;
 }
 
 export function customerRequestOtp(phone: string) {

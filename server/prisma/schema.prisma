@@ -228,8 +228,8 @@ model DiscountCode {
   /// Set only for a personal, single-customer code (e.g. birthday codes). Null means anyone can use it.
   customerId  String?
   customer    Customer?          @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  /// Restricts the code to one specific calendar day (Asia/Tehran). Null means no date restriction.
-  validOnDate DateTime?
+  /// The instant (real timestamp, e.g. 23:59:59 Asia/Tehran on a birthday) after which the code stops working. Null means no expiry.
+  expiresAt   DateTime?
   /// Set once redeemed on an order — only enforced for customer-scoped codes; generic codes stay reusable.
   usedAt      DateTime?
   createdAt   DateTime           @default(now())
