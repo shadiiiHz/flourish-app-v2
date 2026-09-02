@@ -299,6 +299,13 @@ model WalletTransaction {
    * Only set on "cashback" rows: when this grant's one-month usage window ends.
    */
   expiresAt       DateTime?
+  /**
+   * Only set on "cashback" rows whose order was deleted outright (orderId
+   * went null via onDelete: SetNull) before the grant could be reversed the
+   * normal way — marks that an admin has since clawed it back directly, so
+   * a second click is a no-op instead of double-deducting the wallet.
+   */
+  reversedAt      DateTime?
   createdAt       DateTime              @default(now())
 }
 
