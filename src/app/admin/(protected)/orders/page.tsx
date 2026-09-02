@@ -209,9 +209,9 @@ function AdminOrdersPage() {
       },
       {
         field: "total",
-        headerName: "مبلغ",
-        width: 140,
-        valueGetter: (_, row) => `${row.total.toLocaleString("fa-IR")} تومان`,
+        headerName: "مبلغ قابل پرداخت",
+        width: 150,
+        valueGetter: (_, row) => `${(row.total - row.walletAmountUsed).toLocaleString("fa-IR")} تومان`,
       },
       {
         field: "paymentStatus",
