@@ -8,6 +8,9 @@ import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import FormControl from "@mui/material/FormControl";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 import {
   ApiError,
   adminBulkDeleteProducts,
@@ -20,6 +23,7 @@ import {
   adminUploadImage,
   apiUploadUrl,
   revalidateCatalog,
+  type AdminProductStatusFilter,
   type BulkImportResult,
 } from "@/lib/api";
 import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
@@ -168,6 +172,8 @@ function AdminProductsPage() {
   );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<AdminProductStatusFilter | "all">("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>({
     type: "include",
@@ -192,7 +198,13 @@ function AdminProductsPage() {
 
   const fetchAll = () =>
     Promise.all([
-      adminGetProducts(page, pageSize, debouncedSearch),
+      adminGetProducts(
+        page,
+        pageSize,
+        debouncedSearch,
+        categoryFilter === "all" ? "" : categoryFilter,
+        statusFilter === "all" ? undefined : statusFilter,
+      ),
       adminGetAllCategories(),
     ]).then(([p, c]) => {
       setProducts(p.items);
@@ -215,16 +227,16 @@ function AdminProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, categoryFilter, statusFilter]);
 
   useEffect(() => {
     setLoading(true);
     fetchAll().finally(() => setLoading(false));
-  }, [page, pageSize, debouncedSearch]);
+  }, [page, pageSize, debouncedSearch, categoryFilter, statusFilter]);
 
   useEffect(() => {
     setSelectionModel({ type: "include", ids: new Set() });
-  }, [page, pageSize, debouncedSearch]);
+  }, [page, pageSize, debouncedSearch, categoryFilter, statusFilter]);
 
   const handleQueryChange = useCallback((query: QueryType) => {
     setPage(query.page + 1);
@@ -645,9 +657,17 @@ function AdminProductsPage() {
   );
 
   const handleExportAll = useCallback(async () => {
-    const all = await fetchAllPages((p, ps) => adminGetProducts(p, ps, debouncedSearch));
+    const all = await fetchAllPages((p, ps) =>
+      adminGetProducts(
+        p,
+        ps,
+        debouncedSearch,
+        categoryFilter === "all" ? "" : categoryFilter,
+        statusFilter === "all" ? undefined : statusFilter,
+      ),
+    );
     downloadCsv("products.csv", buildCsv(csvExportColumns, all));
-  }, [csvExportColumns, debouncedSearch]);
+  }, [csvExportColumns, debouncedSearch, categoryFilter, statusFilter]);
 
   return (
     <div>
@@ -1169,7 +1189,35 @@ function AdminProductsPage() {
         </button>
       </form>
 
-      <div className="mt-6 overflow-hidden rounded-[1.5rem] border border-sand-100 bg-white">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <Select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            sx={{ borderRadius: 999, fontSize: 13, fontWeight: 700 }}
+          >
+            <MenuItem value="all">همه دسته‌بندی‌ها</MenuItem>
+            {categories.map((c) => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.title}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as AdminProductStatusFilter | "all")}
+            sx={{ borderRadius: 999, fontSize: 13, fontWeight: 700 }}
+          >
+            <MenuItem value="all">همه وضعیت‌ها</MenuItem>
+            <MenuItem value="available">موجود</MenuItem>
+            <MenuItem value="unavailable">ناموجود</MenuItem>
+          </Select>
+        </FormControl>
+      </div>
+
+      <div className="mt-3 overflow-hidden rounded-[1.5rem] border border-sand-100 bg-white">
         <CustomDataGrid<AdminProduct>
           rows={products}
           rowCount={total}

@@ -47,23 +47,54 @@ const productSchema = z.object({
   variants: z.array(variantSchema).optional(),
 });
 
+const productStatusValues = ["available", "unavailable"] as const;
+type ProductStatusFilter = (typeof productStatusValues)[number];
+
+function parseProductStatus(req: Parameters<typeof parseSearch>[0]): ProductStatusFilter | undefined {
+  const value = req.query.status;
+  return typeof value === "string" && (productStatusValues as readonly string[]).includes(value)
+    ? (value as ProductStatusFilter)
+    : undefined;
+}
+
 adminProductsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const search = parseSearch(req);
+    const categoryId = typeof req.query.categoryId === "string" ? req.query.categoryId : undefined;
+    const status = parseProductStatus(req);
     // Combo products (no category, homepage-only) are managed on their own
-    // admin tab — never mix them into the regular catalog product list.
+    // admin tab and normally never mix into the regular catalog product
+    // list — except the manual-order product search, which opts in via
+    // includeCombo since a combo is a valid order line item too.
+    const includeCombo = req.query.includeCombo === "true";
+    // Each filter is its own entry in AND rather than spread into the same
+    // object, since the search and status filters each need their own OR —
+    // merging them at the top level would let one silently clobber the other.
     const where: Prisma.ProductWhereInput = {
-      isCombo: false,
-      ...(search
-        ? {
-            OR: [
-              { title: { contains: search, mode: "insensitive" as const } },
-              { description: { contains: search, mode: "insensitive" as const } },
-              { category: { title: { contains: search, mode: "insensitive" as const } } },
-            ],
-          }
-        : {}),
+      ...(includeCombo ? {} : { isCombo: false }),
+      ...(categoryId ? { categoryId } : {}),
+      AND: [
+        ...(search
+          ? [
+              {
+                OR: [
+                  { title: { contains: search, mode: "insensitive" as const } },
+                  { description: { contains: search, mode: "insensitive" as const } },
+                  { category: { title: { contains: search, mode: "insensitive" as const } } },
+                ],
+              },
+            ]
+          : []),
+        // Mirrors isEffectivelyAvailable on the admin frontend: a product
+        // toggled available can still be effectively out of stock, and that
+        // should count as "unavailable" here too, not just isAvailable itself.
+        ...(status === "available"
+          ? [{ isAvailable: true, OR: [{ stock: null }, { stock: { not: 0 } }] }]
+          : status === "unavailable"
+            ? [{ OR: [{ isAvailable: false }, { stock: 0 }] }]
+            : []),
+      ],
     };
 
     const pagination = parsePagination(req);

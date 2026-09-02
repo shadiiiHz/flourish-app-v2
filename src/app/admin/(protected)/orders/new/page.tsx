@@ -82,7 +82,9 @@ function AdminNewOrderPage() {
       return;
     }
     const timer = window.setTimeout(() => {
-      adminGetProducts(1, 8, productSearch).then((res) => setProductResults(res.items));
+      adminGetProducts(1, 8, productSearch, "", undefined, true).then((res) =>
+        setProductResults(res.items),
+      );
     }, 300);
     return () => window.clearTimeout(timer);
   }, [productSearch]);
@@ -238,7 +240,7 @@ function AdminNewOrderPage() {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-6xl">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-xl font-bold text-cocoa-900">ثبت سفارش دستی</h1>
         <Link
@@ -250,8 +252,10 @@ function AdminNewOrderPage() {
         </Link>
       </div>
 
+      <div className="mt-5 grid items-stretch gap-4 lg:grid-cols-2">
+
       {/* Customer */}
-      <div className="mt-5 rounded-[1.5rem] border border-sand-100 bg-white p-5">
+      <div className="rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <h2 className="text-sm font-bold text-cocoa-900">مشتری</h2>
 
         {selectedCustomer ? (
@@ -346,7 +350,7 @@ function AdminNewOrderPage() {
       </div>
 
       {/* Products */}
-      <div className="mt-4 rounded-[1.5rem] border border-sand-100 bg-white p-5">
+      <div className="rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-cocoa-900">محصولات</h2>
           <div className="flex gap-2">
@@ -499,8 +503,12 @@ function AdminNewOrderPage() {
         )}
       </div>
 
+      </div>
+
+      <div className="mt-4 grid items-stretch gap-4 lg:grid-cols-3">
+
       {/* Delivery */}
-      <div className="mt-4 rounded-[1.5rem] border border-sand-100 bg-white p-5">
+      <div className="rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <h2 className="text-sm font-bold text-cocoa-900">تحویل</h2>
         <div className="mt-3 flex gap-2">
           <button
@@ -582,7 +590,7 @@ function AdminNewOrderPage() {
       </div>
 
       {/* Discount + wallet */}
-      <div className="mt-4 rounded-[1.5rem] border border-sand-100 bg-white p-5">
+      <div className="rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <h2 className="text-sm font-bold text-cocoa-900">تخفیف و کیف پول</h2>
         <div className="mt-3">
           <label className="mb-1 block text-xs font-semibold text-cocoa-600">کد تخفیف</label>
@@ -660,7 +668,7 @@ function AdminNewOrderPage() {
       </div>
 
       {/* Payment status + note */}
-      <div className="mt-4 rounded-[1.5rem] border border-sand-100 bg-white p-5">
+      <div className="rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <h2 className="text-sm font-bold text-cocoa-900">وضعیت پرداخت</h2>
         <div className="mt-3 flex gap-2">
           <button
@@ -702,6 +710,8 @@ function AdminNewOrderPage() {
           rows={2}
           className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
         />
+      </div>
+
       </div>
 
       {error && <p className="mt-4 text-xs font-semibold text-danger-500">{error}</p>}

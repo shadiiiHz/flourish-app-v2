@@ -604,9 +604,21 @@ export function adminBulkDeleteComboProducts(ids: string[]) {
   return adminBulkDelete("/api/admin/combo", ids);
 }
 
-export function adminGetProducts(page = 1, pageSize = 20, search = "") {
+export type AdminProductStatusFilter = "available" | "unavailable";
+
+export function adminGetProducts(
+  page = 1,
+  pageSize = 20,
+  search = "",
+  categoryId = "",
+  status?: AdminProductStatusFilter,
+  includeCombo = false,
+) {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) params.set("search", search);
+  if (categoryId) params.set("categoryId", categoryId);
+  if (status) params.set("status", status);
+  if (includeCombo) params.set("includeCombo", "true");
   return apiFetch<Paginated<AdminProduct>>(`/api/admin/products?${params.toString()}`);
 }
 
