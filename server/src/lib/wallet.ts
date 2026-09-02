@@ -124,17 +124,39 @@ export async function creditWalletCashback(orderId: string) {
   });
 }
 
-/** Reverses previously-credited cashback for a cancelled order. No-op if no cashback was credited. */
+/**
+ * Reverses previously-credited cashback for a cancelled order. Only claws
+ * back what the customer hasn't already spent elsewhere (the grant's
+ * remainingAmount) — money genuinely spent from a since-cancelled grant is
+ * gone, not still sitting in the wallet, so clawing back the full original
+ * amount would over-deduct. No-op if no cashback was credited.
+ */
 export async function reverseWalletCashback(orderId: string) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !order.customerId || order.walletCashbackAmount <= 0) return;
   await prisma.$transaction(async (tx) => {
-    const claimed = await tx.order.updateMany({
+    const claimedOrder = await tx.order.updateMany({
       where: { id: order.id, walletCashbackAmount: { gt: 0 } },
       data: { walletCashbackAmount: 0 },
     });
-    if (claimed.count === 0) return;
-    const reversedAmount = order.walletCashbackAmount;
+    if (claimedOrder.count === 0) return;
+
+    const lot = await tx.walletTransaction.findFirst({
+      where: { orderId: order.id, type: "cashback" },
+    });
+    // The grant is being closed out now either way — settle it so
+    // expireStaleWalletCashback and the admin UI both leave it alone from
+    // here on, regardless of how much (if any) is actually clawed back below.
+    if (lot) {
+      await tx.walletTransaction.update({
+        where: { id: lot.id },
+        data: { remainingAmount: 0, reversedAt: new Date() },
+      });
+    }
+
+    const reversedAmount = lot?.remainingAmount ?? 0;
+    if (reversedAmount <= 0) return;
+
     const customer = await tx.customer.update({
       where: { id: order.customerId! },
       data: { walletBalance: { decrement: reversedAmount } },
@@ -148,12 +170,6 @@ export async function reverseWalletCashback(orderId: string) {
         balanceAfter: customer.walletBalance,
         note: "لغو پاداش خرید به دلیل لغو سفارش",
       },
-    });
-    // The original grant is fully undone here, not merely spent — clear its
-    // remaining balance so expireStaleWalletCashback never claws it back too.
-    await tx.walletTransaction.updateMany({
-      where: { orderId: order.id, type: "cashback", remainingAmount: { gt: 0 } },
-      data: { remainingAmount: 0 },
     });
   });
 }
@@ -179,9 +195,12 @@ export async function expireStaleWalletCashback(customerId?: string): Promise<vo
       // Atomically claim this lot so a concurrent sweep can't double-expire it.
       const current = await tx.walletTransaction.findUnique({ where: { id: lot.id } });
       if (!current || (current.remainingAmount ?? 0) <= 0) return;
+      // Marks the lot settled (reversedAt) as well as spent, so the admin
+      // "reverse this grant" button can't later double-deduct a grant the
+      // expiry sweep already clawed back.
       const claimed = await tx.walletTransaction.updateMany({
         where: { id: lot.id, remainingAmount: { gt: 0 } },
-        data: { remainingAmount: 0 },
+        data: { remainingAmount: 0, reversedAt: new Date() },
       });
       if (claimed.count === 0) return;
       const customer = await tx.customer.findUnique({ where: { id: lot.customerId } });

@@ -912,7 +912,3 @@ export function adminGetCustomerWalletTransactions(customerId: string, page = 1,
     `/api/admin/wallet/customers/${customerId}/transactions?${params.toString()}`,
   );
 }
-
-export function adminReverseCashbackTransaction(transactionId: string) {
-  return apiFetch(`/api/admin/wallet/transactions/${transactionId}/reverse`, { method: "POST" });
-}
