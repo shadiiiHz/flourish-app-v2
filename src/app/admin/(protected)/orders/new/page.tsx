@@ -57,6 +57,8 @@ function AdminNewOrderPage() {
   const [shippingCost, setShippingCost] = useState("");
   const [discountCode, setDiscountCode] = useState("");
   const [useWallet, setUseWallet] = useState(false);
+  const [walletMode, setWalletMode] = useState<"full" | "partial">("full");
+  const [walletAmount, setWalletAmount] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid">("pending");
   const [note, setNote] = useState("");
 
@@ -187,6 +189,23 @@ function AdminNewOrderPage() {
       setError("برای ارسال، یک آدرس (ثبت‌شده یا دستی) مشخص کنید");
       return;
     }
+    let walletAmountToUse: number | undefined;
+    if (useWallet && customerDetail) {
+      if (walletMode === "full") {
+        walletAmountToUse = customerDetail.walletBalance;
+      } else {
+        const entered = Number(walletAmount);
+        if (!walletAmount || entered <= 0) {
+          setError("مبلغی که می‌خوای از کیف پول استفاده بشه را وارد کن");
+          return;
+        }
+        if (entered > customerDetail.walletBalance) {
+          setError("مبلغ وارد شده از موجودی کیف پول مشتری بیشتر است");
+          return;
+        }
+        walletAmountToUse = entered;
+      }
+    }
     setSubmitting(true);
     try {
       const payload: AdminCreateOrderPayload = {
@@ -205,7 +224,7 @@ function AdminNewOrderPage() {
         addressText: deliveryMethod === "delivery" && !addressId ? addressText.trim() : undefined,
         shippingCost: shippingCost ? Number(shippingCost) : undefined,
         discountCode: discountCode.trim() || undefined,
-        useWallet,
+        walletAmount: walletAmountToUse,
         paymentStatus,
         note: note.trim() || undefined,
       };
@@ -590,6 +609,54 @@ function AdminNewOrderPage() {
             </span>
           )}
         </label>
+
+        {useWallet && customerDetail && customerDetail.walletBalance > 0 && (
+          <div className="mt-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setWalletMode("full")}
+                className={`rounded-full px-4 py-2 text-xs font-bold transition ${
+                  walletMode === "full"
+                    ? "bg-sand-500 text-white"
+                    : "border border-cocoa-900/10 text-cocoa-700"
+                }`}
+              >
+                استفاده از کل موجودی
+              </button>
+              <button
+                type="button"
+                onClick={() => setWalletMode("partial")}
+                className={`rounded-full px-4 py-2 text-xs font-bold transition ${
+                  walletMode === "partial"
+                    ? "bg-sand-500 text-white"
+                    : "border border-cocoa-900/10 text-cocoa-700"
+                }`}
+              >
+                استفاده از بخشی از آن
+              </button>
+            </div>
+            {walletMode === "partial" && (
+              <div className="mt-3">
+                <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                  مبلغ مصرفی از کیف پول (تومان)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  dir="ltr"
+                  value={formatThousands(walletAmount)}
+                  onChange={(e) => setWalletAmount(digitsOnly(e.target.value))}
+                  placeholder="0"
+                  className="w-full max-w-xs rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                />
+                <p className="mt-1.5 text-xs text-cocoa-500">
+                  حداکثر {money(customerDetail.walletBalance)} — باقی‌مانده در کیف پول مشتری می‌ماند.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Payment status + note */}

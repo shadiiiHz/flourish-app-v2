@@ -702,7 +702,8 @@ export interface AdminCreateOrderPayload {
   addressText?: string;
   shippingCost?: number;
   discountCode?: string;
-  useWallet?: boolean;
+  /** Toman amount to redeem from the customer's wallet for this order — capped server-side at their balance and the order total. Omit to skip the wallet entirely. */
+  walletAmount?: number;
   paymentStatus: "pending" | "paid";
   customerName?: string;
   note?: string;

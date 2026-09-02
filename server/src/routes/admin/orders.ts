@@ -81,7 +81,8 @@ const createOrderSchema = z
     addressText: z.string().optional(),
     shippingCost: z.number().int().nonnegative().optional(),
     discountCode: z.string().trim().min(1).optional(),
-    useWallet: z.boolean().optional().default(false),
+    /** Toman amount to redeem from the customer's wallet — clamped below at their balance and the order total. Omit/0 to skip the wallet. */
+    walletAmount: z.number().int().nonnegative().optional(),
     paymentStatus: z.enum(["pending", "paid"]).default("pending"),
     customerName: z.string().optional(),
     note: z.string().optional(),
@@ -119,7 +120,7 @@ adminOrdersRouter.post(
       addressText,
       shippingCost: manualShippingCost,
       discountCode,
-      useWallet,
+      walletAmount,
       paymentStatus,
       customerName,
       note,
@@ -250,8 +251,8 @@ adminOrdersRouter.post(
     const total = subtotal - discountAmount + tax + finalShippingCost;
 
     let walletAmountUsed = 0;
-    if (useWallet && customer.walletBalance > 0) {
-      walletAmountUsed = Math.min(customer.walletBalance, total);
+    if (walletAmount && walletAmount > 0) {
+      walletAmountUsed = Math.min(walletAmount, customer.walletBalance, total);
     }
 
     const order = await prisma.order.create({

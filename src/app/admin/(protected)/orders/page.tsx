@@ -397,6 +397,23 @@ function AdminOrdersPage() {
                 </div>
               )}
 
+              {!!selectedOrder.walletAmountUsed && (
+                <div className="mt-1 flex items-center justify-between text-sm">
+                  <span className="text-cocoa-600">استفاده از کیف پول</span>
+                  <span className="font-semibold text-danger-500">
+                    {selectedOrder.walletAmountUsed.toLocaleString("fa-IR")}- تومان
+                  </span>
+                </div>
+              )}
+
+              <div className="mt-1 flex items-center justify-between border-t border-sand-100 pt-2 text-sm">
+                <span className="font-semibold text-cocoa-700">مبلغ قابل پرداخت</span>
+                <span className="font-bold text-cocoa-900">
+                  {(selectedOrder.total - selectedOrder.walletAmountUsed).toLocaleString("fa-IR")}{" "}
+                  تومان
+                </span>
+              </div>
+
               {selectedOrder.addressText && (
                 <div className="mt-2 flex items-start justify-between gap-3 text-sm">
                   <span className="shrink-0 text-cocoa-600">آدرس تحویل</span>
