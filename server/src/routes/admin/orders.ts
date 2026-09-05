@@ -3,7 +3,12 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
-import { creditWalletCashback, redeemWallet, reverseWalletCashback } from "../../lib/wallet.js";
+import {
+  creditWalletCashback,
+  redeemWallet,
+  refundWalletHold,
+  reverseWalletCashback,
+} from "../../lib/wallet.js";
 import { calculateShipping } from "../../lib/shipping.js";
 import { TAX_RATE, getDiscountedPrice } from "../../lib/pricing.js";
 import { decrementStockForItems } from "../../lib/stock.js";
@@ -367,6 +372,7 @@ adminOrdersRouter.patch(
       await creditWalletCashback(order.id);
     } else if (parsed.data.status === "cancelled") {
       await reverseWalletCashback(order.id);
+      await refundWalletHold(order.id, "بازگشت وجه کیف پول به دلیل لغو سفارش");
     }
     res.json(order);
   }),
@@ -380,10 +386,11 @@ adminOrdersRouter.delete(
       res.status(400).json({ error: "شناسه‌های نامعتبر" });
       return;
     }
-    // Any cashback already paid out for a delivered order must be clawed back
-    // from the customer's wallet before the order itself disappears.
+    // Any cashback already paid out, and any wallet amount already spent on
+    // the order, must be reversed/refunded before the order itself disappears.
     for (const id of parsed.data.ids) {
       await reverseWalletCashback(id);
+      await refundWalletHold(id, "بازگشت وجه کیف پول به دلیل حذف سفارش");
     }
     await prisma.order.deleteMany({ where: { id: { in: parsed.data.ids } } });
     res.status(204).end();

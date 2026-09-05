@@ -56,8 +56,16 @@ export async function redeemWallet(customerId: string, amount: number, orderId: 
   });
 }
 
-/** Reverses a wallet redemption for an order whose payment ultimately failed. Safe to call once. */
-export async function refundWalletHold(orderId: string) {
+/**
+ * Reverses a wallet redemption held against an order — e.g. a payment that
+ * ultimately failed, or an order that got cancelled/deleted after the
+ * customer's wallet was already debited for it. Safe to call once; a second
+ * call is a no-op since walletAmountUsed is zeroed after the first refund.
+ */
+export async function refundWalletHold(
+  orderId: string,
+  note = "بازگشت وجه به دلیل ناموفق بودن پرداخت",
+) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !order.customerId || order.walletAmountUsed <= 0) return;
   await prisma.$transaction(async (tx) => {
@@ -72,7 +80,7 @@ export async function refundWalletHold(orderId: string) {
         type: "refund",
         amount: order.walletAmountUsed,
         balanceAfter: customer.walletBalance,
-        note: "بازگشت وجه به دلیل ناموفق بودن پرداخت",
+        note,
       },
     });
     await tx.order.update({ where: { id: order.id }, data: { walletAmountUsed: 0 } });
