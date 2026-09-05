@@ -26,6 +26,7 @@ interface OrderLine {
   unitPrice: number;
   quantity: number;
   maxStock?: number | null;
+  pickupOnly: boolean;
 }
 
 function money(n: number) {
@@ -147,6 +148,7 @@ function AdminNewOrderPage() {
           unitPrice: variant ? variant.price : product.price,
           quantity: 1,
           maxStock,
+          pickupOnly: product.pickupOnly,
         },
       ];
     });
@@ -186,6 +188,13 @@ function AdminNewOrderPage() {
     } else if (items.length === 0) {
       setError("حداقل یک محصول اضافه کنید");
       return;
+    }
+    if (deliveryMethod === "delivery" && !manualMode) {
+      const pickupOnlyItem = items.find((i) => i.pickupOnly);
+      if (pickupOnlyItem) {
+        setError(`«${pickupOnlyItem.title}» فقط با تحویل حضوری قابل سفارش است`);
+        return;
+      }
     }
     if (deliveryMethod === "delivery" && !addressId && !addressText.trim()) {
       setError("برای ارسال، یک آدرس (ثبت‌شده یا دستی) مشخص کنید");
@@ -422,6 +431,11 @@ function AdminNewOrderPage() {
                       >
                         <span>
                           {product.title} — {variant.title}
+                          {product.pickupOnly && (
+                            <span className="mr-1.5 text-xs font-semibold text-cocoa-500">
+                              (فقط حضوری)
+                            </span>
+                          )}
                         </span>
                         <span className="text-xs font-semibold text-cocoa-600">
                           {money(variant.price)}
@@ -436,7 +450,14 @@ function AdminNewOrderPage() {
                       onClick={() => addLine(product)}
                       className="flex items-center justify-between rounded-xl border border-cocoa-900/10 px-3 py-2 text-right text-sm hover:bg-sand-50"
                     >
-                      <span>{product.title}</span>
+                      <span>
+                        {product.title}
+                        {product.pickupOnly && (
+                          <span className="mr-1.5 text-xs font-semibold text-cocoa-500">
+                            (فقط حضوری)
+                          </span>
+                        )}
+                      </span>
                       <span className="text-xs font-semibold text-cocoa-600">
                         {money(product.price)}
                         {product.stock != null && ` (موجودی: ${product.stock.toLocaleString("fa-IR")})`}

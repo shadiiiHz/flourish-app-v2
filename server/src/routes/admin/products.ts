@@ -43,6 +43,7 @@ const productSchema = z.object({
   isNew: z.boolean().optional(),
   isAvailable: z.boolean().optional(),
   allowPreorder: z.boolean().optional(),
+  pickupOnly: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   variants: z.array(variantSchema).optional(),
 });
@@ -294,6 +295,7 @@ adminProductsRouter.post(
           isNew: parseBoolean(row["جدید"], false),
           isAvailable: parseBoolean(row["موجود"], true),
           allowPreorder: parseBoolean(row["پیش‌سفارش"], true),
+          pickupOnly: parseBoolean(row["فقط تحویل حضوری"], false),
           variants: variantsResult.variants.length
             ? { create: variantsResult.variants }
             : undefined,

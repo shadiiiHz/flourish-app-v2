@@ -198,6 +198,12 @@ adminOrdersRouter.post(
           res.status(400).json({ error: `نوع انتخاب‌شده برای «${product.title}» یافت نشد` });
           return;
         }
+        if (deliveryMethod === "delivery" && product.pickupOnly) {
+          res
+            .status(400)
+            .json({ error: `«${product.title}» فقط با تحویل حضوری قابل سفارش است` });
+          return;
+        }
         const basePrice = variant ? variant.price : product.price;
         orderItems.push({
           productId: product.id,

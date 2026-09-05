@@ -261,6 +261,7 @@ function mapCartItem(item: CartItemWithRelations, orderType: z.infer<typeof orde
     image: item.variant?.image ?? item.product.images[0],
     quantity: item.quantity,
     maxQuantity: unlimited ? null : item.variant ? item.variant.stock : item.product.stock,
+    pickupOnly: item.product.pickupOnly,
   };
 }
 

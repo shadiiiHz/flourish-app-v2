@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Store } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import ProductImageSlider from "./ProductImageSlider";
 import ProductModal from "./ProductModal";
@@ -60,6 +60,12 @@ function ProductCard({
           {item.comboDaysLeft !== undefined && (
             <span className="pointer-events-none absolute -left-9 top-4 z-20 flex h-6 w-32 -rotate-45 items-center justify-center bg-sand-400 text-center text-[10px] font-bold leading-none text-white shadow-[0_6px_16px_-6px_rgba(0,0,0,0.55)]">
               {item.comboDaysLeft.toLocaleString("fa-IR")} روز مانده
+            </span>
+          )}
+          {item.pickupOnly && (
+            <span className="absolute bottom-2 right-2 z-20 flex items-center gap-1 rounded-full bg-cocoa-700 px-2 py-1 text-[10px] font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,0,0,0.55)]">
+              <Store className="h-3 w-3" />
+              تحویل حضوری
             </span>
           )}
           <ProductImageSlider

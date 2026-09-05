@@ -161,6 +161,15 @@ ordersRouter.post(
         return;
       }
     }
+    if (deliveryMethod === "delivery") {
+      const pickupOnlyItem = cartItems.find((item) => item.product.pickupOnly);
+      if (pickupOnlyItem) {
+        res
+          .status(400)
+          .json({ error: `«${pickupOnlyItem.product.title}» فقط با تحویل حضوری قابل سفارش است` });
+        return;
+      }
+    }
 
     const orderItems = cartItems.map((item) => {
       const basePrice = item.variant ? item.variant.price : item.product.price;

@@ -83,6 +83,8 @@ model Product {
   isNew                Boolean          @default(false)
   isAvailable          Boolean          @default(true)
   allowPreorder        Boolean          @default(true)
+  /// When set, this item can only be ordered for in-person pickup — delivery is rejected for it at checkout.
+  pickupOnly           Boolean          @default(false)
   sortOrder            Int              @default(0)
   /// Homepage-only combo item (no category) shown in its own section, never on /menu.
   isCombo              Boolean          @default(false)

@@ -32,6 +32,7 @@ export interface CartLine {
   image?: string;
   quantity: number;
   maxQuantity?: number;
+  pickupOnly: boolean;
 }
 
 interface CartLineInternal extends CartLine {
@@ -77,6 +78,7 @@ function mapApiCartItem(item: ApiCartItem): CartLineInternal {
     image: item.image ? apiUploadUrl(item.image) : undefined,
     quantity: item.quantity,
     maxQuantity: item.maxQuantity ?? undefined,
+    pickupOnly: item.pickupOnly,
   };
 }
 
@@ -164,6 +166,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         image: variant?.image || item.images[0],
         quantity: initialQuantity,
         maxQuantity,
+        pickupOnly: item.pickupOnly,
       },
     ]);
     const createPromise = addMyCartItem({

@@ -48,6 +48,8 @@ export interface AdminProduct {
   isNew: boolean;
   isAvailable: boolean;
   allowPreorder: boolean;
+  /** When set, this product can only be ordered for in-person pickup — delivery is rejected for it at checkout. */
+  pickupOnly: boolean;
   sortOrder: number;
   variants: AdminVariant[];
 }
@@ -62,6 +64,8 @@ export interface AdminComboProduct {
   isAvailable: boolean;
   /** Null/undefined means unlimited. When set and the combo has variants, each variant's stock must be set and sum to this. */
   stock?: number | null;
+  /** When set, this combo can only be ordered for in-person pickup — delivery is rejected for it at checkout. */
+  pickupOnly: boolean;
   sortOrder: number;
   /** Null means it stays until manually deleted. */
   comboExpiresAt?: string | null;

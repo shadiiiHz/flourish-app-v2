@@ -117,6 +117,7 @@ interface ApiProduct {
   stock?: number | null;
   isAvailable: boolean;
   allowPreorder: boolean;
+  pickupOnly: boolean;
   variants: ApiVariant[];
 }
 
@@ -166,6 +167,7 @@ function mapProduct(p: ApiProduct, categoryTitle: string): MenuItem {
     stock: p.stock ?? undefined,
     isAvailable: p.isAvailable,
     allowPreorder: p.allowPreorder,
+    pickupOnly: p.pickupOnly,
     variants: p.variants.length > 0 ? p.variants.map(mapVariant) : undefined,
   };
 }
@@ -389,6 +391,7 @@ export interface ApiCartItem {
   image?: string | null;
   quantity: number;
   maxQuantity?: number | null;
+  pickupOnly: boolean;
 }
 
 export interface AddCartItemPayload {

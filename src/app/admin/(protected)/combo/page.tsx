@@ -38,6 +38,7 @@ interface FormValues {
   noExpiry: boolean;
   expiresAt: string;
   showExpiryBadge: boolean;
+  pickupOnly: boolean;
   variants: AdminVariant[];
 }
 
@@ -51,6 +52,7 @@ const EMPTY_FORM: FormValues = {
   noExpiry: true,
   expiresAt: "",
   showExpiryBadge: false,
+  pickupOnly: false,
   variants: [],
 };
 
@@ -203,6 +205,7 @@ function AdminComboPage() {
           stock: values.stock ? Number(values.stock) : null,
           comboExpiresAt: values.noExpiry ? null : localDateTimeToIso(values.expiresAt),
           comboShowExpiryBadge: !values.noExpiry && values.showExpiryBadge,
+          pickupOnly: values.pickupOnly,
           variants: values.variants
             .filter((v) => v.title.trim())
             .map((v) => ({
@@ -250,6 +253,7 @@ function AdminComboPage() {
         noExpiry: !item.comboExpiresAt,
         expiresAt: isoToLocalDateTime(item.comboExpiresAt),
         showExpiryBadge: !!item.comboShowExpiryBadge,
+        pickupOnly: item.pickupOnly,
         variants: item.variants,
       },
     });
@@ -386,6 +390,22 @@ function AdminComboPage() {
             </span>
           );
         },
+      },
+      {
+        field: "pickupOnly",
+        headerName: "تحویل",
+        width: 110,
+        align: "center",
+        headerAlign: "center",
+        valueFormatter: (_, row) => (row.pickupOnly ? "فقط حضوری" : "ارسال و حضوری"),
+        renderCell: ({ row }) =>
+          row.pickupOnly ? (
+            <span className="rounded-full bg-cocoa-700/10 px-2.5 py-1 text-xs font-bold text-cocoa-700">
+              فقط حضوری
+            </span>
+          ) : (
+            <span className="text-cocoa-500">ارسال و حضوری</span>
+          ),
       },
       {
         field: "actions",
@@ -620,6 +640,18 @@ function AdminComboPage() {
                 </label>
               </div>
             )}
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+              <input
+                type="checkbox"
+                checked={formik.values.pickupOnly}
+                onChange={(e) => formik.setFieldValue("pickupOnly", e.target.checked)}
+                className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+              />
+              فقط تحویل حضوری (ارسال برای این کمبو غیرفعال باشد)
+            </label>
           </div>
         </div>
 

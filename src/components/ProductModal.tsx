@@ -106,11 +106,18 @@ function ProductModal({
 
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 sm:p-7">
           <div>
-            {categoryTitle && (
-              <span className="mb-2 inline-block rounded-full bg-sand-50 px-3 py-1 text-[11px] font-semibold text-sand-400">
-                {categoryTitle}
-              </span>
-            )}
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              {categoryTitle && (
+                <span className="inline-block rounded-full bg-sand-50 px-3 py-1 text-[11px] font-semibold text-sand-400">
+                  {categoryTitle}
+                </span>
+              )}
+              {item.pickupOnly && (
+                <span className="inline-block rounded-full bg-cocoa-700/10 px-3 py-1 text-[11px] font-semibold text-cocoa-700">
+                  فقط تحویل حضوری
+                </span>
+              )}
+            </div>
             <h2
               id="product-modal-title"
               className="font-display text-xl font-bold text-cocoa-900 sm:text-2xl"

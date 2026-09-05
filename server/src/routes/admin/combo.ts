@@ -24,6 +24,7 @@ const comboSchema = z.object({
   images: z.array(z.string()).optional(),
   isAvailable: z.boolean().optional(),
   stock: z.number().int().nonnegative().nullable().optional(),
+  pickupOnly: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   /** ISO datetime string, or null to keep the combo up until it's manually deleted. */
   comboExpiresAt: z.string().datetime().nullable().optional(),

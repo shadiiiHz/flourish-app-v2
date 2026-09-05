@@ -78,6 +78,14 @@ function CheckoutPage() {
     if (!authLoading && !isAuthenticated) router.replace("/");
   }, [authLoading, isAuthenticated, router]);
 
+  const pickupOnlyItem = lines.find((l) => l.pickupOnly);
+
+  useEffect(() => {
+    if (pickupOnlyItem && deliveryMethod === "delivery") {
+      setDeliveryMethod("pickup");
+    }
+  }, [pickupOnlyItem, deliveryMethod]);
+
   useEffect(() => {
     if (lines.length === 0) router.replace("/menu");
   }, [lines.length, router]);
@@ -285,14 +293,16 @@ function CheckoutPage() {
                 ] as const
               ).map(({ id, label }) => {
                 const isSelected = deliveryMethod === id;
+                const isDisabled = id === "delivery" && !!pickupOnlyItem;
                 return (
                   <button
                     key={id}
                     type="button"
+                    disabled={isDisabled}
                     onClick={() => setDeliveryMethod(id)}
                     className={`flex flex-1 items-center justify-between gap-2 rounded-2xl border p-3.5 text-right transition ${
                       isSelected ? "border-sand-400 bg-sand-50/60" : "border-sand-100 bg-white"
-                    }`}
+                    } ${isDisabled ? "cursor-not-allowed opacity-40" : ""}`}
                   >
                     <span className="text-sm font-semibold text-cocoa-900">{label}</span>
                     <span
@@ -306,6 +316,12 @@ function CheckoutPage() {
                 );
               })}
             </div>
+            {pickupOnlyItem && (
+              <p className="mt-3 text-xs font-semibold text-cocoa-500">
+                «{pickupOnlyItem.title}» فقط با تحویل حضوری قابل سفارش است، پس ارسال برای این
+                سفارش غیرفعال شده.
+              </p>
+            )}
           </GlassCard>
 
           {deliveryMethod === "pickup" ? (

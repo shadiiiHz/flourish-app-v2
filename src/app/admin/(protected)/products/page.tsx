@@ -54,6 +54,7 @@ interface FormValues {
   isNew: boolean;
   isAvailable: boolean;
   allowPreorder: boolean;
+  pickupOnly: boolean;
   sortOrder: string;
   variants: AdminVariant[];
 }
@@ -73,6 +74,7 @@ const EMPTY_FORM: FormValues = {
   isNew: false,
   isAvailable: true,
   allowPreorder: true,
+  pickupOnly: false,
   sortOrder: "",
   variants: [],
 };
@@ -273,6 +275,7 @@ function AdminProductsPage() {
           isNew: values.isNew,
           isAvailable: values.isAvailable,
           allowPreorder: values.allowPreorder,
+          pickupOnly: values.pickupOnly,
           sortOrder: Number(values.sortOrder) || 0,
           variants: values.variants
             .filter((v) => v.title.trim())
@@ -332,6 +335,7 @@ function AdminProductsPage() {
         isNew: p.isNew,
         isAvailable: p.isAvailable,
         allowPreorder: p.allowPreorder,
+        pickupOnly: p.pickupOnly,
         sortOrder: String(p.sortOrder),
         variants: p.variants,
       },
@@ -466,6 +470,7 @@ function AdminProductsPage() {
       "جدید",
       "موجود",
       "پیش‌سفارش",
+      "فقط تحویل حضوری",
       "انواع محصول",
     ];
     const example = [
@@ -481,6 +486,7 @@ function AdminProductsPage() {
       "بله",
       "بله",
       "بله",
+      "خیر",
       "کوچک:100000:200 گرم:15;بزرگ:130000:350 گرم:10",
     ];
     // Only quote a field when it actually contains the delimiter, a quote, or a
@@ -575,6 +581,22 @@ function AdminProductsPage() {
         ),
       },
       {
+        field: "pickupOnly",
+        headerName: "تحویل",
+        width: 110,
+        align: "center",
+        headerAlign: "center",
+        valueFormatter: (_, row) => (row.pickupOnly ? "فقط حضوری" : "ارسال و حضوری"),
+        renderCell: ({ row }) =>
+          row.pickupOnly ? (
+            <span className="rounded-full bg-cocoa-700/10 px-2.5 py-1 text-xs font-bold text-cocoa-700">
+              فقط حضوری
+            </span>
+          ) : (
+            <span className="text-cocoa-500">ارسال و حضوری</span>
+          ),
+      },
+      {
         field: "actions",
         headerName: "عملیات",
         width: 110,
@@ -651,6 +673,11 @@ function AdminProductsPage() {
         field: "allowPreorder",
         headerName: "پیش‌سفارش",
         valueGetter: (_, row) => (row.allowPreorder ? "بله" : "خیر"),
+      },
+      {
+        field: "pickupOnly",
+        headerName: "فقط تحویل حضوری",
+        valueGetter: (_, row) => (row.pickupOnly ? "بله" : "خیر"),
       },
     ],
     [categorySlugById],
@@ -956,6 +983,16 @@ function AdminProductsPage() {
               className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
             />
             قابل پیش‌سفارش
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+            <input
+              type="checkbox"
+              name="pickupOnly"
+              checked={formik.values.pickupOnly}
+              onChange={formik.handleChange}
+              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+            />
+            فقط تحویل حضوری (ارسال برای این محصول غیرفعال باشد)
           </label>
         </div>
 
@@ -1304,7 +1341,7 @@ function AdminProductsPage() {
           <p className="text-xs leading-6 text-cocoa-600">
             یک فایل CSV با ستون‌های زیر آپلود کنید: عنوان، دسته‌بندی، قیمت،
             توضیحات، وزن، ترکیبات، مناسب برای، درصد تخفیف، موجودی، جدید، موجود،
-            پیش‌سفارش، انواع محصول. فقط عنوان، دسته‌بندی و قیمت الزامی هستند.
+            پیش‌سفارش، فقط تحویل حضوری، انواع محصول. فقط عنوان، دسته‌بندی و قیمت الزامی هستند.
             تصویر محصولات از طریق این فایل قابل افزودن نیست — بعد از آپلود، از
             فرم ویرایش هر محصول اضافه کنید. ستون وزن (چه برای خود محصول چه برای
             انواع آن) فقط به شکل «عدد گرم» یا «عدد کیلوگرم» پذیرفته می‌شود،

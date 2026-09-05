@@ -29,6 +29,7 @@ export interface MenuItem {
   stock?: number
   isAvailable: boolean
   allowPreorder: boolean
+  pickupOnly: boolean
   variants?: MenuItemVariant[]
   /** Combo items only, when the admin opted in — days left until the combo expires. */
   comboDaysLeft?: number
