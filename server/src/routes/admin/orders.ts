@@ -185,6 +185,23 @@ adminOrdersRouter.post(
       });
       const productById = new Map(products.map((p) => [p.id, p]));
 
+      if (deliveryMethod === "delivery") {
+        const pickupOnlyTitles = [
+          ...new Set(
+            items!
+              .map((item) => productById.get(item.productId))
+              .filter((p) => p?.pickupOnly)
+              .map((p) => p!.title),
+          ),
+        ];
+        if (pickupOnlyTitles.length > 0) {
+          const names = pickupOnlyTitles.map((t) => `«${t}»`).join("، ");
+          const verb = pickupOnlyTitles.length > 1 ? "هستند" : "است";
+          res.status(400).json({ error: `${names} فقط با تحویل حضوری قابل سفارش ${verb}` });
+          return;
+        }
+      }
+
       for (const item of items!) {
         const product = productById.get(item.productId);
         if (!product) {
@@ -196,12 +213,6 @@ adminOrdersRouter.post(
           : undefined;
         if (item.variantId && !variant) {
           res.status(400).json({ error: `نوع انتخاب‌شده برای «${product.title}» یافت نشد` });
-          return;
-        }
-        if (deliveryMethod === "delivery" && product.pickupOnly) {
-          res
-            .status(400)
-            .json({ error: `«${product.title}» فقط با تحویل حضوری قابل سفارش است` });
           return;
         }
         const basePrice = variant ? variant.price : product.price;

@@ -162,11 +162,11 @@ ordersRouter.post(
       }
     }
     if (deliveryMethod === "delivery") {
-      const pickupOnlyItem = cartItems.find((item) => item.product.pickupOnly);
-      if (pickupOnlyItem) {
-        res
-          .status(400)
-          .json({ error: `«${pickupOnlyItem.product.title}» فقط با تحویل حضوری قابل سفارش است` });
+      const pickupOnlyItems = cartItems.filter((item) => item.product.pickupOnly);
+      if (pickupOnlyItems.length > 0) {
+        const names = pickupOnlyItems.map((item) => `«${item.product.title}»`).join("، ");
+        const verb = pickupOnlyItems.length > 1 ? "هستند" : "است";
+        res.status(400).json({ error: `${names} فقط با تحویل حضوری قابل سفارش ${verb}` });
         return;
       }
     }

@@ -190,9 +190,11 @@ function AdminNewOrderPage() {
       return;
     }
     if (deliveryMethod === "delivery" && !manualMode) {
-      const pickupOnlyItem = items.find((i) => i.pickupOnly);
-      if (pickupOnlyItem) {
-        setError(`«${pickupOnlyItem.title}» فقط با تحویل حضوری قابل سفارش است`);
+      const pickupOnlyItems = items.filter((i) => i.pickupOnly);
+      if (pickupOnlyItems.length > 0) {
+        const names = pickupOnlyItems.map((i) => `«${i.title}»`).join("، ");
+        const verb = pickupOnlyItems.length > 1 ? "هستند" : "است";
+        setError(`${names} فقط با تحویل حضوری قابل سفارش ${verb}`);
         return;
       }
     }

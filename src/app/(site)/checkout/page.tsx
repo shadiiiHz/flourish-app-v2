@@ -78,13 +78,16 @@ function CheckoutPage() {
     if (!authLoading && !isAuthenticated) router.replace("/");
   }, [authLoading, isAuthenticated, router]);
 
-  const pickupOnlyItem = lines.find((l) => l.pickupOnly);
+  const pickupOnlyItems = lines.filter((l) => l.pickupOnly);
+  const pickupOnlyNames = pickupOnlyItems.map((l) => `«${l.title}»`).join("، ");
+
+  const hasPickupOnlyItem = pickupOnlyItems.length > 0;
 
   useEffect(() => {
-    if (pickupOnlyItem && deliveryMethod === "delivery") {
+    if (hasPickupOnlyItem && deliveryMethod === "delivery") {
       setDeliveryMethod("pickup");
     }
-  }, [pickupOnlyItem, deliveryMethod]);
+  }, [hasPickupOnlyItem, deliveryMethod]);
 
   useEffect(() => {
     if (lines.length === 0) router.replace("/menu");
@@ -293,7 +296,7 @@ function CheckoutPage() {
                 ] as const
               ).map(({ id, label }) => {
                 const isSelected = deliveryMethod === id;
-                const isDisabled = id === "delivery" && !!pickupOnlyItem;
+                const isDisabled = id === "delivery" && hasPickupOnlyItem;
                 return (
                   <button
                     key={id}
@@ -316,10 +319,11 @@ function CheckoutPage() {
                 );
               })}
             </div>
-            {pickupOnlyItem && (
+            {hasPickupOnlyItem && (
               <p className="mt-3 text-xs font-semibold text-cocoa-500">
-                «{pickupOnlyItem.title}» فقط با تحویل حضوری قابل سفارش است، پس ارسال برای این
-                سفارش غیرفعال شده.
+                {pickupOnlyNames} فقط با تحویل حضوری قابل سفارش{" "}
+                {pickupOnlyItems.length > 1 ? "هستند" : "است"}، پس ارسال برای این سفارش غیرفعال
+                شده.
               </p>
             )}
           </GlassCard>
