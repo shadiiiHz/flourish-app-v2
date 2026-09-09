@@ -57,9 +57,10 @@ function AdminOrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>(
-    { type: "include", ids: new Set() },
-  );
+  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>({
+    type: "include",
+    ids: new Set(),
+  });
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const selectedIds = useMemo(
     () =>
@@ -131,7 +132,10 @@ function AdminOrdersPage() {
     }
   };
 
-  const updatePaymentStatus = async (id: string, paymentStatus: "pending" | "paid") => {
+  const updatePaymentStatus = async (
+    id: string,
+    paymentStatus: "pending" | "paid",
+  ) => {
     setError(null);
     try {
       await adminUpdateOrderPaymentStatus(id, paymentStatus);
@@ -160,16 +164,18 @@ function AdminOrdersPage() {
         field: "customer",
         headerName: "مشتری",
         flex: 1,
-        minWidth: 160,
-        valueFormatter: (_, row) => `${row.customerName || "بدون نام"} — ${row.customerPhone}`,
+        minWidth: 180,
+        sortable: false,
+
         renderCell: ({ row }) => (
-          <div className="py-1.5">
-            <p className="font-semibold text-cocoa-900">
+          <div className="flex h-full w-full flex-col items-center justify-center leading-tight">
+            <span className="font-semibold text-cocoa-900">
               {row.customerName || "بدون نام"}
-            </p>
-            <p className="text-xs text-cocoa-500" dir="ltr">
+            </span>
+
+            <span className="mt-1 text-xs text-cocoa-500" dir="ltr">
               {row.customerPhone}
-            </p>
+            </span>
           </div>
         ),
       },
@@ -184,13 +190,16 @@ function AdminOrdersPage() {
         field: "orderType",
         headerName: "نوع سفارش",
         width: 130,
-        valueFormatter: (_, row) => (row.orderType === "preorder" ? "پیش‌سفارش" : "فوری"),
+        valueFormatter: (_, row) =>
+          row.orderType === "preorder" ? "پیش‌سفارش" : "فوری",
         renderCell: ({ row }) =>
           row.orderType === "preorder" ? (
             <Tooltip
               title={
                 row.scheduledDate
-                  ? `پیش‌سفارش برای ${new Date(row.scheduledDate).toLocaleDateString("fa-IR", {
+                  ? `پیش‌سفارش برای ${new Date(
+                      row.scheduledDate,
+                    ).toLocaleDateString("fa-IR", {
                       weekday: "long",
                       day: "numeric",
                       month: "long",
@@ -211,7 +220,8 @@ function AdminOrdersPage() {
         field: "total",
         headerName: "مبلغ قابل پرداخت",
         width: 150,
-        valueGetter: (_, row) => `${(row.total - row.walletAmountUsed).toLocaleString("fa-IR")} تومان`,
+        valueGetter: (_, row) =>
+          `${(row.total - row.walletAmountUsed).toLocaleString("fa-IR")} تومان`,
       },
       {
         field: "paymentStatus",
@@ -343,18 +353,22 @@ function AdminOrdersPage() {
               {selectedOrder.customerName || "مهمان"}
             </DialogTitle>
             <DialogContent dividers>
-              {selectedOrder.orderType === "preorder" && selectedOrder.scheduledDate && (
-                <div className="mb-3 rounded-xl bg-sand-50 p-3 text-sm font-semibold text-cocoa-900">
-                  پیش‌سفارش برای{" "}
-                  {new Date(selectedOrder.scheduledDate).toLocaleDateString("fa-IR", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}
-                  {selectedOrder.scheduledTimeSlot &&
-                    ` — ساعت ${selectedOrder.scheduledTimeSlot}`}
-                </div>
-              )}
+              {selectedOrder.orderType === "preorder" &&
+                selectedOrder.scheduledDate && (
+                  <div className="mb-3 rounded-xl bg-sand-50 p-3 text-sm font-semibold text-cocoa-900">
+                    پیش‌سفارش برای{" "}
+                    {new Date(selectedOrder.scheduledDate).toLocaleDateString(
+                      "fa-IR",
+                      {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      },
+                    )}
+                    {selectedOrder.scheduledTimeSlot &&
+                      ` — ساعت ${selectedOrder.scheduledTimeSlot}`}
+                  </div>
+                )}
               <div className="flex flex-col gap-2">
                 {selectedOrder.items.map((item) => (
                   <div
@@ -389,10 +403,13 @@ function AdminOrdersPage() {
               {!!selectedOrder.discountAmount && (
                 <div className="mt-1 flex items-center justify-between text-sm">
                   <span className="text-cocoa-600">
-                    کد تخفیف {selectedOrder.discountCode && `(${selectedOrder.discountCode})`}
+                    کد تخفیف{" "}
+                    {selectedOrder.discountCode &&
+                      `(${selectedOrder.discountCode})`}
                   </span>
                   <span className="font-semibold text-danger-500">
-                    {selectedOrder.discountAmount.toLocaleString("fa-IR")}- تومان
+                    {selectedOrder.discountAmount.toLocaleString("fa-IR")}-
+                    تومان
                   </span>
                 </div>
               )}
@@ -401,15 +418,20 @@ function AdminOrdersPage() {
                 <div className="mt-1 flex items-center justify-between text-sm">
                   <span className="text-cocoa-600">استفاده از کیف پول</span>
                   <span className="font-semibold text-danger-500">
-                    {selectedOrder.walletAmountUsed.toLocaleString("fa-IR")}- تومان
+                    {selectedOrder.walletAmountUsed.toLocaleString("fa-IR")}-
+                    تومان
                   </span>
                 </div>
               )}
 
               <div className="mt-1 flex items-center justify-between border-t border-sand-100 pt-2 text-sm">
-                <span className="font-semibold text-cocoa-700">مبلغ قابل پرداخت</span>
+                <span className="font-semibold text-cocoa-700">
+                  مبلغ قابل پرداخت
+                </span>
                 <span className="font-bold text-cocoa-900">
-                  {(selectedOrder.total - selectedOrder.walletAmountUsed).toLocaleString("fa-IR")}{" "}
+                  {(
+                    selectedOrder.total - selectedOrder.walletAmountUsed
+                  ).toLocaleString("fa-IR")}{" "}
                   تومان
                 </span>
               </div>
@@ -480,8 +502,9 @@ function AdminOrdersPage() {
               )}
 
               <p className="mt-3 text-xs text-cocoa-500">
-                توجه: پاداش کیف پول این سفارش فقط زمانی به حساب مشتری اضافه می‌شود که وضعیت
-                سفارش هم «تحویل داده شده» و هم «پرداخت‌شده» باشد.
+                توجه: پاداش کیف پول این سفارش فقط زمانی به حساب مشتری اضافه
+                می‌شود که وضعیت سفارش هم «تحویل داده شده» و هم «پرداخت‌شده»
+                باشد.
               </p>
             </DialogContent>
           </>
