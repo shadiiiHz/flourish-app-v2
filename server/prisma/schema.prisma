@@ -354,3 +354,15 @@ model AdminMessage {
 
   @@index([customerId])
 }
+
+/// One storefront page load, tagged with an anonymous long-lived cookie id so
+/// distinct visitors can be counted separately from raw page-view volume.
+model PageVisit {
+  id        String   @id @default(cuid())
+  visitorId String
+  path      String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([visitorId])
+}

@@ -929,6 +929,48 @@ export function adminBulkDeleteMessages(ids: string[]) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Storefront visit tracking                                           */
+/* ------------------------------------------------------------------ */
+
+/** Fire-and-forget page-view beacon — failures are silently ignored. */
+export function trackVisit(path: string) {
+  return apiFetch<void>("/api/track/visit", {
+    method: "POST",
+    body: JSON.stringify({ path }),
+  }).catch(() => undefined);
+}
+
+export interface LiveAnalyticsPoint {
+  minutesAgo: number;
+  visits: number;
+  visitors: number;
+}
+
+export interface LiveAnalytics {
+  liveVisitors: number;
+  series: LiveAnalyticsPoint[];
+}
+
+export function adminGetLiveAnalytics() {
+  return apiFetch<LiveAnalytics>("/api/admin/analytics/live");
+}
+
+export interface DailyAnalyticsPoint {
+  /** "YYYY-MM-DD", a Tehran-calendar day. */
+  date: string;
+  visits: number;
+  visitors: number;
+}
+
+export interface DailyAnalytics {
+  days: DailyAnalyticsPoint[];
+}
+
+export function adminGetDailyAnalytics(days = 10) {
+  return apiFetch<DailyAnalytics>(`/api/admin/analytics/daily?days=${days}`);
+}
+
+/* ------------------------------------------------------------------ */
 /* Admin wallet                                                        */
 /* ------------------------------------------------------------------ */
 

@@ -12,6 +12,7 @@ import AuthModal from "@/components/AuthModal";
 import AuthToast from "@/components/AuthToast";
 import PreorderBanner from "@/components/PreorderBanner";
 import OrderTypeModal from "@/components/OrderTypeModal";
+import VisitTracker from "@/components/VisitTracker";
 import { useCart } from "@/context/CartContext";
 import { SiteStatusProvider } from "@/context/SiteStatusContext";
 import SiteClosedBanner from "./SiteClosedBanner";
@@ -80,6 +81,7 @@ export default function SiteShell({
           <main>{children}</main>
           <Footer />
         </div>
+        <VisitTracker />
         <GoToTop />
         <CartOverlay />
         <AuthModal />

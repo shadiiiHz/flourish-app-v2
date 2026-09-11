@@ -6,7 +6,7 @@ interface DateParts {
   day: number;
 }
 
-function getTehranDateParts(date: Date): DateParts {
+export function getTehranDateParts(date: Date): DateParts {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: TEHRAN_TIME_ZONE,
     year: "numeric",

@@ -11,6 +11,7 @@ import { adminWalletRouter } from "./wallet.js";
 import { adminHeroSlidesRouter } from "./heroSlides.js";
 import { adminComboRouter } from "./combo.js";
 import { adminMessagesRouter } from "./messages.js";
+import { adminAnalyticsRouter } from "./analytics.js";
 
 export const adminRouter = Router();
 
@@ -26,3 +27,4 @@ adminRouter.use("/wallet", adminWalletRouter);
 adminRouter.use("/hero-slides", adminHeroSlidesRouter);
 adminRouter.use("/combo", adminComboRouter);
 adminRouter.use("/messages", adminMessagesRouter);
+adminRouter.use("/analytics", adminAnalyticsRouter);

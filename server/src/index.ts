@@ -11,6 +11,7 @@ import { customersRouter } from "./routes/customers.js";
 import { ordersRouter } from "./routes/orders.js";
 import { shippingRouter } from "./routes/shipping.js";
 import { discountCodesRouter } from "./routes/discountCodes.js";
+import { trackRouter } from "./routes/track.js";
 import { startWalletCashbackExpiryCron } from "./lib/wallet.js";
 import { startBirthdayCheckCron } from "./lib/birthdayDiscount.js";
 
@@ -33,6 +34,7 @@ app.use("/api/customers", customersRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/shipping", shippingRouter);
 app.use("/api/discount-codes", discountCodesRouter);
+app.use("/api/track", trackRouter);
 app.use("/api/admin/auth", adminAuthRouter);
 app.use("/api/admin", adminRouter);
 
