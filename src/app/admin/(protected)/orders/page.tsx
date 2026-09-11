@@ -27,6 +27,7 @@ import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import ConfirmModal from "@/components/ConfirmModal";
 import { formatOrderNumber } from "@/lib/orderNumber";
 import {
+  ORDER_SOURCE_LABELS,
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   type AdminOrder,
@@ -217,6 +218,23 @@ function AdminOrdersPage() {
           ),
       },
       {
+        field: "source",
+        headerName: "منبع سفارش",
+        width: 180,
+        valueFormatter: (_, row) => ORDER_SOURCE_LABELS[row.source],
+        renderCell: ({ row }) => (
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ${
+              row.source === "admin"
+                ? "bg-cocoa-700/10 text-cocoa-700"
+                : "bg-sand-50 text-sand-500"
+            }`}
+          >
+            {ORDER_SOURCE_LABELS[row.source]}
+          </span>
+        ),
+      },
+      {
         field: "total",
         headerName: "مبلغ قابل پرداخت",
         width: 150,
@@ -353,6 +371,15 @@ function AdminOrdersPage() {
               {selectedOrder.customerName || "مهمان"}
             </DialogTitle>
             <DialogContent dividers>
+              <span
+                className={`mb-3 inline-block rounded-full px-3 py-1 text-xs font-bold ${
+                  selectedOrder.source === "admin"
+                    ? "bg-cocoa-700/10 text-cocoa-700"
+                    : "bg-sand-50 text-sand-500"
+                }`}
+              >
+                {ORDER_SOURCE_LABELS[selectedOrder.source]}
+              </span>
               {selectedOrder.orderType === "preorder" &&
                 selectedOrder.scheduledDate && (
                   <div className="mb-3 rounded-xl bg-sand-50 p-3 text-sm font-semibold text-cocoa-900">

@@ -287,6 +287,7 @@ adminOrdersRouter.post(
           undefined,
         note,
         orderType: "instant",
+        source: "admin",
         deliveryMethod,
         addressId: address?.id,
         addressText: finalAddressText,

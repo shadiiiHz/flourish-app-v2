@@ -750,11 +750,20 @@ export interface AdminCreateCustomerPayload {
   firstName?: string;
   lastName?: string;
   email?: string;
+  /** ISO datetime string, or null to clear it (edit only). Only the month/day are used. */
+  birthDate?: string | null;
 }
 
 export function adminCreateCustomer(payload: AdminCreateCustomerPayload) {
   return apiFetch<AdminCustomer>("/api/admin/customers", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminUpdateCustomer(id: string, payload: AdminCreateCustomerPayload) {
+  return apiFetch<AdminCustomer>(`/api/admin/customers/${id}`, {
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
 }

@@ -25,6 +25,13 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 
 export type OrderType = "instant" | "preorder";
 
+export type OrderSource = "website" | "admin";
+
+export const ORDER_SOURCE_LABELS: Record<OrderSource, string> = {
+  website: "ثبت شده در سایت",
+  admin: "ثبت دستی توسط ادمین",
+};
+
 export type DeliveryMethod = "delivery" | "pickup";
 
 export interface OrderItem {
@@ -42,6 +49,7 @@ export interface Order {
   customerName?: string | null;
   status: OrderStatus;
   orderType: OrderType;
+  source: OrderSource;
   deliveryMethod: DeliveryMethod;
   scheduledDate?: string | null;
   scheduledTimeSlot?: string | null;

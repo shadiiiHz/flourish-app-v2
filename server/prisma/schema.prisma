@@ -32,6 +32,16 @@ enum OrderType {
   preorder
 }
 
+enum OrderSource {
+  website
+  admin
+}
+
+enum CustomerSource {
+  website
+  admin
+}
+
 enum DeliveryMethod {
   delivery
   pickup
@@ -125,6 +135,8 @@ model Customer {
   avatar             String?
   /// Optional — only the month/day are used, to generate a birthday discount code each year.
   birthDate          DateTime?
+  /// Whether the customer signed themself up on the website or was entered manually by an admin.
+  source             CustomerSource      @default(website)
   walletBalance      Int                 @default(0)
   orders             Order[]
   addresses          Address[]
@@ -177,6 +189,8 @@ model Order {
   customerName         String?
   status               OrderStatus         @default(pending)
   orderType            OrderType           @default(instant)
+  /// Whether the order was placed by the customer on the website or entered manually by an admin.
+  source               OrderSource         @default(website)
   deliveryMethod       DeliveryMethod      @default(delivery)
   scheduledDate        DateTime?
   scheduledTimeSlot    String?

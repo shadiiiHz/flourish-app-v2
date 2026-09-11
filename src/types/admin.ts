@@ -1,7 +1,13 @@
 import type { Order } from "./order";
 
-export type { OrderStatus, OrderItem as AdminOrderItem, OrderType, PaymentStatus } from "./order";
-export { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "./order";
+export type {
+  OrderStatus,
+  OrderItem as AdminOrderItem,
+  OrderType,
+  OrderSource,
+  PaymentStatus,
+} from "./order";
+export { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, ORDER_SOURCE_LABELS } from "./order";
 
 export type CategoryTabId = "bakery" | "drinks";
 
@@ -109,12 +115,21 @@ export interface AdminAddress {
   isDefault?: boolean;
 }
 
+export type CustomerSource = "website" | "admin";
+
+export const CUSTOMER_SOURCE_LABELS: Record<CustomerSource, string> = {
+  website: "ثبت‌نام از سایت",
+  admin: "ثبت دستی توسط ادمین",
+};
+
 export interface AdminCustomer {
   id: string;
   phone: string;
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
+  birthDate?: string | null;
+  source: CustomerSource;
   walletBalance: number;
   createdAt: string;
   _count?: { orders: number };

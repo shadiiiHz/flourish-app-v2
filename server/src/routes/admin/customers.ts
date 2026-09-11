@@ -15,6 +15,17 @@ const createCustomerSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   email: z.string().email().optional().or(z.literal("")),
+  /** ISO datetime string. Only the month/day are used, for the birthday discount. */
+  birthDate: z.string().datetime().nullable().optional(),
+});
+
+const updateCustomerSchema = z.object({
+  phone: z.string().regex(PHONE_REGEX, "شماره موبایل معتبر نیست"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  /** ISO datetime string, or null to clear it. Only the month/day are used, for the birthday discount. */
+  birthDate: z.string().datetime().nullable().optional(),
 });
 
 adminCustomersRouter.get(
@@ -72,16 +83,58 @@ adminCustomersRouter.post(
       res.status(400).json({ error: parsed.error.issues[0]?.message ?? "اطلاعات نامعتبر است" });
       return;
     }
-    const { phone, firstName, lastName, email } = parsed.data;
+    const { phone, firstName, lastName, email, birthDate } = parsed.data;
     const existing = await prisma.customer.findUnique({ where: { phone } });
     if (existing) {
       res.status(409).json({ error: "مشتری با این شماره موبایل قبلاً ثبت شده است" });
       return;
     }
     const customer = await prisma.customer.create({
-      data: { phone, firstName, lastName, email: email || undefined },
+      data: {
+        phone,
+        firstName,
+        lastName,
+        email: email || undefined,
+        birthDate: birthDate ? new Date(birthDate) : undefined,
+        source: "admin",
+      },
     });
     res.status(201).json(customer);
+  }),
+);
+
+adminCustomersRouter.patch(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const parsed = updateCustomerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "اطلاعات نامعتبر است" });
+      return;
+    }
+    const customer = await prisma.customer.findUnique({ where: { id: req.params.id } });
+    if (!customer) {
+      res.status(404).json({ error: "مشتری یافت نشد" });
+      return;
+    }
+    const { phone, firstName, lastName, email, birthDate } = parsed.data;
+    if (phone !== customer.phone) {
+      const existing = await prisma.customer.findUnique({ where: { phone } });
+      if (existing) {
+        res.status(409).json({ error: "مشتری با این شماره موبایل قبلاً ثبت شده است" });
+        return;
+      }
+    }
+    const updated = await prisma.customer.update({
+      where: { id: req.params.id },
+      data: {
+        phone,
+        firstName,
+        lastName,
+        email: email || null,
+        ...(birthDate !== undefined ? { birthDate: birthDate ? new Date(birthDate) : null } : {}),
+      },
+    });
+    res.json(updated);
   }),
 );
 
