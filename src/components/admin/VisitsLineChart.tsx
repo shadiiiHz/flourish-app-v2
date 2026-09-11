@@ -47,11 +47,18 @@ function niceNumber(value: number, round: boolean): number {
   return niceFraction * Math.pow(10, exponent);
 }
 
-/** A y-axis max and evenly-spaced tick step, both "nice" numbers (e.g. 0/500/1000/1500/2000), covering `maxDataValue`. */
+/**
+ * A y-axis max and evenly-spaced tick step, both "nice" numbers (e.g.
+ * 0/500/1000/1500/2000), covering `maxDataValue`. Visit/visitor counts are
+ * always whole numbers, so the step is never allowed below 1 — otherwise a
+ * small data range (e.g. max 2) "nicely" rounds to a 0.5 step, and rounding
+ * those to integers for display collapses distinct ticks into duplicates
+ * (0, 0.5, 1, 1.5, 2 → shown as 0, 1, 1, 2, 2).
+ */
 function niceAxisScale(maxDataValue: number, tickCount: number): { max: number; ticks: number[] } {
   const safeMax = Math.max(1, maxDataValue);
   const range = niceNumber(safeMax, false);
-  const step = niceNumber(range / (tickCount - 1), true);
+  const step = Math.max(1, niceNumber(range / (tickCount - 1), true));
   const max = Math.ceil(safeMax / step) * step;
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
   return { max, ticks };
