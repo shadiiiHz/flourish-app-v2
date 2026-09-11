@@ -102,7 +102,7 @@ function ProductCard({
                 </span>
               )}
               <span className="text-sm font-bold text-sand-400 sm:text-[15px]">
-                {!unlimitedPreorder && !item.isAvailable
+                {!unlimitedPreorder && (!item.isAvailable || outOfStock)
                   ? "ناموجود"
                   : notPreorderable
                     ? "غیرقابل پیش‌سفارش"

@@ -160,7 +160,7 @@ function ProductModal({
                 </span>
               )}
               <span className="text-lg font-bold text-sand-400">
-                {!unlimitedPreorder && !item.isAvailable
+                {!unlimitedPreorder && (!item.isAvailable || outOfStock)
                   ? "ناموجود"
                   : notPreorderable
                     ? "غیرقابل پیش‌سفارش"

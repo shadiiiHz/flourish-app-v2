@@ -867,6 +867,7 @@ function AdminProductsPage() {
               <input
                 type="number"
                 min={0}
+                step="any"
                 name="weightValue"
                 value={formik.values.weightValue}
                 onChange={formik.handleChange}
@@ -1105,6 +1106,7 @@ function AdminProductsPage() {
                     <input
                       type="number"
                       min={0}
+                      step="any"
                       placeholder="وزن"
                       value={parseWeight(v.weight).weightValue}
                       onChange={(e) => {
