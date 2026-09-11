@@ -45,6 +45,34 @@ adminMessagesRouter.patch(
   }),
 );
 
+const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) });
+
+adminMessagesRouter.delete(
+  "/bulk",
+  asyncHandler(async (req, res) => {
+    const parsed = bulkDeleteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "شناسه‌های نامعتبر" });
+      return;
+    }
+    await prisma.adminMessage.deleteMany({ where: { id: { in: parsed.data.ids } } });
+    res.status(204).end();
+  }),
+);
+
+adminMessagesRouter.delete(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const message = await prisma.adminMessage.findUnique({ where: { id: req.params.id } });
+    if (!message) {
+      res.status(404).json({ error: "پیام یافت نشد" });
+      return;
+    }
+    await prisma.adminMessage.delete({ where: { id: req.params.id } });
+    res.status(204).end();
+  }),
+);
+
 const birthdayDiscountSchema = z.object({
   percent: z.number().int().min(1).max(100),
 });

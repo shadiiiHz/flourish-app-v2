@@ -920,6 +920,14 @@ export function adminCreateBirthdayDiscountFromMessage(id: string, percent: numb
   });
 }
 
+export function adminDeleteMessage(id: string) {
+  return apiFetch(`/api/admin/messages/${id}`, { method: "DELETE" });
+}
+
+export function adminBulkDeleteMessages(ids: string[]) {
+  return adminBulkDelete("/api/admin/messages", ids);
+}
+
 /* ------------------------------------------------------------------ */
 /* Admin wallet                                                        */
 /* ------------------------------------------------------------------ */

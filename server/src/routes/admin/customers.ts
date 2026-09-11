@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
+import { ensureBirthdayMessage } from "../../lib/birthdayDiscount.js";
 
 export const adminCustomersRouter = Router();
 
@@ -99,6 +100,9 @@ adminCustomersRouter.post(
         source: "admin",
       },
     });
+    if (customer.birthDate) {
+      await ensureBirthdayMessage(customer.id, customer.birthDate);
+    }
     res.status(201).json(customer);
   }),
 );
@@ -134,6 +138,25 @@ adminCustomersRouter.patch(
         ...(birthDate !== undefined ? { birthDate: birthDate ? new Date(birthDate) : null } : {}),
       },
     });
+    if (birthDate !== undefined && customer.birthDate?.toISOString() !== updated.birthDate?.toISOString()) {
+      // The birthday changed, so any earlier notice — even one already actioned
+      // into a discount code — was for the wrong date. Clear it so
+      // ensureBirthdayMessage isn't blocked by its "already notified recently"
+      // dedup check and can create a fresh notice for the corrected date.
+      await prisma.adminMessage.deleteMany({
+        where: { customerId: updated.id, type: "birthday" },
+      });
+      // A birthday discount code generated off the old date is only valid if
+      // it's already been redeemed (that's real order history now) — an
+      // unused one no longer corresponds to an actual birthday and shouldn't
+      // still be usable.
+      await prisma.discountCode.deleteMany({
+        where: { customerId: updated.id, source: "birthday", usedAt: null },
+      });
+      if (updated.birthDate) {
+        await ensureBirthdayMessage(updated.id, updated.birthDate);
+      }
+    }
     res.json(updated);
   }),
 );

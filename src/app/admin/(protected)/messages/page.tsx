@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Cake, ChevronDown, Gift, Mail, MailOpen } from "lucide-react";
+import { Cake, ChevronDown, Gift, Mail, MailOpen, Trash2 } from "lucide-react";
 import {
   ApiError,
+  adminBulkDeleteMessages,
   adminCreateBirthdayDiscountFromMessage,
+  adminDeleteMessage,
   adminGetMessages,
   adminMarkMessageRead,
 } from "@/lib/api";
 import { toPersianDigits } from "@/lib/formatNumber";
 import type { AdminMessage } from "@/types/admin";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const TYPE_ICON: Record<AdminMessage["type"], typeof Cake> = {
   birthday: Cake,
@@ -86,10 +89,16 @@ function BirthdayDiscountAction({
 
 function MessageRow({
   message,
+  selected,
+  onToggleSelect,
   onRead,
+  onDeleteRequest,
 }: {
   message: AdminMessage;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
   onRead: (id: string) => void;
+  onDeleteRequest: (message: AdminMessage) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
@@ -110,6 +119,14 @@ function MessageRow({
       }`}
     >
       <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onToggleSelect(message.id)}
+          onClick={(e) => e.stopPropagation()}
+          className="mt-1.5 h-4 w-4 shrink-0 accent-sand-500"
+          aria-label="انتخاب پیام"
+        />
         <span
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
             message.isRead ? "bg-sand-50 text-sand-400" : "bg-sand-500 text-white"
@@ -133,18 +150,31 @@ function MessageRow({
           <p className="mt-1 text-xs text-cocoa-500">{message.body}</p>
           <p className="mt-1.5 text-[11px] text-cocoa-400">{formatMessageDate(message.createdAt)}</p>
         </div>
-        <span className="mt-1 shrink-0 text-cocoa-400">
-          {message.isRead ? (
-            <MailOpen className="h-4 w-4" />
-          ) : (
-            <Mail className="h-4 w-4 text-sand-500" />
-          )}
-        </span>
-        <ChevronDown
-          className={`mt-1 h-4 w-4 shrink-0 text-cocoa-400 transition-transform ${
-            expanded ? "rotate-180" : ""
-          }`}
-        />
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-cocoa-400">
+            {message.isRead ? (
+              <MailOpen className="h-4 w-4" />
+            ) : (
+              <Mail className="h-4 w-4 text-sand-500" />
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteRequest(message);
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-danger-500/30 text-danger-500 outline-none transition hover:bg-danger-50 focus-visible:ring-2 focus-visible:ring-danger-500/40"
+            aria-label="حذف پیام"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+          <ChevronDown
+            className={`h-4 w-4 text-cocoa-400 transition-transform ${
+              expanded ? "rotate-180" : ""
+            }`}
+          />
+        </div>
       </div>
 
       {expanded && message.type === "birthday" && message.customerId && (
@@ -168,6 +198,10 @@ function AdminMessagesPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deletingMessage, setDeletingMessage] = useState<AdminMessage | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const pageSize = 20;
 
   const load = () => {
@@ -176,6 +210,7 @@ function AdminMessagesPage() {
       .then((res) => {
         setMessages(res.items);
         setTotal(res.total);
+        setSelectedIds(new Set());
       })
       .finally(() => setLoading(false));
   };
@@ -191,16 +226,79 @@ function AdminMessagesPage() {
     });
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === messages.length ? new Set() : new Set(messages.map((m) => m.id)),
+    );
+  };
+
+  const handleDelete = async (id: string) => {
+    setError(null);
+    try {
+      await adminDeleteMessage(id);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "خطا در حذف پیام");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setError(null);
+    try {
+      await adminBulkDeleteMessages([...selectedIds]);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "خطا در حذف گروهی");
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div>
-      <h1 className="font-display text-xl font-bold text-cocoa-900">پیام‌ها</h1>
-      <p className="mt-1 text-sm text-cocoa-500">
-        اعلان‌هایی مثل تولد مشتریان — از همین‌جا می‌تونی کد تخفیف تولدشون رو ایجاد کنی.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-display text-xl font-bold text-cocoa-900">پیام‌ها</h1>
+          <p className="mt-1 text-sm text-cocoa-500">
+            اعلان‌هایی مثل تولد مشتریان — از همین‌جا می‌تونی کد تخفیف تولدشون رو ایجاد کنی.
+          </p>
+        </div>
+        {selectedIds.size > 0 && (
+          <button
+            type="button"
+            onClick={() => setBulkDeleteOpen(true)}
+            className="flex items-center gap-1.5 rounded-full bg-danger-500 px-4 py-2 text-xs font-bold text-white shadow-[0_10px_20px_-8px_rgba(193,97,90,0.6)] transition-transform hover:scale-[1.02] active:scale-95"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            حذف {toPersianDigits(String(selectedIds.size))} پیام
+          </button>
+        )}
+      </div>
 
-      <div className="mt-4 flex flex-col gap-2.5">
+      {error && <p className="mt-3 text-xs font-semibold text-danger-500">{error}</p>}
+
+      {messages.length > 0 && (
+        <label className="mt-4 flex w-fit items-center gap-2 text-xs font-semibold text-cocoa-600">
+          <input
+            type="checkbox"
+            checked={selectedIds.size === messages.length}
+            onChange={toggleSelectAll}
+            className="h-4 w-4 accent-sand-500"
+          />
+          انتخاب همه
+        </label>
+      )}
+
+      <div className="mt-2.5 flex flex-col gap-2.5">
         {loading ? (
           <p className="text-sm text-cocoa-500">در حال بارگذاری…</p>
         ) : messages.length === 0 ? (
@@ -209,10 +307,39 @@ function AdminMessagesPage() {
           </p>
         ) : (
           messages.map((message) => (
-            <MessageRow key={message.id} message={message} onRead={handleRead} />
+            <MessageRow
+              key={message.id}
+              message={message}
+              selected={selectedIds.has(message.id)}
+              onToggleSelect={toggleSelect}
+              onRead={handleRead}
+              onDeleteRequest={setDeletingMessage}
+            />
           ))
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!deletingMessage}
+        title="حذف پیام"
+        description="آیا مطمئنید می‌خواهید این پیام را حذف کنید؟"
+        confirmLabel="بله، حذف شود"
+        cancelLabel="انصراف"
+        onConfirm={() => (deletingMessage ? handleDelete(deletingMessage.id) : undefined)}
+        onClose={() => setDeletingMessage(null)}
+      />
+
+      <ConfirmModal
+        isOpen={bulkDeleteOpen}
+        title="حذف گروهی پیام‌ها"
+        description={`آیا مطمئنید می‌خواهید ${toPersianDigits(
+          String(selectedIds.size),
+        )} پیام را حذف کنید؟`}
+        confirmLabel="بله، حذف شوند"
+        cancelLabel="انصراف"
+        onConfirm={handleBulkDelete}
+        onClose={() => setBulkDeleteOpen(false)}
+      />
 
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
