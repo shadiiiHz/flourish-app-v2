@@ -25,6 +25,7 @@ import {
   type QueryType,
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
+import JalaliDateSelect from "@/components/admin/JalaliDateSelect";
 import ConfirmModal from "@/components/ConfirmModal";
 import {
   CUSTOMER_SOURCE_LABELS,
@@ -500,13 +501,10 @@ function AdminCustomersPage() {
               <label className="mb-1 block text-xs font-semibold text-cocoa-600">
                 تاریخ تولد (اختیاری)
               </label>
-              <input
-                type="date"
-                dir="ltr"
-                name="birthDate"
+              <JalaliDateSelect
+                key={createOpen ? "create-open" : "create-closed"}
                 value={createFormik.values.birthDate}
-                onChange={createFormik.handleChange}
-                className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                onChange={(value) => createFormik.setFieldValue("birthDate", value)}
               />
             </div>
 
@@ -604,13 +602,10 @@ function AdminCustomersPage() {
               <label className="mb-1 block text-xs font-semibold text-cocoa-600">
                 تاریخ تولد (اختیاری)
               </label>
-              <input
-                type="date"
-                dir="ltr"
-                name="birthDate"
+              <JalaliDateSelect
+                key={editingCustomer?.id ?? "edit"}
                 value={editFormik.values.birthDate}
-                onChange={editFormik.handleChange}
-                className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                onChange={(value) => editFormik.setFieldValue("birthDate", value)}
               />
             </div>
 

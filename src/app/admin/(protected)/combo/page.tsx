@@ -24,6 +24,7 @@ import {
   type QueryType,
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
+import JalaliDateSelect from "@/components/admin/JalaliDateSelect";
 import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import ConfirmModal from "@/components/ConfirmModal";
 import type { AdminComboProduct, AdminVariant } from "@/types/admin";
@@ -600,7 +601,7 @@ function AdminComboPage() {
               <CalendarClock className="h-3.5 w-3.5 text-sand-500" />
               مدت نمایش در صفحه اصلی
             </label>
-            <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+            <div className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
               <input
                 type="checkbox"
                 checked={formik.values.noExpiry}
@@ -612,24 +613,40 @@ function AdminComboPage() {
                 className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
               />
               بدون تاریخ انقضا — تا زمانی که خودم حذفش کنم
-            </label>
+            </div>
             {!formik.values.noExpiry && (
               <div className="mt-2">
-                <input
-                  type="datetime-local"
-                  dir="ltr"
-                  name="expiresAt"
-                  value={formik.values.expiresAt}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  className="w-full max-w-xs rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400 sm:w-auto"
-                />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                  <JalaliDateSelect
+                    key={editingId ?? "new"}
+                    value={formik.values.expiresAt.split("T")[0] || ""}
+                    onChange={(date) => {
+                      const time = formik.values.expiresAt.split("T")[1] || "00:00";
+                      formik.setFieldValue("expiresAt", date ? `${date}T${time}` : "");
+                    }}
+                    yearsBack={1}
+                    yearsForward={5}
+                    className="max-w-xs"
+                  />
+                  <input
+                    type="time"
+                    dir="ltr"
+                    value={formik.values.expiresAt.split("T")[1] || ""}
+                    onChange={(e) => {
+                      const date = formik.values.expiresAt.split("T")[0];
+                      if (!date) return;
+                      formik.setFieldValue("expiresAt", `${date}T${e.target.value}`);
+                    }}
+                    onBlur={formik.handleBlur}
+                    className="w-full max-w-[140px] rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                  />
+                </div>
                 {formik.touched.expiresAt && formik.errors.expiresAt && (
                   <p className="mt-1 text-xs font-semibold text-danger-500">
                     {formik.errors.expiresAt}
                   </p>
                 )}
-                <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+                <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-cocoa-700">
                   <input
                     type="checkbox"
                     checked={formik.values.showExpiryBadge}
@@ -637,13 +654,13 @@ function AdminComboPage() {
                     className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
                   />
                   نمایش برچسب «چند روز مانده» روی کارت کمبو (گوشه‌ی بالا-چپ)
-                </label>
+                </div>
               </div>
             )}
           </div>
 
           <div className="sm:col-span-2">
-            <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+            <div className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
               <input
                 type="checkbox"
                 checked={formik.values.pickupOnly}
@@ -651,7 +668,7 @@ function AdminComboPage() {
                 className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
               />
               فقط تحویل حضوری (ارسال برای این کمبو غیرفعال باشد)
-            </label>
+            </div>
           </div>
         </div>
 
