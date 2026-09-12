@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye } from "lucide-react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Eye, X } from "lucide-react";
 import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -48,12 +49,16 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
 };
 
 function AdminOrdersPage() {
+  const searchParams = useSearchParams();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  // Seeded once from a "?customerId=" deep link (e.g. from the customers
+  // table's order-count column) — cleared via the banner below.
+  const [customerFilter, setCustomerFilter] = useState(() => searchParams.get("customerId") ?? "");
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -83,13 +88,13 @@ function AdminOrdersPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    adminGetOrders(statusFilter, page, pageSize, debouncedSearch)
+    adminGetOrders(statusFilter, page, pageSize, debouncedSearch, customerFilter)
       .then((res) => {
         setOrders(res.items);
         setTotal(res.total);
       })
       .finally(() => setLoading(false));
-  }, [statusFilter, page, pageSize, debouncedSearch]);
+  }, [statusFilter, page, pageSize, debouncedSearch, customerFilter]);
 
   useEffect(() => {
     load();
@@ -97,7 +102,7 @@ function AdminOrdersPage() {
 
   useEffect(() => {
     setSelectionModel({ type: "include", ids: new Set() });
-  }, [statusFilter, page, pageSize, debouncedSearch]);
+  }, [statusFilter, page, pageSize, debouncedSearch, customerFilter]);
 
   const handleQueryChange = useCallback((query: QueryType) => {
     setPage(query.page + 1);
@@ -220,7 +225,7 @@ function AdminOrdersPage() {
       {
         field: "source",
         headerName: "منبع سفارش",
-        width: 180,
+        width: 150,
         valueFormatter: (_, row) => ORDER_SOURCE_LABELS[row.source],
         renderCell: ({ row }) => (
           <span
@@ -300,10 +305,10 @@ function AdminOrdersPage() {
 
   const handleExportAll = useCallback(async () => {
     const all = await fetchAllPages((p, ps) =>
-      adminGetOrders(statusFilter, p, ps, debouncedSearch),
+      adminGetOrders(statusFilter, p, ps, debouncedSearch, customerFilter),
     );
     downloadCsv("orders.csv", buildCsv(columns, all));
-  }, [columns, statusFilter, debouncedSearch]);
+  }, [columns, statusFilter, debouncedSearch, customerFilter]);
 
   return (
     <div>
@@ -329,6 +334,35 @@ function AdminOrdersPage() {
           </Select>
         </FormControl>
       </div>
+
+      {customerFilter && (
+        <div className="mt-3 flex w-fit items-center gap-2 rounded-full bg-sand-50 px-4 py-2 text-xs font-bold text-sand-500">
+          {loading ? (
+            <span className="flex items-center gap-1.5">
+              نمایش سفارش‌های
+              <span className="inline-block h-3 w-16 animate-pulse rounded-full bg-sand-200" />
+            </span>
+          ) : (
+            <span>
+              نمایش سفارش‌های{" "}
+              {[orders[0]?.customer?.firstName, orders[0]?.customer?.lastName]
+                .filter(Boolean)
+                .join(" ") || "این مشتری"}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setCustomerFilter("");
+              setPage(1);
+            }}
+            className="flex h-5 w-5 items-center justify-center rounded-full text-sand-500 transition hover:bg-sand-100"
+            aria-label="حذف فیلتر مشتری"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {error && (
         <p className="mt-3 text-xs font-semibold text-danger-500">{error}</p>
@@ -553,4 +587,12 @@ function AdminOrdersPage() {
   );
 }
 
-export default AdminOrdersPage;
+function AdminOrdersPageWithSearchParams() {
+  return (
+    <Suspense fallback={null}>
+      <AdminOrdersPage />
+    </Suspense>
+  );
+}
+
+export default AdminOrdersPageWithSearchParams;

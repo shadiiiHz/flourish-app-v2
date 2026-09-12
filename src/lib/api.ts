@@ -684,10 +684,12 @@ export function adminGetOrders(
   page = 1,
   pageSize = 20,
   search = "",
+  customerId = "",
 ) {
   const params = new URLSearchParams();
   if (status && status !== "all") params.set("status", status);
   if (search) params.set("search", search);
+  if (customerId) params.set("customerId", customerId);
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
   return apiFetch<Paginated<AdminOrder>>(`/api/admin/orders?${params.toString()}`);

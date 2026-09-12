@@ -241,9 +241,13 @@ function AdminCustomersPage() {
         headerName: "تعداد سفارش",
         width: 140,
         renderCell: ({ row }) => (
-          <span className="rounded-full bg-sand-50 px-3 py-1 text-xs font-bold text-sand-500">
+          <Link
+            href={`/admin/orders?customerId=${row.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-full bg-sand-50 px-3 py-1 text-xs font-bold text-sand-500 transition hover:bg-sand-100"
+          >
             {(row._count?.orders ?? 0).toLocaleString("fa-IR")} سفارش
-          </span>
+          </Link>
         ),
       },
       {

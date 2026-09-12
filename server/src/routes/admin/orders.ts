@@ -29,10 +29,14 @@ adminOrdersRouter.get(
   asyncHandler(async (req, res) => {
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
     const search = parseSearch(req);
+    const customerId = typeof req.query.customerId === "string" ? req.query.customerId : undefined;
 
     const conditions = [];
     if (status && (ORDER_STATUSES as readonly string[]).includes(status)) {
       conditions.push({ status: status as (typeof ORDER_STATUSES)[number] });
+    }
+    if (customerId) {
+      conditions.push({ customerId });
     }
     if (search) {
       const or: object[] = [

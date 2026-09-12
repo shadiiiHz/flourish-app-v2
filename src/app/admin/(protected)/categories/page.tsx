@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Pencil, Plus, Trash2, Upload, X } from "lucide-react";
@@ -246,6 +247,15 @@ function AdminCategoriesPage() {
         headerName: "تعداد محصولات",
         width: 130,
         valueGetter: (_, row) => row._count?.products ?? 0,
+        renderCell: ({ row }) => (
+          <Link
+            href={`/admin/products?categoryId=${row.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-semibold text-sand-500 underline-offset-2 hover:underline"
+          >
+            {(row._count?.products ?? 0).toLocaleString("fa-IR")}
+          </Link>
+        ),
       },
       {
         field: "actions",

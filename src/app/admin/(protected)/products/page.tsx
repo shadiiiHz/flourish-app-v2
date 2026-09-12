@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { FileUp, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
@@ -158,6 +159,7 @@ const validationSchema = Yup.object({
 });
 
 function AdminProductsPage() {
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [page, setPage] = useState(1);
@@ -174,7 +176,9 @@ function AdminProductsPage() {
   );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  // Seeded once from a "?categoryId=" deep link (e.g. from the categories
+  // table's product-count column) — the dropdown owns it after that.
+  const [categoryFilter, setCategoryFilter] = useState(() => searchParams.get("categoryId") ?? "all");
   const [statusFilter, setStatusFilter] = useState<AdminProductStatusFilter | "all">("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>({
@@ -1449,4 +1453,12 @@ function AdminProductsPage() {
   );
 }
 
-export default AdminProductsPage;
+function AdminProductsPageWithSearchParams() {
+  return (
+    <Suspense fallback={null}>
+      <AdminProductsPage />
+    </Suspense>
+  );
+}
+
+export default AdminProductsPageWithSearchParams;

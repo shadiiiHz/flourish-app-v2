@@ -82,6 +82,13 @@ export interface AdminComboProduct {
 
 export interface AdminOrder extends Order {
   customerId?: string | null;
+  /** The customer's own profile — distinct from customerName, which is whatever name was typed for this specific order. */
+  customer?: {
+    id: string;
+    phone: string;
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
 }
 
 export type DiscountCodeSource = "manual" | "birthday";
