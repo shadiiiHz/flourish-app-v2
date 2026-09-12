@@ -225,7 +225,7 @@ function AdminOrdersPage() {
       {
         field: "source",
         headerName: "منبع سفارش",
-        width: 150,
+        width: 180,
         valueFormatter: (_, row) => ORDER_SOURCE_LABELS[row.source],
         renderCell: ({ row }) => (
           <span
