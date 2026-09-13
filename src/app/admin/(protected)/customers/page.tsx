@@ -251,6 +251,13 @@ function AdminCustomersPage() {
         ),
       },
       {
+        field: "lastOrderAt",
+        headerName: "تاریخ آخرین سفارش",
+        width: 180,
+        valueGetter: (_, row) =>
+          row.lastOrderAt ? new Date(row.lastOrderAt).toLocaleString("fa-IR") : "—",
+      },
+      {
         field: "source",
         headerName: "منبع",
         width: 160,

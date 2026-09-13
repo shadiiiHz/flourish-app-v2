@@ -13,7 +13,7 @@ const DAYS = 10;
 
 const VIEW_WIDTH = 760;
 const VIEW_HEIGHT = 280;
-const MARGIN = { top: 20, right: 16, bottom: 34, left: 44 };
+const MARGIN = { top: 20, right: 44, bottom: 34, left: 44 };
 const PLOT_WIDTH = VIEW_WIDTH - MARGIN.left - MARGIN.right;
 const PLOT_HEIGHT = VIEW_HEIGHT - MARGIN.top - MARGIN.bottom;
 

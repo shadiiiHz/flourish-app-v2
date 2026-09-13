@@ -139,6 +139,7 @@ export interface AdminCustomer {
   source: CustomerSource;
   walletBalance: number;
   createdAt: string;
+  lastOrderAt?: string | null;
   _count?: { orders: number };
   orders?: AdminOrder[];
   addresses?: AdminAddress[];
