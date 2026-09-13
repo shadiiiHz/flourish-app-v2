@@ -9,6 +9,7 @@ import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { sendSms, sendPatternSms } from "../lib/sms.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { getActiveBirthdayDiscount } from "../lib/birthdayDiscount.js";
+import { notifyCustomerWelcome } from "../lib/welcomeSms.js";
 
 export const customerAuthRouter = Router();
 
@@ -104,11 +105,11 @@ customerAuthRouter.post(
       res.status(401).json({ error: "کد وارد شده صحیح نیست" });
       return;
     }
-    const customer = await prisma.customer.upsert({
-      where: { phone },
-      update: {},
-      create: { phone },
-    });
+    const existing = await prisma.customer.findUnique({ where: { phone } });
+    const customer = existing ?? (await prisma.customer.create({ data: { phone } }));
+    if (!existing) {
+      await notifyCustomerWelcome(customer);
+    }
     const token = signCustomerToken({ sub: customer.id, phone: customer.phone });
     res.cookie(CUSTOMER_COOKIE_NAME, token, getCookieOptions(req));
     res.json(toAuthUser(customer));

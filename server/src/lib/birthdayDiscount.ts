@@ -18,16 +18,17 @@ const BIRTHDAY_NOTICE_DAYS_BEFORE = 2;
  * notifyAdminOfNewOrder in orders.ts: a MeliPayamak failure (no credit,
  * rejected number, unset body id) must never fail the code-creation request.
  * {0} in the approved template is the customer's first name (falling back to
- * "مشتری" when they haven't set one), {1} is the code.
+ * "مشتری" when they haven't set one), {1} is the discount percent, {2} is the code.
  */
 async function notifyCustomerOfBirthdayDiscount(
   customer: { phone: string; firstName: string | null },
+  percent: number,
   code: string,
 ): Promise<void> {
   if (!env.melipayamakBirthdayBodyId) return;
   const name = customer.firstName?.trim() || "مشتری";
   try {
-    await sendPatternSms(customer.phone, env.melipayamakBirthdayBodyId, [name, code]);
+    await sendPatternSms(customer.phone, env.melipayamakBirthdayBodyId, [name, String(percent), code]);
   } catch (err) {
     console.error("Failed to send birthday discount SMS:", err);
   }
@@ -173,7 +174,7 @@ export async function createBirthdayDiscountCode(
     });
   }
 
-  await notifyCustomerOfBirthdayDiscount(customer, created.code);
+  await notifyCustomerOfBirthdayDiscount(customer, created.percent, created.code);
 
   return created;
 }

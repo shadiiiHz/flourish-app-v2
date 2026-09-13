@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 import { ensureBirthdayMessage } from "../../lib/birthdayDiscount.js";
+import { notifyCustomerWelcome } from "../../lib/welcomeSms.js";
 
 export const adminCustomersRouter = Router();
 
@@ -48,20 +49,13 @@ adminCustomersRouter.get(
       prisma.customer.findMany({
         where,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        include: {
-          _count: { select: { orders: true } },
-          orders: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
-        },
+        include: { _count: { select: { orders: true } } },
         skip: pagination.skip,
         take: pagination.take,
       }),
       prisma.customer.count({ where }),
     ]);
-    const items = customers.map(({ orders, ...customer }) => ({
-      ...customer,
-      lastOrderAt: orders[0]?.createdAt ?? null,
-    }));
-    res.json(paginatedResult(items, total, pagination));
+    res.json(paginatedResult(customers, total, pagination));
   }),
 );
 
@@ -110,6 +104,7 @@ adminCustomersRouter.post(
     if (customer.birthDate) {
       await ensureBirthdayMessage(customer.id, customer.birthDate);
     }
+    await notifyCustomerWelcome(customer);
     res.status(201).json(customer);
   }),
 );

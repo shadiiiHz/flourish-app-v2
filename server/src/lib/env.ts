@@ -26,6 +26,9 @@ export const env = {
   melipayamakBirthdayBodyId: process.env.MELIPAYAMAK_BIRTHDAY_BODY_ID
     ? Number(process.env.MELIPAYAMAK_BIRTHDAY_BODY_ID)
     : undefined,
+  melipayamakWelcomeBodyId: process.env.MELIPAYAMAK_WELCOME_BODY_ID
+    ? Number(process.env.MELIPAYAMAK_WELCOME_BODY_ID)
+    : undefined,
   adminNotifyPhone: process.env.ADMIN_NOTIFY_PHONE,
   zarinpalMerchantId: process.env.ZARINPAL_MERCHANT_ID,
   zarinpalSandbox: process.env.ZARINPAL_SANDBOX === "true",
