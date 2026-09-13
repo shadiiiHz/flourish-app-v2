@@ -292,6 +292,11 @@ adminOrdersRouter.post(
         note,
         orderType: "instant",
         source: "admin",
+        // Manual/in-person orders are entered after the fact (the admin is recording a
+        // sale that already happened), so they should land as delivered by default
+        // rather than starting the pending → confirmed → … pipeline meant for
+        // website orders.
+        status: "delivered",
         deliveryMethod,
         addressId: address?.id,
         addressText: finalAddressText,
@@ -321,6 +326,7 @@ adminOrdersRouter.post(
     }
 
     await decrementStockForItems(order.items);
+    await creditWalletCashback(order.id);
 
     res.status(201).json(order);
   }),
