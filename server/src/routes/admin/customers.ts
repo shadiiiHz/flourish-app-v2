@@ -49,13 +49,20 @@ adminCustomersRouter.get(
       prisma.customer.findMany({
         where,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        include: { _count: { select: { orders: true } } },
+        include: {
+          _count: { select: { orders: true } },
+          orders: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
+        },
         skip: pagination.skip,
         take: pagination.take,
       }),
       prisma.customer.count({ where }),
     ]);
-    res.json(paginatedResult(customers, total, pagination));
+    const items = customers.map(({ orders, ...customer }) => ({
+      ...customer,
+      lastOrderAt: orders[0]?.createdAt ?? null,
+    }));
+    res.json(paginatedResult(items, total, pagination));
   }),
 );
 
