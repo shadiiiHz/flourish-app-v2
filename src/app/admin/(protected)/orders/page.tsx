@@ -2,7 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Eye, X } from "lucide-react";
+import Link from "next/link";
+import { Eye, ShoppingBag, X } from "lucide-react";
 import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -316,23 +317,32 @@ function AdminOrdersPage() {
         <h1 className="font-display text-xl font-bold text-cocoa-900">
           سفارش‌ها
         </h1>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <Select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as OrderStatus | "all");
-              setPage(1);
-            }}
-            sx={{ borderRadius: 999, fontSize: 13, fontWeight: 700 }}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/orders/new"
+            className="flex items-center gap-1.5 rounded-full border border-sand-200 bg-white px-4 py-2 text-xs font-bold text-cocoa-700 transition hover:bg-sand-50"
           >
-            <MenuItem value="all">همه وضعیت‌ها</MenuItem>
-            {STATUS_OPTIONS.map((s) => (
-              <MenuItem key={s} value={s}>
-                {ORDER_STATUS_LABELS[s]}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            <ShoppingBag className="h-3.5 w-3.5" />
+            ثبت سفارش دستی
+          </Link>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <Select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as OrderStatus | "all");
+                setPage(1);
+              }}
+              sx={{ borderRadius: 999, fontSize: 13, fontWeight: 700 }}
+            >
+              <MenuItem value="all">همه وضعیت‌ها</MenuItem>
+              {STATUS_OPTIONS.map((s) => (
+                <MenuItem key={s} value={s}>
+                  {ORDER_STATUS_LABELS[s]}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </div>
       </div>
 
       {customerFilter && (

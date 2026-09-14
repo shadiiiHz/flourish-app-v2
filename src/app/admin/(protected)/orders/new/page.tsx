@@ -16,6 +16,7 @@ import {
 import type { AdminCustomer, AdminProduct } from "@/types/admin";
 import { normalizeDigits, PHONE_REGEX } from "@/utils/phone";
 import { digitsOnly, formatThousands } from "@/lib/formatNumber";
+import { getDiscountedPrice } from "@/config/siteConfig";
 
 interface OrderLine {
   key: string;
@@ -137,6 +138,7 @@ function AdminNewOrderPage() {
         if (maxStock != null && existing.quantity >= maxStock) return prev;
         return prev.map((i) => (i.key === key ? { ...i, quantity: i.quantity + 1 } : i));
       }
+      const basePrice = variant ? variant.price : product.price;
       return [
         ...prev,
         {
@@ -145,7 +147,7 @@ function AdminNewOrderPage() {
           variantId: variant?.id,
           title: product.title,
           variantTitle: variant?.title,
-          unitPrice: variant ? variant.price : product.price,
+          unitPrice: getDiscountedPrice(basePrice, product.discountPercent ?? undefined),
           quantity: 1,
           maxStock,
           pickupOnly: product.pickupOnly,
@@ -440,7 +442,7 @@ function AdminNewOrderPage() {
                           )}
                         </span>
                         <span className="text-xs font-semibold text-cocoa-600">
-                          {money(variant.price)}
+                          {money(getDiscountedPrice(variant.price, product.discountPercent ?? undefined))}
                           {variant.stock != null && ` (موجودی: ${variant.stock.toLocaleString("fa-IR")})`}
                         </span>
                       </button>
@@ -461,7 +463,7 @@ function AdminNewOrderPage() {
                         )}
                       </span>
                       <span className="text-xs font-semibold text-cocoa-600">
-                        {money(product.price)}
+                        {money(getDiscountedPrice(product.price, product.discountPercent ?? undefined))}
                         {product.stock != null && ` (موجودی: ${product.stock.toLocaleString("fa-IR")})`}
                       </span>
                     </button>
