@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Eye, MapPin, ShoppingBag, X } from "lucide-react";
+import { Check, Copy, Eye, MapPin, ShoppingBag, X } from "lucide-react";
 import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -72,6 +72,7 @@ function AdminOrdersPage() {
   const [customerFilter, setCustomerFilter] = useState(() => searchParams.get("customerId") ?? "");
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [showLocationMap, setShowLocationMap] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -167,6 +168,16 @@ function AdminOrdersPage() {
       setError(
         err instanceof ApiError ? err.message : "خطا در بروزرسانی وضعیت پرداخت",
       );
+    }
+  };
+
+  const copyCustomerPhone = async (phone: string) => {
+    try {
+      await navigator.clipboard.writeText(phone);
+      setCopiedPhone(true);
+      window.setTimeout(() => setCopiedPhone(false), 1500);
+    } catch {
+      // clipboard access is a convenience only — silently ignore failures
     }
   };
 
@@ -417,6 +428,7 @@ function AdminOrdersPage() {
         onClose={() => {
           setSelectedOrder(null);
           setShowLocationMap(false);
+          setCopiedPhone(false);
         }}
         maxWidth="sm"
         fullWidth
@@ -426,9 +438,29 @@ function AdminOrdersPage() {
           <>
             <DialogTitle className="font-display text-cocoa-900">
               سفارش {formatOrderNumber(selectedOrder.orderNumber)} —{" "}
-              {selectedOrder.customerName || "مهمان"}
+              {selectedOrder.customerName || "بدون نام"}
             </DialogTitle>
             <DialogContent dividers>
+              <div className="mb-3 flex items-center gap-2 text-sm">
+                <span className="text-cocoa-600">شماره مشتری:</span>
+                <span dir="ltr" className="font-semibold text-cocoa-900">
+                  {selectedOrder.customerPhone}
+                </span>
+                <Tooltip title={copiedPhone ? "کپی شد" : "کپی شماره"}>
+                  <button
+                    type="button"
+                    onClick={() => copyCustomerPhone(selectedOrder.customerPhone)}
+                    aria-label="کپی شماره مشتری"
+                    className="text-cocoa-400 transition hover:text-sand-500"
+                  >
+                    {copiedPhone ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                </Tooltip>
+              </div>
               <span
                 className={`mb-3 inline-block rounded-full px-3 py-1 text-xs font-bold ${
                   selectedOrder.source === "admin"
