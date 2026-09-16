@@ -89,6 +89,11 @@ export interface AdminOrder extends Order {
     firstName?: string | null;
     lastName?: string | null;
   } | null;
+  /** The saved address this order was delivered to, if any — its coordinates let the admin see the exact pin the customer placed on the map. */
+  address?: {
+    lat: number | null;
+    lng: number | null;
+  } | null;
 }
 
 export type DiscountCodeSource = "manual" | "birthday";

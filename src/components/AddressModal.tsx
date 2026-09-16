@@ -93,7 +93,10 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
   const handleLocationChange = (picked: PickedLocation) => {
     setLocation(picked);
     setLocationError(null);
-    if (picked.address) setAddress(picked.address);
+    if (picked.address) {
+      setAddress(picked.address);
+      setError(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -103,7 +106,7 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
       return;
     }
     if (!address.trim()) {
-      setError("لطفاً آدرس را وارد کنید");
+      setError("آدرس این موقعیت یافت نشد؛ لطفاً نقطه دیگری روی نقشه انتخاب کنید");
       return;
     }
     const data = {
@@ -177,15 +180,16 @@ function AddressModal({ isOpen, editingAddress, onClose }: AddressModalProps) {
                   </div>
 
                   <div className="flex flex-col">
+                    <p className="mb-3 text-xs font-semibold text-sand-600">
+                      لطفا آدرس دقیق را بر روی نقشه انتخاب کنید
+                    </p>
                     <FieldShell label="آدرس">
                       <textarea
                         value={address}
-                        onChange={(e) => {
-                          setError(null);
-                          setAddress(e.target.value);
-                        }}
+                        readOnly
+                        placeholder="با انتخاب موقعیت روی نقشه، آدرس اینجا نمایش داده می‌شود"
                         rows={3}
-                        className={`w-full resize-none rounded-2xl border bg-white px-4 py-3.5 text-right text-base text-cocoa-900 outline-none transition focus:ring-2 focus:ring-sand-400/25 ${
+                        className={`w-full cursor-default resize-none rounded-2xl border bg-sand-50/40 px-4 py-3.5 text-right text-base text-cocoa-900 outline-none transition focus:ring-2 focus:ring-sand-400/25 ${
                           error ? "border-danger-500" : "border-cocoa-900/10 focus:border-sand-400"
                         }`}
                       />

@@ -62,7 +62,11 @@ adminOrdersRouter.get(
     const [orders, total] = await prisma.$transaction([
       prisma.order.findMany({
         where,
-        include: { items: true, customer: true },
+        include: {
+          items: true,
+          customer: true,
+          address: { select: { lat: true, lng: true } },
+        },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: pagination.skip,
         take: pagination.take,

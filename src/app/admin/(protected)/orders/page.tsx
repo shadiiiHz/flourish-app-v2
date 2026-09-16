@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, ShoppingBag, X } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Eye, MapPin, ShoppingBag, X } from "lucide-react";
 import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -37,6 +38,15 @@ import {
   type PaymentStatus,
 } from "@/types/admin";
 
+const OrderLocationMap = dynamic(() => import("@/components/admin/OrderLocationMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-72 items-center justify-center text-xs text-cocoa-500 sm:h-96">
+      در حال بارگذاری نقشه…
+    </div>
+  ),
+});
+
 const STATUS_OPTIONS = Object.keys(ORDER_STATUS_LABELS) as OrderStatus[];
 const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = ["pending", "paid"];
 
@@ -61,6 +71,7 @@ function AdminOrdersPage() {
   // table's order-count column) — cleared via the banner below.
   const [customerFilter, setCustomerFilter] = useState(() => searchParams.get("customerId") ?? "");
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
+  const [showLocationMap, setShowLocationMap] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -403,7 +414,10 @@ function AdminOrdersPage() {
 
       <Dialog
         open={!!selectedOrder}
-        onClose={() => setSelectedOrder(null)}
+        onClose={() => {
+          setSelectedOrder(null);
+          setShowLocationMap(false);
+        }}
         maxWidth="sm"
         fullWidth
         dir="rtl"
@@ -508,13 +522,29 @@ function AdminOrdersPage() {
               </div>
 
               {selectedOrder.addressText && (
-                <div className="mt-2 flex items-start justify-between gap-3 text-sm">
-                  <span className="shrink-0 text-cocoa-600">آدرس تحویل</span>
-                  <span className="text-left font-semibold text-cocoa-900">
-                    {selectedOrder.addressText}
-                    {selectedOrder.distanceKm != null &&
-                      ` (${selectedOrder.distanceKm.toLocaleString("fa-IR", { maximumFractionDigits: 1 })} کیلومتر)`}
-                  </span>
+                <div className="mt-2 text-sm">
+                  <div className="flex items-start justify-start gap-3">
+                    <span className="shrink-0 text-cocoa-600">آدرس تحویل:</span>
+                    <span className="text-right font-semibold text-cocoa-900">
+                      {selectedOrder.addressText}
+                      {selectedOrder.distanceKm != null &&
+                        ` (${selectedOrder.distanceKm.toLocaleString("fa-IR", { maximumFractionDigits: 1 })} کیلومتر)`}
+                    </span>
+                  </div>
+                  {selectedOrder.address?.lat != null &&
+                    selectedOrder.address?.lng != null && (
+                      <div className="mt-2 flex items-center justify-start gap-3">
+                        <span className="shrink-0 text-cocoa-600">موقعیت دقیق آدرس تحویل:</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowLocationMap(true)}
+                          className="flex shrink-0 items-center gap-1 rounded-full bg-sand-50 px-2.5 py-1 text-xs font-bold text-sand-500 transition hover:bg-sand-100"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                          نمایش روی نقشه
+                        </button>
+                      </div>
+                    )}
                 </div>
               )}
 
@@ -580,6 +610,25 @@ function AdminOrdersPage() {
             </DialogContent>
           </>
         )}
+      </Dialog>
+
+      <Dialog
+        open={showLocationMap && !!selectedOrder?.address?.lat && !!selectedOrder?.address?.lng}
+        onClose={() => setShowLocationMap(false)}
+        maxWidth="sm"
+        fullWidth
+        dir="rtl"
+      >
+        <DialogTitle className="font-display text-cocoa-900">
+          موقعیت دقیق آدرس تحویل
+        </DialogTitle>
+        <DialogContent dividers className="!p-0">
+          <div className="h-72 w-full sm:h-96">
+            {selectedOrder?.address?.lat != null && selectedOrder?.address?.lng != null && (
+              <OrderLocationMap lat={selectedOrder.address.lat} lng={selectedOrder.address.lng} />
+            )}
+          </div>
+        </DialogContent>
       </Dialog>
 
       <ConfirmModal
