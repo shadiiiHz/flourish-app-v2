@@ -371,6 +371,9 @@ function WalletPanel() {
           {balance.toLocaleString("fa-IR")} تومان
         </p>
       </div>
+      <p className="mt-3 rounded-xl bg-sand-50 p-3 text-center text-sm font-bold text-sand-500">
+        توجه: اعتبار کیف پول تا یک ماه از تاریخ واریز قابل استفاده است.
+      </p>
 
       {loading ? (
         <Preloader fullScreen={false} />
