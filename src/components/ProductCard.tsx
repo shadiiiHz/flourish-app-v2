@@ -87,9 +87,12 @@ function ProductCard({
                   setOpen(true);
                 }
               }}
-              className="line-clamp-1 cursor-pointer font-display text-sm font-bold text-cocoa-900 sm:text-[15px]"
+              className="cursor-pointer"
             >
-              {item.title}
+              <MarqueeText
+                text={item.title}
+                className="font-display text-sm font-bold text-cocoa-900 sm:text-[15px]"
+              />
             </h3>
             <MarqueeText text={item.description} className="text-xs text-cocoa-500" />
           </div>
