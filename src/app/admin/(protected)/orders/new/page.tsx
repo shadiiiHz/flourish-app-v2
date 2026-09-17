@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Minus, Plus, Trash2, UserPlus } from "lucide-react";
 import {
@@ -36,6 +36,7 @@ function money(n: number) {
 
 function AdminNewOrderPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerResults, setCustomerResults] = useState<AdminCustomer[]>([]);
@@ -61,7 +62,7 @@ function AdminNewOrderPage() {
   const [useWallet, setUseWallet] = useState(false);
   const [walletMode, setWalletMode] = useState<"full" | "partial">("full");
   const [walletAmount, setWalletAmount] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid">("pending");
+  const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid">("paid");
   const [note, setNote] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -101,6 +102,15 @@ function AdminNewOrderPage() {
     const full = await adminGetCustomer(customer.id);
     setCustomerDetail(full);
   };
+
+  // Deep-linked from the customers table's "ثبت سفارش دستی" row action
+  // ("?customerId=...") — pre-selects that customer instead of making the
+  // admin search for them again.
+  useEffect(() => {
+    const customerId = searchParams.get("customerId");
+    if (!customerId) return;
+    adminGetCustomer(customerId).then(selectCustomer).catch(() => {});
+  }, [searchParams]);
 
   const clearCustomer = () => {
     setSelectedCustomer(null);
@@ -755,4 +765,12 @@ function AdminNewOrderPage() {
   );
 }
 
-export default AdminNewOrderPage;
+function AdminNewOrderPageWithSearchParams() {
+  return (
+    <Suspense fallback={null}>
+      <AdminNewOrderPage />
+    </Suspense>
+  );
+}
+
+export default AdminNewOrderPageWithSearchParams;

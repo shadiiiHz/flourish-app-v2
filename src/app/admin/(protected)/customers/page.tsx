@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Eye, Pencil, Plus, ShoppingBag, Trash2 } from "lucide-react";
@@ -72,6 +73,7 @@ function isoToDateInput(iso: string | null | undefined): string {
 }
 
 function AdminCustomersPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -277,7 +279,7 @@ function AdminCustomersPage() {
       {
         field: "actions",
         headerName: "عملیات",
-        width: 150,
+        width: 190,
         sortable: false,
         filterable: false,
         align: "center",
@@ -291,6 +293,15 @@ function AdminCustomersPage() {
               aria-label="مشاهده جزئیات"
             >
               <Eye className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(`/admin/orders/new?customerId=${row.id}`)}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-sand-100 text-cocoa-700 outline-none transition hover:bg-sand-50 focus-visible:ring-2 focus-visible:ring-sand-400/50"
+              aria-label="ثبت سفارش دستی برای این مشتری"
+              title="ثبت سفارش دستی"
+            >
+              <ShoppingBag className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"

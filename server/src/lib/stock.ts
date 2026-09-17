@@ -33,6 +33,36 @@ export async function decrementStockForItems(
 }
 
 /**
+ * Reverses decrementStockForItems — returns stock to products/variants for an
+ * order that no longer holds it (cancelled or deleted). Only touches
+ * finite-stock items (stock !== null), mirroring the decrement's behavior.
+ */
+export async function restockItems(
+  items: { productId: string | null; variantId?: string | null; quantity: number }[],
+): Promise<void> {
+  const operations = items.flatMap((item) => {
+    if (item.variantId) {
+      return [
+        prisma.productVariant.updateMany({
+          where: { id: item.variantId, stock: { not: null } },
+          data: { stock: { increment: item.quantity } },
+        }),
+      ];
+    }
+    if (!item.productId) return [];
+    return [
+      prisma.product.updateMany({
+        where: { id: item.productId, stock: { not: null } },
+        data: { stock: { increment: item.quantity } },
+      }),
+    ];
+  });
+  if (operations.length === 0) return;
+  await prisma.$transaction(operations);
+  await revalidateStorefrontCatalog();
+}
+
+/**
  * Purges the storefront's cached catalog (ISR, 60s window) right after stock
  * changes, so a just-sold-out product shows "ناموجود" immediately instead of
  * customers seeing stale availability for up to a minute. Best-effort — the

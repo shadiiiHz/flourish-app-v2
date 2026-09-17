@@ -11,7 +11,7 @@ import {
 } from "../../lib/wallet.js";
 import { calculateShipping } from "../../lib/shipping.js";
 import { TAX_RATE, getDiscountedPrice } from "../../lib/pricing.js";
-import { decrementStockForItems } from "../../lib/stock.js";
+import { decrementStockForItems, restockItems } from "../../lib/stock.js";
 
 export const adminOrdersRouter = Router();
 
@@ -96,7 +96,7 @@ const createOrderSchema = z
     discountCode: z.string().trim().min(1).optional(),
     /** Toman amount to redeem from the customer's wallet — clamped below at their balance and the order total. Omit/0 to skip the wallet. */
     walletAmount: z.number().int().nonnegative().optional(),
-    paymentStatus: z.enum(["pending", "paid"]).default("pending"),
+    paymentStatus: z.enum(["pending", "paid"]).default("paid"),
     customerName: z.string().optional(),
     note: z.string().optional(),
   })
@@ -378,6 +378,11 @@ adminOrdersRouter.patch(
       res.status(400).json({ error: "وضعیت سفارش نامعتبر است" });
       return;
     }
+    const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      res.status(404).json({ error: "سفارش یافت نشد" });
+      return;
+    }
     const order = await prisma.order.update({
       where: { id: req.params.id },
       data: { status: parsed.data.status },
@@ -388,6 +393,14 @@ adminOrdersRouter.patch(
     } else if (parsed.data.status === "cancelled") {
       await reverseWalletCashback(order.id);
       await refundWalletHold(order.id, "بازگشت وجه کیف پول به دلیل لغو سفارش");
+      // Only return stock the first time the order lands in "cancelled" —
+      // otherwise re-saving an already-cancelled order would restock twice.
+      // Preorder items never had stock decremented in the first place (they're
+      // treated as unlimited inventory — see decrementStockForItems' callers),
+      // so they must not be restocked either.
+      if (existing.status !== "cancelled" && order.orderType !== "preorder") {
+        await restockItems(order.items);
+      }
     }
     res.json(order);
   }),
