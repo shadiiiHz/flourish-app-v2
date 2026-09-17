@@ -217,17 +217,19 @@ model Order {
 }
 
 model OrderItem {
-  id           String          @id @default(cuid())
-  orderId      String
-  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId    String?
-  product      Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
-  variantId    String?
-  variant      ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  title        String
-  variantTitle String?
-  price        Int
-  quantity     Int
+  id               String          @id @default(cuid())
+  orderId          String
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variantId        String?
+  variant          ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  title            String
+  variantTitle     String?
+  price            Int
+  quantity         Int
+  /// How much stock this item actually took at order time (0 if none — e.g. it was already out of stock, or the order is a preorder). Restocking on cancel/delete returns exactly this much, never the raw quantity.
+  stockDecremented Int             @default(0)
 }
 
 enum DiscountCodeSource {

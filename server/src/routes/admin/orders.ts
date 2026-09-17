@@ -99,6 +99,8 @@ const createOrderSchema = z
     paymentStatus: z.enum(["pending", "paid"]).default("paid"),
     customerName: z.string().optional(),
     note: z.string().optional(),
+    /** "preorder" skips stock entirely, same as a customer preorder. */
+    orderType: z.enum(["instant", "preorder"]).default("instant"),
   })
   .refine((data) => (data.items && data.items.length > 0) || data.manualSubtotal != null, {
     message: "حداقل یک آیتم اضافه کنید یا جمع کل اقلام را وارد کنید",
@@ -137,6 +139,7 @@ adminOrdersRouter.post(
       paymentStatus,
       customerName,
       note,
+      orderType,
     } = parsed.data;
 
     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
@@ -294,7 +297,7 @@ adminOrdersRouter.post(
           [customer.firstName, customer.lastName].filter(Boolean).join(" ") ||
           undefined,
         note,
-        orderType: "instant",
+        orderType,
         source: "admin",
         // Manual/in-person orders are entered after the fact (the admin is recording a
         // sale that already happened), so they should land as delivered by default
@@ -329,7 +332,9 @@ adminOrdersRouter.post(
       });
     }
 
-    await decrementStockForItems(order.items);
+    if (orderType !== "preorder") {
+      await decrementStockForItems(order.items);
+    }
     await creditWalletCashback(order.id);
 
     res.status(201).json(order);
@@ -388,6 +393,13 @@ adminOrdersRouter.patch(
       data: { status: parsed.data.status },
       include: { items: true, customer: true },
     });
+    // Coming back from "cancelled" into any active status takes stock again
+    // — it was returned when the order was cancelled, so leaving that status
+    // must re-take it, exactly like a fresh order would (preorders excepted:
+    // they never decrement stock at all, cancelled or not).
+    if (existing.status === "cancelled" && parsed.data.status !== "cancelled" && order.orderType !== "preorder") {
+      await decrementStockForItems(order.items);
+    }
     if (parsed.data.status === "delivered") {
       await creditWalletCashback(order.id);
     } else if (parsed.data.status === "cancelled") {
@@ -395,10 +407,10 @@ adminOrdersRouter.patch(
       await refundWalletHold(order.id, "بازگشت وجه کیف پول به دلیل لغو سفارش");
       // Only return stock the first time the order lands in "cancelled" —
       // otherwise re-saving an already-cancelled order would restock twice.
-      // Preorder items never had stock decremented in the first place (they're
-      // treated as unlimited inventory — see decrementStockForItems' callers),
-      // so they must not be restocked either.
-      if (existing.status !== "cancelled" && order.orderType !== "preorder") {
+      // restockItems itself only returns each item's recorded
+      // stockDecremented amount, so items that never took stock (out of
+      // stock at order time, or a preorder) are correctly left alone.
+      if (existing.status !== "cancelled") {
         await restockItems(order.items);
       }
     }
@@ -414,11 +426,23 @@ adminOrdersRouter.delete(
       res.status(400).json({ error: "شناسه‌های نامعتبر" });
       return;
     }
+    const ordersToDelete = await prisma.order.findMany({
+      where: { id: { in: parsed.data.ids } },
+      include: { items: true },
+    });
     // Any cashback already paid out, and any wallet amount already spent on
     // the order, must be reversed/refunded before the order itself disappears.
     for (const id of parsed.data.ids) {
       await reverseWalletCashback(id);
       await refundWalletHold(id, "بازگشت وجه کیف پول به دلیل حذف سفارش");
+    }
+    // Same rule as cancelling: skip orders already cancelled (already
+    // returned) — restockItems itself only returns each item's recorded
+    // stockDecremented amount, so anything that never took stock is a no-op.
+    for (const order of ordersToDelete) {
+      if (order.status !== "cancelled") {
+        await restockItems(order.items);
+      }
     }
     await prisma.order.deleteMany({ where: { id: { in: parsed.data.ids } } });
     res.status(204).end();

@@ -724,6 +724,8 @@ export interface AdminCreateOrderPayload {
   paymentStatus: "pending" | "paid";
   customerName?: string;
   note?: string;
+  /** "preorder" skips stock entirely, same as a customer preorder — any product/quantity can be added. Defaults to "instant" server-side. */
+  orderType?: OrderType;
 }
 
 export function adminCreateOrder(payload: AdminCreateOrderPayload) {

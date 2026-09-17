@@ -257,7 +257,7 @@ ordersRouter.post(
         });
       }
       if (orderType !== "preorder") {
-        await decrementStockForItems(orderItems);
+        await decrementStockForItems(paidOrder.items);
       }
       await notifyAdminOfNewOrder(order.orderNumber);
       res.status(201).json({ order: paidOrder, paymentUrl: null });

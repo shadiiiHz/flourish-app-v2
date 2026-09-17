@@ -53,6 +53,10 @@ function AdminNewOrderPage() {
   const [items, setItems] = useState<OrderLine[]>([]);
   const [manualMode, setManualMode] = useState(false);
   const [manualSubtotal, setManualSubtotal] = useState("");
+  // Preorder mode: stock stops being a concern entirely — any product/quantity
+  // can be added, and the order never decrements stock (mirrors how customer
+  // preorders already work).
+  const [isPreorder, setIsPreorder] = useState(false);
 
   const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("pickup");
   const [addressId, setAddressId] = useState("");
@@ -139,13 +143,19 @@ function AdminNewOrderPage() {
     }
   };
 
+  // Out-of-stock products still show up in search (so the admin isn't
+  // confused about why they're missing) but can't actually be added — and a
+  // product that does have stock can't be ordered past it. Both search
+  // buttons and the "+" stepper enforce the same maxStock cap. In preorder
+  // mode none of this applies — stock is not a concern at all.
   const addLine = (product: AdminProduct, variant?: AdminProduct["variants"][number]) => {
     const key = variant ? `${product.id}:${variant.id}` : product.id;
     const maxStock = variant ? variant.stock : product.stock;
+    if (!isPreorder && maxStock != null && maxStock <= 0) return;
     setItems((prev) => {
       const existing = prev.find((i) => i.key === key);
       if (existing) {
-        if (maxStock != null && existing.quantity >= maxStock) return prev;
+        if (!isPreorder && maxStock != null && existing.quantity >= maxStock) return prev;
         return prev.map((i) => (i.key === key ? { ...i, quantity: i.quantity + 1 } : i));
       }
       const basePrice = variant ? variant.price : product.price;
@@ -173,7 +183,7 @@ function AdminNewOrderPage() {
       prev
         .map((i) => {
           if (i.key !== key) return i;
-          if (delta > 0 && i.maxStock != null && i.quantity >= i.maxStock) return i;
+          if (!isPreorder && delta > 0 && i.maxStock != null && i.quantity >= i.maxStock) return i;
           return { ...i, quantity: i.quantity + delta };
         })
         .filter((i) => i.quantity > 0),
@@ -252,6 +262,7 @@ function AdminNewOrderPage() {
         walletAmount: walletAmountToUse,
         paymentStatus,
         note: note.trim() || undefined,
+        orderType: isPreorder ? "preorder" : "instant",
       };
       await adminCreateOrder(payload);
       router.push("/admin/orders");
@@ -404,6 +415,18 @@ function AdminNewOrderPage() {
           </div>
         </div>
 
+        {!manualMode && (
+          <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-cocoa-600">
+            <input
+              type="checkbox"
+              checked={isPreorder}
+              onChange={(e) => setIsPreorder(e.target.checked)}
+              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+            />
+            پیش‌سفارش (بدون بررسی موجودی — هر محصول و هر تعدادی قابل انتخاب است)
+          </label>
+        )}
+
         {manualMode ? (
           <div className="mt-3">
             <label className="mb-1 block text-xs font-semibold text-cocoa-600">
@@ -441,7 +464,8 @@ function AdminNewOrderPage() {
                         key={`${product.id}:${variant.id}`}
                         type="button"
                         onClick={() => addLine(product, variant)}
-                        className="flex items-center justify-between rounded-xl border border-cocoa-900/10 px-3 py-2 text-right text-sm hover:bg-sand-50"
+                        disabled={!isPreorder && variant.stock === 0}
+                        className="flex items-center justify-between rounded-xl border border-cocoa-900/10 px-3 py-2 text-right text-sm hover:bg-sand-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                       >
                         <span>
                           {product.title} — {variant.title}
@@ -462,7 +486,8 @@ function AdminNewOrderPage() {
                       key={product.id}
                       type="button"
                       onClick={() => addLine(product)}
-                      className="flex items-center justify-between rounded-xl border border-cocoa-900/10 px-3 py-2 text-right text-sm hover:bg-sand-50"
+                      disabled={!isPreorder && product.stock === 0}
+                      className="flex items-center justify-between rounded-xl border border-cocoa-900/10 px-3 py-2 text-right text-sm hover:bg-sand-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                     >
                       <span>
                         {product.title}
@@ -510,7 +535,7 @@ function AdminNewOrderPage() {
                   <button
                     type="button"
                     onClick={() => updateQuantity(item.key, 1)}
-                    disabled={item.maxStock != null && item.quantity >= item.maxStock}
+                    disabled={!isPreorder && item.maxStock != null && item.quantity >= item.maxStock}
                     className="flex h-7 w-7 items-center justify-center rounded-full border border-cocoa-900/10 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                   >
                     <Plus className="h-3 w-3" />
