@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Wallet as WalletIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Eye, ShoppingBag, Wallet as WalletIcon } from "lucide-react";
 import type { GridColDef } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -104,6 +105,7 @@ function CashbackPercentForm() {
 }
 
 function AdminWalletPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -180,13 +182,13 @@ function AdminWalletPage() {
       {
         field: "actions",
         headerName: "عملیات",
-        width: 100,
+        width: 130,
         sortable: false,
         filterable: false,
         align: "center",
         headerAlign: "center",
         renderCell: ({ row }) => (
-          <div className="flex h-full w-full items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center gap-2">
             <button
               type="button"
               onClick={() => openTransactions(row)}
@@ -195,11 +197,20 @@ function AdminWalletPage() {
             >
               <Eye className="h-3.5 w-3.5" />
             </button>
+            <button
+              type="button"
+              onClick={() => router.push(`/admin/orders/new?customerId=${row.id}`)}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-sand-100 text-cocoa-700 outline-none transition hover:bg-sand-50 focus-visible:ring-2 focus-visible:ring-sand-400/50"
+              aria-label="ثبت سفارش دستی برای این مشتری"
+              title="ثبت سفارش دستی"
+            >
+              <ShoppingBag className="h-3.5 w-3.5" />
+            </button>
           </div>
         ),
       },
     ],
-    [],
+    [router],
   );
 
   const handleExportAll = useCallback(async () => {

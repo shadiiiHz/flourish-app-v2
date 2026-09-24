@@ -1,3 +1,5 @@
+import { daysInJalaliMonth, gregorianToJalali, jalaliToGregorian } from "./jalali.js";
+
 const TEHRAN_TIME_ZONE = "Asia/Tehran";
 
 interface DateParts {
@@ -32,17 +34,25 @@ export function tehranCalendarDayDiff(a: Date, b: Date): number {
 }
 
 /**
- * The next occurrence (this year, or next if it already passed) of
- * `monthDay`'s month/day, on or after `now`, in Tehran calendar terms —
- * e.g. for a birthday of Sep 21, called on Sep 19 returns this year's Sep
- * 21; called on Sep 22 returns next year's.
+ * The next occurrence (this Jalali year, or next if it already passed) of
+ * `monthDay`'s Jalali month/day, on or after `now`, in Tehran calendar terms.
+ * Birthdays are entered on a Jalali picker, and a Jalali date doesn't land on
+ * the same Gregorian month/day every year (e.g. 2 Mehr is Sep 23 in 1403 but
+ * Sep 24 in 1405), so the anniversary has to be found in the Jalali calendar.
+ * A 30 Esfand birthday falls on 29 Esfand in non-leap years.
  */
 export function nextTehranMonthDayOccurrence(monthDay: Date, now: Date): Date {
-  const { month, day } = getTehranDateParts(monthDay);
-  const { year: nowYear } = getTehranDateParts(now);
-  const thisYear = tehranCalendarMarker(nowYear, month, day);
+  const birth = getTehranDateParts(monthDay);
+  const { jm, jd } = gregorianToJalali(birth.year, birth.month, birth.day);
+  const today = getTehranDateParts(now);
+  const { jy: nowJy } = gregorianToJalali(today.year, today.month, today.day);
+  const occurrenceIn = (jy: number) => {
+    const { gy, gm, gd } = jalaliToGregorian(jy, jm, Math.min(jd, daysInJalaliMonth(jy, jm)));
+    return tehranCalendarMarker(gy, gm, gd);
+  };
+  const thisYear = occurrenceIn(nowJy);
   if (tehranCalendarDayDiff(now, thisYear) < 0) {
-    return tehranCalendarMarker(nowYear + 1, month, day);
+    return occurrenceIn(nowJy + 1);
   }
   return thisYear;
 }
