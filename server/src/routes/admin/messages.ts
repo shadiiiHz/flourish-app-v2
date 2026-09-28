@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, paginatedResult } from "../../lib/pagination.js";
-import { createBirthdayDiscountCode } from "../../lib/birthdayDiscount.js";
+import { createBirthdayDiscountCode, isInBirthdayDiscountWindow } from "../../lib/birthdayDiscount.js";
 
 export const adminMessagesRouter = Router();
 
@@ -92,6 +92,16 @@ adminMessagesRouter.post(
     }
     if (message.actionedAt) {
       res.status(409).json({ error: "برای این پیام قبلاً کد تخفیف ایجاد شده است" });
+      return;
+    }
+    const customer = await prisma.customer.findUnique({ where: { id: message.customerId } });
+    if (!customer?.birthDate) {
+      res.status(400).json({ error: "تاریخ تولد مشتری ثبت نشده است" });
+      return;
+    }
+    // Past the birthday, the code would expire at next year's birthday instead.
+    if (!isInBirthdayDiscountWindow(customer.birthDate)) {
+      res.status(400).json({ error: "روز تولد این مشتری گذشته است و دیگر نمی‌توان برایش کد تخفیف تولد ایجاد کرد" });
       return;
     }
     const discountCode = await createBirthdayDiscountCode(

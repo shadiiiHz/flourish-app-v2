@@ -23,6 +23,20 @@ discountCodesRouter.post(
       res.status(404).json({ error: "کد تخفیف معتبر نیست" });
       return;
     }
+    // Same rules the order route enforces — otherwise checkout would accept a
+    // code here that placing the order then rejects.
+    if (discount.customerId && discount.customerId !== req.customer!.sub) {
+      res.status(400).json({ error: "این کد تخفیف مخصوص شما نیست" });
+      return;
+    }
+    if (discount.usedAt) {
+      res.status(400).json({ error: "این کد تخفیف قبلاً استفاده شده است" });
+      return;
+    }
+    if (discount.expiresAt && discount.expiresAt.getTime() < Date.now()) {
+      res.status(400).json({ error: "این کد تخفیف منقضی شده است" });
+      return;
+    }
     res.json({ code: discount.code, percent: discount.percent });
   }),
 );

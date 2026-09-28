@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 import { generateDiscountCode } from "../../lib/discountCodes.js";
+import { deactivateExpiredDiscountCodes } from "../../lib/birthdayDiscount.js";
 
 export const adminDiscountCodesRouter = Router();
 
@@ -38,6 +39,8 @@ async function generateUniqueCode() {
 adminDiscountCodesRouter.get(
   "/",
   asyncHandler(async (req, res) => {
+    // Don't rely on the midnight sweep alone for what the admin sees.
+    await deactivateExpiredDiscountCodes();
     const search = parseSearch(req);
     const where = search
       ? { code: { contains: search, mode: "insensitive" as const } }

@@ -34,6 +34,13 @@ function ProductCard({
   const outOfStock = !unlimitedPreorder && !hasVariants && item.stock === 0;
   const atMax = !unlimitedPreorder && !hasVariants && item.stock !== undefined && cartQuantity >= item.stock;
   const isUnorderable = unlimitedPreorder ? false : !item.isAvailable || notPreorderable;
+  // The price is always shown; why the product can't be ordered is only a small note beside it.
+  const unavailableNote =
+    !unlimitedPreorder && (!item.isAvailable || outOfStock)
+      ? "ناموجود"
+      : notPreorderable
+        ? "غیرقابل پیش‌سفارش"
+        : null;
 
   const handleAddClick = () => {
     if (hasVariants) {
@@ -105,14 +112,13 @@ function ProductCard({
                 </span>
               )}
               <span className="text-sm font-bold text-sand-400 sm:text-[15px]">
-                {!unlimitedPreorder && (!item.isAvailable || outOfStock)
-                  ? "ناموجود"
-                  : notPreorderable
-                    ? "غیرقابل پیش‌سفارش"
-                    : item.price > 0
-                      ? `${finalPrice.toLocaleString("fa-IR")} تومان`
-                      : "به‌زودی"}
+                {item.price > 0 ? `${finalPrice.toLocaleString("fa-IR")} تومان` : "به‌زودی"}
               </span>
+              {unavailableNote && (
+                <span className="whitespace-nowrap text-[10px] text-cocoa-500 sm:text-xs">
+                  ({unavailableNote})
+                </span>
+              )}
             </div>
             {!hasVariants && cartQuantity > 0 ? (
               <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-sand-100 bg-sand-50 p-0.5 sm:gap-2 sm:p-1">

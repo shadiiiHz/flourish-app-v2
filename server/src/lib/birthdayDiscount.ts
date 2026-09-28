@@ -35,6 +35,17 @@ async function notifyCustomerOfBirthdayDiscount(
 }
 
 /**
+ * True from BIRTHDAY_NOTICE_DAYS_BEFORE days before the birthday through the
+ * end of the birthday itself (Tehran calendar) — the only window a birthday
+ * code may be created in. Past the birthday, the "next occurrence" is next
+ * year's, so creating a code then would make it valid for a whole year.
+ */
+export function isInBirthdayDiscountWindow(birthDate: Date, now: Date = new Date()): boolean {
+  const occurrence = nextTehranMonthDayOccurrence(birthDate, now);
+  return tehranCalendarDayDiff(now, occurrence) <= BIRTHDAY_NOTICE_DAYS_BEFORE;
+}
+
+/**
  * Read-only lookup for the customer's own profile page: is there an
  * unexpired, unused birthday discount code for this customer? Generation
  * itself is a separate, admin-triggered step (see createBirthdayDiscountCode)
@@ -109,6 +120,36 @@ async function checkAllCustomerBirthdays(): Promise<void> {
 const BIRTHDAY_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * Flips isActive off on every discount code whose expiresAt has passed
+ * (birthday codes expire at the end of the birthday), so the admin panel
+ * shows them as inactive. Validation already rejects expired codes on its
+ * own; this only keeps the stored status in line with reality.
+ */
+export async function deactivateExpiredDiscountCodes(): Promise<void> {
+  await prisma.discountCode.updateMany({
+    where: { isActive: true, expiresAt: { lte: new Date() } },
+    data: { isActive: false },
+  });
+}
+
+/**
+ * Runs deactivateExpiredDiscountCodes right after every Tehran midnight —
+ * the instant birthday codes expire (tehranEndOfDay) — then re-arms itself
+ * for the next one. A chained timeout, not a fixed interval, so it stays on
+ * midnight across restarts instead of drifting to whenever the server booted.
+ */
+function scheduleExpiredDiscountSweepAtTehranMidnight(): void {
+  const delay = tehranEndOfDay(new Date()).getTime() + 1000 - Date.now();
+  setTimeout(() => {
+    deactivateExpiredDiscountCodes()
+      .catch((err) => {
+        console.error("Failed to deactivate expired discount codes:", err);
+      })
+      .finally(scheduleExpiredDiscountSweepAtTehranMidnight);
+  }, Math.max(delay, 1000));
+}
+
+/**
  * Starts the daily background sweep that notifies the admin of every
  * customer whose birthday is coming up within BIRTHDAY_NOTICE_DAYS_BEFORE
  * days, independent of whether that customer ever opens the app. This app
@@ -124,6 +165,13 @@ export function startBirthdayCheckCron(): void {
   };
   check();
   setInterval(check, BIRTHDAY_CHECK_INTERVAL_MS);
+
+  // Catch up on anything that expired while the server was down, then
+  // deactivate at the end of each Tehran day from here on.
+  deactivateExpiredDiscountCodes().catch((err) => {
+    console.error("Failed to deactivate expired discount codes:", err);
+  });
+  scheduleExpiredDiscountSweepAtTehranMidnight();
 }
 
 /**
@@ -144,6 +192,9 @@ export async function createBirthdayDiscountCode(
   }
 
   const now = new Date();
+  if (!isInBirthdayDiscountWindow(customer.birthDate, now)) {
+    throw new Error("زمان تولد این مشتری گذشته است");
+  }
   const occurrence = nextTehranMonthDayOccurrence(customer.birthDate, now);
   const expiresAt = tehranEndOfDay(occurrence);
 
