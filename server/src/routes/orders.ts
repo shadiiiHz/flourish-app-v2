@@ -6,12 +6,13 @@ import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { calculateShipping, getSettings } from "../lib/shipping.js";
 import { isSiteOpen } from "../lib/businessHours.js";
 import { requestZarinpalPayment, verifyZarinpalPayment } from "../lib/zarinpal.js";
-import { TAX_RATE, getDiscountedPrice } from "../lib/pricing.js";
+import { TAX_RATE, getDiscountedPrice, getEffectiveDiscountPercent } from "../lib/pricing.js";
 import { env } from "../lib/env.js";
 import { redeemWallet, refundWalletHold } from "../lib/wallet.js";
 import { sendPatternSms } from "../lib/sms.js";
 import { formatOrderNumber } from "../lib/orderNumber.js";
 import { decrementStockForItems } from "../lib/stock.js";
+import { isPreorderableOnDate, weekdayNameFa } from "../lib/preorder.js";
 
 /**
  * Notifies the admin phone over SMS once an order is actually paid — either
@@ -154,6 +155,17 @@ ordersRouter.post(
           .json({ error: `«${notPreorderable.product.title}» قابل پیش‌سفارش نیست` });
         return;
       }
+      const wrongDayItems = cartItems.filter(
+        (item) => !isPreorderableOnDate(item.product.preorderWeekdays, scheduledDate!),
+      );
+      if (wrongDayItems.length > 0) {
+        const names = wrongDayItems.map((item) => `«${item.product.title}»`).join("، ");
+        const verb = wrongDayItems.length > 1 ? "نیستند" : "نیست";
+        res.status(400).json({
+          error: `${names} برای روز ${weekdayNameFa(scheduledDate!)} قابل پیش‌سفارش ${verb}`,
+        });
+        return;
+      }
     } else {
       const unavailableItem = cartItems.find((item) => !item.product.isAvailable);
       if (unavailableItem) {
@@ -178,7 +190,7 @@ ordersRouter.post(
         variantId: item.variantId,
         title: item.product.title,
         variantTitle: item.variant?.title,
-        price: getDiscountedPrice(basePrice, item.product.discountPercent),
+        price: getDiscountedPrice(basePrice, getEffectiveDiscountPercent(item.product, orderType)),
         quantity: item.quantity,
       };
     });

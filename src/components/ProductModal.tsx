@@ -8,7 +8,8 @@ import ProductImageSlider from "./ProductImageSlider";
 import CartVariantModal from "./CartVariantModal";
 import { useCart } from "../context/CartContext";
 import { useOrderType } from "../context/OrderTypeContext";
-import { getDiscountedPrice, type MenuItem } from "../config/siteConfig";
+import { formatPreorderWeekdays, isItemPreorderable } from "../lib/preorder";
+import { getDiscountedPrice, getEffectiveDiscountPercent, type MenuItem } from "../config/siteConfig";
 import { toPersianDigits } from "../lib/formatNumber";
 
 function ProductModal({
@@ -22,16 +23,19 @@ function ProductModal({
 }) {
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const { addToCart, notify, getQuantity, setQuantity, lineKeyFor } = useCart();
-  const { orderType } = useOrderType();
-  const hasDiscount = !!item.discountPercent && item.price > 0;
+  const { orderType, preorder } = useOrderType();
+  const discountPercent = getEffectiveDiscountPercent(item, orderType);
+  const hasDiscount = !!discountPercent && item.price > 0;
   const finalPrice = hasDiscount
-    ? getDiscountedPrice(item.price, item.discountPercent)
+    ? getDiscountedPrice(item.price, discountPercent)
     : item.price;
   const hasVariants = !!item.variants && item.variants.length > 0;
   const cartQuantity = getQuantity(item.id);
-  const notPreorderable = orderType === "preorder" && !item.allowPreorder;
+  const notPreorderable = orderType === "preorder" && !isItemPreorderable(item, preorder?.date);
+  // Admin restricted this product to certain weekdays and the chosen preorder date isn't one of them.
+  const wrongPreorderDay = notPreorderable && item.allowPreorder;
   // Preorderable products are always available with unlimited inventory in preorder mode.
-  const unlimitedPreorder = orderType === "preorder" && item.allowPreorder;
+  const unlimitedPreorder = orderType === "preorder" && !notPreorderable;
   const outOfStock = !unlimitedPreorder && !hasVariants && item.stock === 0;
   const atMax = !unlimitedPreorder && !hasVariants && item.stock !== undefined && cartQuantity >= item.stock;
   const isUnorderable = unlimitedPreorder ? false : !item.isAvailable || notPreorderable;
@@ -94,7 +98,7 @@ function ProductModal({
         <div className="relative sm:w-1/2 sm:shrink-0">
           {hasDiscount && (
             <span className="absolute right-3 top-3 z-20 rounded-full bg-sand-400 px-2.5 py-1 text-xs font-bold text-white shadow-[0_6px_16px_-6px_rgba(190,18,60,0.7)]">
-              {item.discountPercent!.toLocaleString("fa-IR")}٪ تخفیف
+              {discountPercent!.toLocaleString("fa-IR")}٪ تخفیف
             </span>
           )}
           <ProductImageSlider
@@ -115,6 +119,11 @@ function ProductModal({
               {item.pickupOnly && (
                 <span className="inline-block rounded-full bg-cocoa-700/10 px-3 py-1 text-[11px] font-semibold text-cocoa-700">
                   فقط تحویل حضوری
+                </span>
+              )}
+              {item.allowPreorder && item.preorderWeekdays.length > 0 && (
+                <span className="inline-block rounded-full bg-cocoa-700/10 px-3 py-1 text-[11px] font-semibold text-cocoa-700">
+                  پیش‌سفارش فقط: {formatPreorderWeekdays(item.preorderWeekdays)}
                 </span>
               )}
             </div>
@@ -153,21 +162,28 @@ function ProductModal({
           )}
 
           <div className="mt-auto flex items-center justify-between border-t border-white/50 pt-4">
-            <div className="flex items-baseline gap-2">
-              {hasDiscount && (
-                <span className="text-sm text-cocoa-500 line-through">
-                  {item.price.toLocaleString("fa-IR")}
+            <div className="flex min-w-0 flex-col">
+              <div className="flex items-baseline gap-2">
+                {hasDiscount && (
+                  <span className="text-sm text-cocoa-500 line-through">
+                    {item.price.toLocaleString("fa-IR")}
+                  </span>
+                )}
+                <span className="text-lg font-bold text-sand-400">
+                  {!wrongPreorderDay && !unlimitedPreorder && (!item.isAvailable || outOfStock)
+                    ? "ناموجود"
+                    : notPreorderable && !wrongPreorderDay
+                      ? "غیرقابل پیش‌سفارش"
+                      : item.price > 0
+                        ? `${finalPrice.toLocaleString("fa-IR")} تومان`
+                        : "به‌زودی"}
+                </span>
+              </div>
+              {wrongPreorderDay && (
+                <span className="mt-0.5 text-[11px] text-cocoa-500">
+                  (غیرقابل پیش‌سفارش در این روز)
                 </span>
               )}
-              <span className="text-lg font-bold text-sand-400">
-                {!unlimitedPreorder && (!item.isAvailable || outOfStock)
-                  ? "ناموجود"
-                  : notPreorderable
-                    ? "غیرقابل پیش‌سفارش"
-                    : item.price > 0
-                      ? `${finalPrice.toLocaleString("fa-IR")} تومان`
-                      : "به‌زودی"}
-              </span>
             </div>
             {!hasVariants && cartQuantity > 0 ? (
               <div className="flex shrink-0 items-center gap-3 rounded-full border border-sand-100 bg-sand-50 p-1">

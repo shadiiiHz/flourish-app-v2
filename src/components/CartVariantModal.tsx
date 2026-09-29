@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { Minus, Plus, X } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useOrderType } from "../context/OrderTypeContext";
-import { getDiscountedPrice, type MenuItem } from "../config/siteConfig";
+import { isItemPreorderable } from "../lib/preorder";
+import { getDiscountedPrice, getEffectiveDiscountPercent, type MenuItem } from "../config/siteConfig";
 import { toPersianDigits } from "../lib/formatNumber";
 import MarqueeText from "./MarqueeText";
 
@@ -22,12 +23,15 @@ function CartVariantModal({
   onClose: () => void;
 }) {
   const { getQuantity, addToCart, setQuantity, lineKeyFor, totalCount, openCart } = useCart();
-  const { orderType } = useOrderType();
+  const { orderType, preorder } = useOrderType();
   const variants = item.variants ?? [];
-  const hasDiscount = !!item.discountPercent;
-  const notPreorderable = orderType === "preorder" && !item.allowPreorder;
+  const discountPercent = getEffectiveDiscountPercent(item, orderType);
+  const hasDiscount = !!discountPercent;
+  const notPreorderable = orderType === "preorder" && !isItemPreorderable(item, preorder?.date);
+  // Admin restricted this product to certain weekdays and the chosen preorder date isn't one of them.
+  const wrongPreorderDay = notPreorderable && item.allowPreorder;
   // Preorderable products are always available with unlimited inventory in preorder mode.
-  const unlimitedPreorder = orderType === "preorder" && item.allowPreorder;
+  const unlimitedPreorder = orderType === "preorder" && !notPreorderable;
   const isUnorderable = unlimitedPreorder ? false : !item.isAvailable || notPreorderable;
 
   const productCount = variants.reduce(
@@ -36,7 +40,7 @@ function CartVariantModal({
   );
   const productPrice = variants.reduce((sum, variant) => {
     const variantPrice = hasDiscount
-      ? getDiscountedPrice(variant.price, item.discountPercent)
+      ? getDiscountedPrice(variant.price, discountPercent)
       : variant.price;
     return sum + getQuantity(item.id, variant.id) * variantPrice;
   }, 0);
@@ -108,7 +112,11 @@ function CartVariantModal({
 
         {isUnorderable && (
           <p className="mx-5 mt-4 rounded-xl bg-danger-50 p-3 text-center text-xs font-semibold text-danger-500 sm:mx-6">
-            {!item.isAvailable ? "این محصول در حال حاضر ناموجود است" : "این محصول قابل پیش‌سفارش نیست"}
+            {wrongPreorderDay
+              ? "این محصول برای روز انتخاب‌شده قابل پیش‌سفارش نیست"
+              : !item.isAvailable
+                ? "این محصول در حال حاضر ناموجود است"
+                : "این محصول قابل پیش‌سفارش نیست"}
           </p>
         )}
 
@@ -116,7 +124,7 @@ function CartVariantModal({
           {variants.map((variant) => {
             const quantity = getQuantity(item.id, variant.id);
             const finalPrice = hasDiscount
-              ? getDiscountedPrice(variant.price, item.discountPercent)
+              ? getDiscountedPrice(variant.price, discountPercent)
               : variant.price;
             const outOfStock = !unlimitedPreorder && variant.stock === 0;
             const atMax = !unlimitedPreorder && variant.stock !== undefined && quantity >= variant.stock;
@@ -130,7 +138,7 @@ function CartVariantModal({
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-sand-50 sm:h-18 sm:w-18">
                   {hasDiscount && (
                     <span className="absolute right-1 top-1 z-10 rounded-full bg-sand-400 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-[0_4px_10px_-4px_rgba(190,18,60,0.7)]">
-                      {item.discountPercent!.toLocaleString("fa-IR")}٪
+                      {discountPercent!.toLocaleString("fa-IR")}٪
                     </span>
                   )}
                   <img

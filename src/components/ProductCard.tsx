@@ -9,7 +9,8 @@ import CartVariantModal from "./CartVariantModal";
 import MarqueeText from "./MarqueeText";
 import { useCart } from "../context/CartContext";
 import { useOrderType } from "../context/OrderTypeContext";
-import { getDiscountedPrice, type MenuItem } from "../config/siteConfig";
+import { isItemPreorderable } from "../lib/preorder";
+import { getDiscountedPrice, getEffectiveDiscountPercent, type MenuItem } from "../config/siteConfig";
 
 function ProductCard({
   item,
@@ -21,16 +22,19 @@ function ProductCard({
   const [open, setOpen] = useState(false);
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const { addToCart, notify, getQuantity, setQuantity, lineKeyFor } = useCart();
-  const { orderType } = useOrderType();
-  const hasDiscount = !!item.discountPercent && item.price > 0;
+  const { orderType, preorder } = useOrderType();
+  const discountPercent = getEffectiveDiscountPercent(item, orderType);
+  const hasDiscount = !!discountPercent && item.price > 0;
   const finalPrice = hasDiscount
-    ? getDiscountedPrice(item.price, item.discountPercent)
+    ? getDiscountedPrice(item.price, discountPercent)
     : item.price;
   const hasVariants = !!item.variants && item.variants.length > 0;
   const cartQuantity = getQuantity(item.id);
-  const notPreorderable = orderType === "preorder" && !item.allowPreorder;
+  const notPreorderable = orderType === "preorder" && !isItemPreorderable(item, preorder?.date);
+  // Admin restricted this product to certain weekdays and the chosen preorder date isn't one of them.
+  const wrongPreorderDay = notPreorderable && item.allowPreorder;
   // Preorderable products are always available with unlimited inventory in preorder mode.
-  const unlimitedPreorder = orderType === "preorder" && item.allowPreorder;
+  const unlimitedPreorder = orderType === "preorder" && !notPreorderable;
   const outOfStock = !unlimitedPreorder && !hasVariants && item.stock === 0;
   const atMax = !unlimitedPreorder && !hasVariants && item.stock !== undefined && cartQuantity >= item.stock;
   const isUnorderable = unlimitedPreorder ? false : !item.isAvailable || notPreorderable;
@@ -38,7 +42,7 @@ function ProductCard({
   const unavailableNote =
     !unlimitedPreorder && (!item.isAvailable || outOfStock)
       ? "ناموجود"
-      : notPreorderable
+      : notPreorderable && !wrongPreorderDay
         ? "غیرقابل پیش‌سفارش"
         : null;
 
@@ -61,7 +65,7 @@ function ProductCard({
         >
           {hasDiscount && (
             <span className="absolute right-2 top-2 z-20 rounded-full bg-sand-400 px-2 py-1 text-[10px] font-bold text-white shadow-[0_6px_16px_-6px_rgba(190,18,60,0.7)]">
-              {item.discountPercent!.toLocaleString("fa-IR")}٪ تخفیف
+              {discountPercent!.toLocaleString("fa-IR")}٪ تخفیف
             </span>
           )}
           {item.comboDaysLeft !== undefined && (
@@ -105,18 +109,25 @@ function ProductCard({
           </div>
 
           <div className="flex items-center justify-between pt-2 sm:px-3 sm:pb-3 sm:pt-2 sm:pb-4">
-            <div className="flex items-baseline gap-1.5">
-              {hasDiscount && (
-                <span className="text-xs text-cocoa-500 line-through">
-                  {item.price.toLocaleString("fa-IR")}
+            <div className="flex min-w-0 flex-col">
+              <div className="flex items-baseline gap-1.5">
+                {hasDiscount && (
+                  <span className="text-xs text-cocoa-500 line-through">
+                    {item.price.toLocaleString("fa-IR")}
+                  </span>
+                )}
+                <span className="text-sm font-bold text-sand-400 sm:text-[15px]">
+                  {item.price > 0 ? `${finalPrice.toLocaleString("fa-IR")} تومان` : "به‌زودی"}
                 </span>
-              )}
-              <span className="text-sm font-bold text-sand-400 sm:text-[15px]">
-                {item.price > 0 ? `${finalPrice.toLocaleString("fa-IR")} تومان` : "به‌زودی"}
-              </span>
-              {unavailableNote && (
-                <span className="whitespace-nowrap text-[10px] text-cocoa-500 sm:text-xs">
-                  ({unavailableNote})
+                {unavailableNote && !wrongPreorderDay && (
+                  <span className="whitespace-nowrap text-[10px] text-cocoa-500 sm:text-xs">
+                    ({unavailableNote})
+                  </span>
+                )}
+              </div>
+              {wrongPreorderDay && (
+                <span className="mt-0.5 text-[9px] leading-4 text-cocoa-500 sm:text-[11px]">
+                  (غیرقابل پیش‌سفارش در این روز)
                 </span>
               )}
             </div>

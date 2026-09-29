@@ -31,7 +31,7 @@ import type { DeliveryMethod } from "@/types/order";
 import AddressModal from "@/components/AddressModal";
 import DeliveryOutOfRangeModal from "@/components/DeliveryOutOfRangeModal";
 import Preloader from "@/components/Preloader";
-import { formatPreorderDateLong } from "@/lib/preorder";
+import { formatPreorderDateLong, formatPreorderDateWithWeekday, isItemPreorderable } from "@/lib/preorder";
 import { toPersianDigits } from "@/lib/formatNumber";
 
 function GlassCard({ children }: { children: React.ReactNode }) {
@@ -82,6 +82,16 @@ function CheckoutPage() {
   const pickupOnlyNames = pickupOnlyItems.map((l) => `«${l.title}»`).join("، ");
 
   const hasPickupOnlyItem = pickupOnlyItems.length > 0;
+
+  // Items the admin didn't make preorderable for the chosen preorder date's weekday.
+  const wrongDayItems =
+    orderType === "preorder" && preorder
+      ? lines.filter((l) => !isItemPreorderable(l, preorder.date))
+      : [];
+  const wrongDayMessage =
+    wrongDayItems.length > 0 && preorder
+      ? `${wrongDayItems.map((l) => `«${l.title}»`).join("، ")} برای ${formatPreorderDateWithWeekday(preorder.date)} قابل پیش‌سفارش ${wrongDayItems.length > 1 ? "نیستند" : "نیست"}. لطفاً تاریخ دیگری انتخاب کنید یا ${wrongDayItems.length > 1 ? "آن‌ها" : "آن"} را از سبد خرید حذف کنید.`
+      : null;
 
   useEffect(() => {
     if (hasPickupOnlyItem && deliveryMethod === "delivery") {
@@ -225,6 +235,10 @@ function CheckoutPage() {
       setError("لطفاً تاریخ و ساعت پیش‌سفارش را انتخاب کنید");
       return;
     }
+    if (wrongDayMessage) {
+      setError(wrongDayMessage);
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -280,6 +294,11 @@ function CheckoutPage() {
                 این سفارش در تاریخ {formatPreorderDateLong(preorder.date)} ساعت{" "}
                 {preorder.timeSlot} آماده‌سازی و تحویل خواهد شد.
               </p>
+              {wrongDayMessage && (
+                <p className="mt-2 rounded-xl bg-danger-50 p-3 text-xs font-semibold leading-6 text-danger-500">
+                  {wrongDayMessage}
+                </p>
+              )}
             </GlassCard>
           )}
 

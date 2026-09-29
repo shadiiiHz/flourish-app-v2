@@ -37,6 +37,7 @@ import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 import ConfirmModal from "@/components/ConfirmModal";
 import type { AdminCategory, AdminProduct, AdminVariant } from "@/types/admin";
+import { EVEN_WEEKDAYS, ODD_WEEKDAYS, PREORDER_WEEKDAYS, formatPreorderWeekdays } from "@/lib/preorder";
 
 type WeightUnit = "گرم" | "کیلوگرم";
 
@@ -55,6 +56,9 @@ interface FormValues {
   isNew: boolean;
   isAvailable: boolean;
   allowPreorder: boolean;
+  /** Empty means preorderable every day. */
+  preorderWeekdays: number[];
+  preorderDiscountPercent: string;
   pickupOnly: boolean;
   sortOrder: string;
   variants: AdminVariant[];
@@ -75,6 +79,8 @@ const EMPTY_FORM: FormValues = {
   isNew: false,
   isAvailable: true,
   allowPreorder: true,
+  preorderWeekdays: [],
+  preorderDiscountPercent: "",
   pickupOnly: false,
   sortOrder: "",
   variants: [],
@@ -136,6 +142,12 @@ const validationSchema = Yup.object({
   servingSize: Yup.string().trim(),
   discountPercent: Yup.number()
     .typeError("درصد تخفیف باید عدد باشد")
+    .min(0, "حداقل صفر")
+    .max(100, "حداکثر ۱۰۰")
+    .nullable()
+    .transform((v, orig) => (orig === "" ? null : v)),
+  preorderDiscountPercent: Yup.number()
+    .typeError("درصد تخفیف پیش‌سفارش باید عدد باشد")
     .min(0, "حداقل صفر")
     .max(100, "حداکثر ۱۰۰")
     .nullable()
@@ -279,6 +291,11 @@ function AdminProductsPage() {
           isNew: values.isNew,
           isAvailable: values.isAvailable,
           allowPreorder: values.allowPreorder,
+          preorderWeekdays: values.preorderWeekdays,
+          preorderDiscountPercent:
+            values.preorderDiscountPercent !== ""
+              ? Number(values.preorderDiscountPercent)
+              : null,
           pickupOnly: values.pickupOnly,
           sortOrder: Number(values.sortOrder) || 0,
           variants: values.variants
@@ -339,6 +356,9 @@ function AdminProductsPage() {
         isNew: p.isNew,
         isAvailable: p.isAvailable,
         allowPreorder: p.allowPreorder,
+        preorderWeekdays: p.preorderWeekdays ?? [],
+        preorderDiscountPercent:
+          p.preorderDiscountPercent != null ? String(p.preorderDiscountPercent) : "",
         pickupOnly: p.pickupOnly,
         sortOrder: String(p.sortOrder),
         variants: p.variants,
@@ -989,6 +1009,94 @@ function AdminProductsPage() {
             />
             قابل پیش‌سفارش
           </label>
+          {formik.values.allowPreorder && (
+            <div className="rounded-2xl border border-sand-100 bg-sand-50/40 p-3 sm:col-span-2">
+              <p className="mb-2 text-xs font-semibold text-cocoa-600">
+                روزهای قابل پیش‌سفارش
+              </p>
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {(
+                  [
+                    { label: "همه روزها", days: [] as number[] },
+                    { label: "روزهای زوج", days: EVEN_WEEKDAYS },
+                    { label: "روزهای فرد", days: ODD_WEEKDAYS },
+                  ] as const
+                ).map(({ label, days }) => {
+                  const selected = formik.values.preorderWeekdays;
+                  const isActive =
+                    selected.length === days.length && days.every((d) => selected.includes(d));
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => formik.setFieldValue("preorderWeekdays", [...days])}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                        isActive
+                          ? "border-sand-500 bg-sand-500 text-white"
+                          : "border-cocoa-900/10 bg-white text-cocoa-700 hover:bg-sand-50"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {PREORDER_WEEKDAYS.map(({ value, label }) => {
+                  const selected = formik.values.preorderWeekdays;
+                  const isActive = selected.includes(value);
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        formik.setFieldValue(
+                          "preorderWeekdays",
+                          isActive ? selected.filter((d) => d !== value) : [...selected, value],
+                        )
+                      }
+                      className={`rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition ${
+                        isActive
+                          ? "border-sand-500 bg-sand-500 text-white"
+                          : "border-cocoa-900/10 bg-white text-cocoa-900"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-cocoa-500">
+                {formik.values.preorderWeekdays.length === 0
+                  ? "هیچ روزی انتخاب نشده — این محصول همه روزها قابل پیش‌سفارش است."
+                  : `فقط برای این روزها قابل پیش‌سفارش است: ${formatPreorderWeekdays(formik.values.preorderWeekdays)}`}
+              </p>
+
+              <label className="mb-1 mt-3 block text-xs font-semibold text-cocoa-600">
+                درصد تخفیف پیش‌سفارش
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                name="preorderDiscountPercent"
+                value={formik.values.preorderDiscountPercent}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                placeholder="خالی = همان تخفیف عادی"
+                className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400 sm:max-w-xs"
+              />
+              {formik.touched.preorderDiscountPercent && formik.errors.preorderDiscountPercent ? (
+                <p className="mt-1 text-xs font-semibold text-danger-500">
+                  {formik.errors.preorderDiscountPercent}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-cocoa-500">
+                  وقتی مشتری این محصول را پیش‌سفارش بدهد، این تخفیف به جای تخفیف عادی اعمال می‌شود.
+                </p>
+              )}
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
             <input
               type="checkbox"

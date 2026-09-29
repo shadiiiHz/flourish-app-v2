@@ -26,9 +26,13 @@ export interface MenuItem {
   ingredients?: string
   servingSize?: string
   discountPercent?: number
+  /** Replaces discountPercent when this item is preordered. Undefined means preorders get the regular discount. */
+  preorderDiscountPercent?: number
   stock?: number
   isAvailable: boolean
   allowPreorder: boolean
+  /** Weekdays (0=Sunday … 6=Saturday) this item can be preordered for. Empty means every day. */
+  preorderWeekdays: number[]
   pickupOnly: boolean
   variants?: MenuItemVariant[]
   /** Combo items only, when the admin opted in — days left until the combo expires. */
@@ -48,6 +52,17 @@ export type NewItem = MenuItem
 export function getDiscountedPrice(price: number, discountPercent?: number) {
   if (!discountPercent) return price
   return Math.round((price * (1 - discountPercent / 100)) / 1000) * 1000
+}
+
+/** Mirrors the server: a preorderable item's preorder discount (when set) replaces its regular discount on preorders. */
+export function getEffectiveDiscountPercent(
+  item: Pick<MenuItem, 'discountPercent' | 'preorderDiscountPercent' | 'allowPreorder'>,
+  orderType: 'instant' | 'preorder',
+): number | undefined {
+  if (orderType === 'preorder' && item.allowPreorder && item.preorderDiscountPercent !== undefined) {
+    return item.preorderDiscountPercent
+  }
+  return item.discountPercent
 }
 
 export const siteConfig = {

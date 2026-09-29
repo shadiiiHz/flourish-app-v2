@@ -114,9 +114,11 @@ interface ApiProduct {
   ingredients?: string | null;
   servingSize?: string | null;
   discountPercent?: number | null;
+  preorderDiscountPercent?: number | null;
   stock?: number | null;
   isAvailable: boolean;
   allowPreorder: boolean;
+  preorderWeekdays?: number[];
   pickupOnly: boolean;
   variants: ApiVariant[];
 }
@@ -164,9 +166,11 @@ function mapProduct(p: ApiProduct, categoryTitle: string): MenuItem {
     ingredients: p.ingredients ?? undefined,
     servingSize: p.servingSize ?? undefined,
     discountPercent: p.discountPercent ?? undefined,
+    preorderDiscountPercent: p.preorderDiscountPercent ?? undefined,
     stock: p.stock ?? undefined,
     isAvailable: p.isAvailable,
     allowPreorder: p.allowPreorder,
+    preorderWeekdays: p.preorderWeekdays ?? [],
     pickupOnly: p.pickupOnly,
     variants: p.variants.length > 0 ? p.variants.map(mapVariant) : undefined,
   };
@@ -392,6 +396,9 @@ export interface ApiCartItem {
   quantity: number;
   maxQuantity?: number | null;
   pickupOnly: boolean;
+  allowPreorder: boolean;
+  /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */
+  preorderWeekdays: number[];
 }
 
 export interface AddCartItemPayload {

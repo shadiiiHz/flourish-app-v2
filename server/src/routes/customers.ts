@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
-import { getDiscountedPrice } from "../lib/pricing.js";
+import { getDiscountedPrice, getEffectiveDiscountPercent } from "../lib/pricing.js";
 import { parsePagination, paginatedResult } from "../lib/pagination.js";
 import { ensureBirthdayMessage } from "../lib/birthdayDiscount.js";
 import type { Prisma } from "@prisma/client";
@@ -257,11 +257,13 @@ function mapCartItem(item: CartItemWithRelations, orderType: z.infer<typeof orde
     variantId: item.variantId,
     title: item.product.title,
     variantTitle: item.variant?.title,
-    price: getDiscountedPrice(basePrice, item.product.discountPercent),
+    price: getDiscountedPrice(basePrice, getEffectiveDiscountPercent(item.product, orderType)),
     image: item.variant?.image ?? item.product.images[0],
     quantity: item.quantity,
     maxQuantity: unlimited ? null : item.variant ? item.variant.stock : item.product.stock,
     pickupOnly: item.product.pickupOnly,
+    allowPreorder: item.product.allowPreorder,
+    preorderWeekdays: item.product.preorderWeekdays,
   };
 }
 

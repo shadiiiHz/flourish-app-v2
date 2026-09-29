@@ -89,3 +89,51 @@ export function formatPreorderDateWithWeekday(iso: string): string {
 export function isoToday(): string {
   return toIsoDate(startOfToday());
 }
+
+/**
+ * Weekdays in Iranian week order (Saturday first), keyed by JS getDay()
+ * numbering (0=Sunday … 6=Saturday) — the same numbering stored in a
+ * product's `preorderWeekdays`.
+ */
+export const PREORDER_WEEKDAYS: { value: number; label: string }[] = [
+  { value: 6, label: "شنبه" },
+  { value: 0, label: "یکشنبه" },
+  { value: 1, label: "دوشنبه" },
+  { value: 2, label: "سه‌شنبه" },
+  { value: 3, label: "چهارشنبه" },
+  { value: 4, label: "پنجشنبه" },
+  { value: 5, label: "جمعه" },
+];
+
+/** «روزهای زوج»: Saturday, Monday, Wednesday. */
+export const EVEN_WEEKDAYS = [6, 1, 3];
+/** «روزهای فرد»: Sunday, Tuesday, Thursday. */
+export const ODD_WEEKDAYS = [0, 2, 4];
+
+export function weekdayOfIso(iso: string): number {
+  return parseIsoDate(iso).getDay();
+}
+
+/** Whether a product with these allowed weekdays can be preordered for `iso`. Empty means every day. */
+export function isPreorderableOn(preorderWeekdays: number[] | undefined, iso: string): boolean {
+  return !preorderWeekdays || preorderWeekdays.length === 0 || preorderWeekdays.includes(weekdayOfIso(iso));
+}
+
+/** e.g. "شنبه، دوشنبه، چهارشنبه" in Iranian week order. */
+export function formatPreorderWeekdays(preorderWeekdays: number[]): string {
+  return PREORDER_WEEKDAYS.filter((d) => preorderWeekdays.includes(d.value))
+    .map((d) => d.label)
+    .join("، ");
+}
+
+/**
+ * Whether an item can be preordered at all, and — once the customer has
+ * picked a preorder date — whether it can be preordered for that date.
+ */
+export function isItemPreorderable(
+  item: { allowPreorder: boolean; preorderWeekdays?: number[] },
+  preorderDate?: string,
+): boolean {
+  if (!item.allowPreorder) return false;
+  return !preorderDate || isPreorderableOn(item.preorderWeekdays, preorderDate);
+}

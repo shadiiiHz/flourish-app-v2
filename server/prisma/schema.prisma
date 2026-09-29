@@ -77,36 +77,40 @@ model Category {
 }
 
 model Product {
-  id                   String           @id @default(cuid())
+  id                      String           @id @default(cuid())
   /// Null only for combo products (isCombo=true) — they have no category and never appear on /menu.
-  categoryId           String?
-  category             Category?        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  title                String
-  description          String           @default("")
-  price                Int
-  images               String[]         @default([])
-  weight               String?
-  ingredients          String?
-  servingSize          String?
-  discountPercent      Int?
-  stock                Int?
-  isNew                Boolean          @default(false)
-  isAvailable          Boolean          @default(true)
-  allowPreorder        Boolean          @default(true)
+  categoryId              String?
+  category                Category?        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  title                   String
+  description             String           @default("")
+  price                   Int
+  images                  String[]         @default([])
+  weight                  String?
+  ingredients             String?
+  servingSize             String?
+  discountPercent         Int?
+  stock                   Int?
+  isNew                   Boolean          @default(false)
+  isAvailable             Boolean          @default(true)
+  allowPreorder           Boolean          @default(true)
+  /// Weekdays (JS getDay numbering: 0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day.
+  preorderWeekdays        Int[]            @default([])
+  /// Discount applied instead of discountPercent when this product is ordered as a preorder. Null means preorders get the regular discount.
+  preorderDiscountPercent Int?
   /// When set, this item can only be ordered for in-person pickup — delivery is rejected for it at checkout.
-  pickupOnly           Boolean          @default(false)
-  sortOrder            Int              @default(0)
+  pickupOnly              Boolean          @default(false)
+  sortOrder               Int              @default(0)
   /// Homepage-only combo item (no category) shown in its own section, never on /menu.
-  isCombo              Boolean          @default(false)
+  isCombo                 Boolean          @default(false)
   /// Combo items only. Null means it stays until the admin deletes it.
-  comboExpiresAt       DateTime?
+  comboExpiresAt          DateTime?
   /// Combo items only. Shows a "N days left" ribbon on the card — only meaningful when comboExpiresAt is set.
-  comboShowExpiryBadge Boolean          @default(false)
-  variants             ProductVariant[]
-  orderItems           OrderItem[]
-  cartItems            CartItem[]
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  comboShowExpiryBadge    Boolean          @default(false)
+  variants                ProductVariant[]
+  orderItems              OrderItem[]
+  cartItems               CartItem[]
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
 }
 
 model ProductVariant {
@@ -238,20 +242,20 @@ enum DiscountCodeSource {
 }
 
 model DiscountCode {
-  id          String             @id @default(cuid())
-  code        String             @unique
-  percent     Int
-  isActive    Boolean            @default(true)
-  source      DiscountCodeSource @default(manual)
+  id         String             @id @default(cuid())
+  code       String             @unique
+  percent    Int
+  isActive   Boolean            @default(true)
+  source     DiscountCodeSource @default(manual)
   /// Set only for a personal, single-customer code (e.g. birthday codes). Null means anyone can use it.
-  customerId  String?
-  customer    Customer?          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer?          @relation(fields: [customerId], references: [id], onDelete: Cascade)
   /// The instant (real timestamp, e.g. 23:59:59 Asia/Tehran on a birthday) after which the code stops working. Null means no expiry.
-  expiresAt   DateTime?
+  expiresAt  DateTime?
   /// Set once redeemed on an order — only enforced for customer-scoped codes; generic codes stay reusable.
-  usedAt      DateTime?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  usedAt     DateTime?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
 }
 
 model Settings {

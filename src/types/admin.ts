@@ -54,6 +54,10 @@ export interface AdminProduct {
   isNew: boolean;
   isAvailable: boolean;
   allowPreorder: boolean;
+  /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */
+  preorderWeekdays: number[];
+  /** Replaces discountPercent for preorders. Null means preorders get the regular discount. */
+  preorderDiscountPercent?: number | null;
   /** When set, this product can only be ordered for in-person pickup — delivery is rejected for it at checkout. */
   pickupOnly: boolean;
   sortOrder: number;

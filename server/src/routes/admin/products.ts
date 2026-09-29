@@ -43,6 +43,13 @@ const productSchema = z.object({
   isNew: z.boolean().optional(),
   isAvailable: z.boolean().optional(),
   allowPreorder: z.boolean().optional(),
+  /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */
+  preorderWeekdays: z
+    .array(z.number().int().min(0).max(6))
+    .transform((days) => [...new Set(days)].sort((a, b) => a - b))
+    .optional(),
+  /** Replaces discountPercent for preorders. Null means preorders get the regular discount. */
+  preorderDiscountPercent: z.number().int().min(0).max(100).nullable().optional(),
   pickupOnly: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   variants: z.array(variantSchema).optional(),

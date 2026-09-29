@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getDiscountedPrice, type MenuItem, type MenuItemVariant } from "../config/siteConfig";
+import { getDiscountedPrice, getEffectiveDiscountPercent, type MenuItem, type MenuItemVariant } from "../config/siteConfig";
 import { useAuth } from "./AuthContext";
 import { useOrderType } from "./OrderTypeContext";
 import {
@@ -33,6 +33,9 @@ export interface CartLine {
   quantity: number;
   maxQuantity?: number;
   pickupOnly: boolean;
+  allowPreorder: boolean;
+  /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */
+  preorderWeekdays: number[];
 }
 
 interface CartLineInternal extends CartLine {
@@ -79,6 +82,8 @@ function mapApiCartItem(item: ApiCartItem): CartLineInternal {
     quantity: item.quantity,
     maxQuantity: item.maxQuantity ?? undefined,
     pickupOnly: item.pickupOnly,
+    allowPreorder: item.allowPreorder,
+    preorderWeekdays: item.preorderWeekdays ?? [],
   };
 }
 
@@ -151,7 +156,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (initialQuantity <= 0) return true;
 
     const basePrice = variant ? variant.price : item.price;
-    const price = getDiscountedPrice(basePrice, item.discountPercent);
+    const price = getDiscountedPrice(basePrice, getEffectiveDiscountPercent(item, orderType));
     const optimisticId = `pending-${key}`;
     setLines((prev) => [
       ...prev,
@@ -167,6 +172,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         quantity: initialQuantity,
         maxQuantity,
         pickupOnly: item.pickupOnly,
+        allowPreorder: item.allowPreorder,
+        preorderWeekdays: item.preorderWeekdays,
       },
     ]);
     const createPromise = addMyCartItem({

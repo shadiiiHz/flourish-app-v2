@@ -6,7 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Clock, ShoppingBag, X } from "lucide-react";
 import { useOrderType } from "@/context/OrderTypeContext";
 import type { OrderType } from "@/types/order";
-import { generatePreorderDateOptions, generatePreorderTimeSlots } from "@/lib/preorder";
+import { generatePreorderDateOptions, generatePreorderTimeSlots, isItemPreorderable } from "@/lib/preorder";
+import { useCart } from "@/context/CartContext";
 import { useSiteStatus } from "@/context/SiteStatusContext";
 import { toPersianDigits } from "@/lib/formatNumber";
 
@@ -24,6 +25,7 @@ function OrderTypeModal() {
     setPreorder,
   } = useOrderType();
   const { siteClosed, manuallyClosed, businessHoursEnabled } = useSiteStatus();
+  const { lines } = useCart();
   const [mounted, setMounted] = useState(false);
   const [selectedType, setSelectedType] = useState<OrderType>("instant");
   const [selectedDate, setSelectedDate] = useState<string>(DATE_OPTIONS[0].iso);
@@ -84,6 +86,10 @@ function OrderTypeModal() {
     setPreorder({ date: selectedDate, timeSlot: selectedSlot });
     closeModal();
   };
+
+  // Cart items the admin didn't make preorderable for the selected date's weekday.
+  const wrongDayItems =
+    selectedType === "preorder" ? lines.filter((l) => !isItemPreorderable(l, selectedDate)) : [];
 
   if (!mounted) return null;
 
@@ -240,6 +246,13 @@ function OrderTypeModal() {
                         <ChevronLeft className="h-4 w-4" />
                       </button>
                     </div>
+
+                    {wrongDayItems.length > 0 && (
+                      <p className="rounded-xl bg-danger-50 p-3 text-xs font-semibold leading-6 text-danger-500">
+                        {wrongDayItems.map((l) => `«${l.title}»`).join("، ")} در سبد خرید شما برای این روز
+                        قابل پیش‌سفارش {wrongDayItems.length > 1 ? "نیستند" : "نیست"}.
+                      </p>
+                    )}
 
                     <div>
                       <div className="mb-2 flex items-center justify-between gap-3">

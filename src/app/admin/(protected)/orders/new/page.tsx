@@ -24,10 +24,20 @@ interface OrderLine {
   variantId?: string;
   title: string;
   variantTitle?: string;
-  unitPrice: number;
+  /** Unit price for an instant order and for a preorder — a product's preorder discount can differ from its regular one. */
+  instantUnitPrice: number;
+  preorderUnitPrice: number;
   quantity: number;
   maxStock?: number | null;
   pickupOnly: boolean;
+}
+
+/** Mirrors the server: a preorderable product's preorder discount (when set) replaces its regular discount on preorders. */
+function discountPercentFor(product: AdminProduct, isPreorder: boolean): number | undefined {
+  if (isPreorder && product.allowPreorder && product.preorderDiscountPercent != null) {
+    return product.preorderDiscountPercent;
+  }
+  return product.discountPercent ?? undefined;
 }
 
 function money(n: number) {
@@ -148,6 +158,8 @@ function AdminNewOrderPage() {
   // product that does have stock can't be ordered past it. Both search
   // buttons and the "+" stepper enforce the same maxStock cap. In preorder
   // mode none of this applies — stock is not a concern at all.
+  const unitPriceOf = (line: OrderLine) => (isPreorder ? line.preorderUnitPrice : line.instantUnitPrice);
+
   const addLine = (product: AdminProduct, variant?: AdminProduct["variants"][number]) => {
     const key = variant ? `${product.id}:${variant.id}` : product.id;
     const maxStock = variant ? variant.stock : product.stock;
@@ -167,7 +179,8 @@ function AdminNewOrderPage() {
           variantId: variant?.id,
           title: product.title,
           variantTitle: variant?.title,
-          unitPrice: getDiscountedPrice(basePrice, product.discountPercent ?? undefined),
+          instantUnitPrice: getDiscountedPrice(basePrice, discountPercentFor(product, false)),
+          preorderUnitPrice: getDiscountedPrice(basePrice, discountPercentFor(product, true)),
           quantity: 1,
           maxStock,
           pickupOnly: product.pickupOnly,
@@ -194,7 +207,7 @@ function AdminNewOrderPage() {
 
   const subtotal = manualMode
     ? Number(manualSubtotal) || 0
-    : items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+    : items.reduce((sum, i) => sum + unitPriceOf(i) * i.quantity, 0);
 
   const handleSubmit = async () => {
     setError(null);
@@ -476,7 +489,7 @@ function AdminNewOrderPage() {
                           )}
                         </span>
                         <span className="text-xs font-semibold text-cocoa-600">
-                          {money(getDiscountedPrice(variant.price, product.discountPercent ?? undefined))}
+                          {money(getDiscountedPrice(variant.price, discountPercentFor(product, isPreorder)))}
                           {variant.stock != null && ` (موجودی: ${variant.stock.toLocaleString("fa-IR")})`}
                         </span>
                       </button>
@@ -498,7 +511,7 @@ function AdminNewOrderPage() {
                         )}
                       </span>
                       <span className="text-xs font-semibold text-cocoa-600">
-                        {money(getDiscountedPrice(product.price, product.discountPercent ?? undefined))}
+                        {money(getDiscountedPrice(product.price, discountPercentFor(product, isPreorder)))}
                         {product.stock != null && ` (موجودی: ${product.stock.toLocaleString("fa-IR")})`}
                       </span>
                     </button>
@@ -519,7 +532,7 @@ function AdminNewOrderPage() {
                     {item.title}
                     {item.variantTitle ? ` — ${item.variantTitle}` : ""}
                   </p>
-                  <p className="text-xs text-cocoa-500">{money(item.unitPrice)}</p>
+                  <p className="text-xs text-cocoa-500">{money(unitPriceOf(item))}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -541,7 +554,7 @@ function AdminNewOrderPage() {
                     <Plus className="h-3 w-3" />
                   </button>
                   <span className="w-24 text-left text-sm font-bold text-cocoa-900">
-                    {money(item.unitPrice * item.quantity)}
+                    {money(unitPriceOf(item) * item.quantity)}
                   </span>
                   <button
                     type="button"

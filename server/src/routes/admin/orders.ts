@@ -10,7 +10,7 @@ import {
   reverseWalletCashback,
 } from "../../lib/wallet.js";
 import { calculateShipping } from "../../lib/shipping.js";
-import { TAX_RATE, getDiscountedPrice } from "../../lib/pricing.js";
+import { TAX_RATE, getDiscountedPrice, getEffectiveDiscountPercent } from "../../lib/pricing.js";
 import { decrementStockForItems, restockItems } from "../../lib/stock.js";
 
 export const adminOrdersRouter = Router();
@@ -237,7 +237,7 @@ adminOrdersRouter.post(
           variantId: variant?.id,
           title: product.title,
           variantTitle: variant?.title,
-          price: getDiscountedPrice(basePrice, product.discountPercent),
+          price: getDiscountedPrice(basePrice, getEffectiveDiscountPercent(product, orderType)),
           quantity: item.quantity,
         });
       }
