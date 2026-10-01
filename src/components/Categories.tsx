@@ -169,6 +169,7 @@ function Categories({ tabs, categoriesByTab }: CategoriesProps) {
         <div className="mt-10 flex justify-center">
           <button
             type="button"
+            data-tour="menu"
             onClick={() => router.push("/menu")}
             className="flex items-center gap-1.5 rounded-full bg-sand-500 px-6 py-3 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95"
           >

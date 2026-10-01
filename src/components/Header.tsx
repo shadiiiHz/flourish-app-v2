@@ -64,6 +64,8 @@ function Header() {
 
           <button
             type="button"
+            data-tour="cart"
+            data-tour-shape="circle"
             onClick={openCart}
             aria-label="سبد خرید"
             className="relative flex h-10 w-10 shrink-0 items-center justify-center text-cocoa-900 sm:h-11 sm:w-11"

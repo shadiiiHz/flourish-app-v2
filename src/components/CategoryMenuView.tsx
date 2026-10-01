@@ -213,6 +213,7 @@ function CategoryMenuView({
 
             <button
               type="button"
+              data-tour="preorder"
               onClick={openModal}
               className="mt-2 flex items-center gap-1.5 rounded-full bg-sand-500 px-5 py-2.5 text-xs font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 sm:text-sm"
             >

@@ -38,6 +38,7 @@ function ProfileMenu() {
         type="button"
         onClick={() => setIsOpen((v) => !v)}
         aria-label="پروفایل کاربری"
+        data-tour="profile"
         aria-expanded={isOpen}
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sand-50 text-sand-500 transition hover:bg-sand-100 sm:h-11 sm:w-11"
       >

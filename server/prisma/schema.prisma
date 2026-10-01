@@ -142,6 +142,8 @@ model Customer {
   /// Whether the customer signed themself up on the website or was entered manually by an admin.
   source             CustomerSource      @default(website)
   walletBalance      Int                 @default(0)
+  /// Set once the customer finishes or skips the first-login guided tour, so it is shown only once.
+  onboardingCompletedAt DateTime?
   orders             Order[]
   addresses          Address[]
   cartItems          CartItem[]

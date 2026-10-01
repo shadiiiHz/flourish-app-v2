@@ -58,10 +58,22 @@ customersRouter.patch(
         avatar: customer.avatar ?? undefined,
         birthDate: customer.birthDate?.toISOString(),
         walletBalance: customer.walletBalance,
+        onboardingCompleted: !!customer.onboardingCompletedAt,
       });
     } catch {
       res.status(409).json({ error: "این شماره موبایل قبلاً ثبت شده است" });
     }
+  }),
+);
+
+customersRouter.post(
+  "/me/onboarding/complete",
+  asyncHandler(async (req, res) => {
+    await prisma.customer.updateMany({
+      where: { id: req.customer!.sub, onboardingCompletedAt: null },
+      data: { onboardingCompletedAt: new Date() },
+    });
+    res.json({ ok: true });
   }),
 );
 

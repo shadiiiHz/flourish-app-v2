@@ -259,6 +259,8 @@ export interface CustomerAuthUser {
   avatar?: string;
   birthDate?: string;
   walletBalance: number;
+  /** True once the customer has finished or skipped the first-login guided tour. */
+  onboardingCompleted: boolean;
   /** Only present on GET /me, while an unexpired birthday discount code exists for the customer and is still unused. */
   birthdayDiscount?: { code: string; percent: number; expiresAt: string } | null;
 }
@@ -321,6 +323,10 @@ export function updateMyProfile(payload: UpdateProfilePayload) {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export function completeOnboarding() {
+  return apiFetch("/api/customers/me/onboarding/complete", { method: "POST" });
 }
 
 export function getMyOrders(page = 1, pageSize = 20) {

@@ -13,6 +13,7 @@ import {
   customerConfirmPasswordChange,
   customerLogin,
   customerLogout,
+  completeOnboarding,
   customerRequestOtp,
   customerRequestPasswordChange,
   customerVerifyOtp,
@@ -28,6 +29,7 @@ export interface AuthUser {
   avatar?: string;
   birthDate?: string;
   walletBalance: number;
+  onboardingCompleted: boolean;
   birthdayDiscount?: { code: string; percent: number; expiresAt: string } | null;
 }
 
@@ -54,6 +56,8 @@ interface AuthContextValue {
   ) => void;
   /** Re-fetches the current user (e.g. a just-generated birthday discount code) without a full page reload. */
   refreshUser: () => void;
+  /** Marks the first-login guided tour as seen (optimistic; persisted server-side). */
+  finishOnboarding: () => void;
   logout: () => void;
   toast: string | null;
   notify: (message: string) => void;
@@ -152,6 +156,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   };
 
+  const finishOnboarding = () => {
+    setUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : prev));
+    completeOnboarding().catch(() => {
+      // best-effort — the tour component also remembers completion locally
+    });
+  };
+
   const logout = () => {
     customerLogout().catch(() => {
       // best-effort — the cookie clears client-side regardless of the request outcome
@@ -179,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     confirmPasswordChange,
     updateProfile,
     refreshUser,
+    finishOnboarding,
     logout,
     toast,
     notify,

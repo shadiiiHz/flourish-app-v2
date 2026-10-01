@@ -60,6 +60,7 @@ function toAuthUser(customer: {
   avatar: string | null;
   birthDate: Date | null;
   walletBalance: number;
+  onboardingCompletedAt: Date | null;
 }) {
   return {
     phone: customer.phone,
@@ -70,6 +71,7 @@ function toAuthUser(customer: {
     avatar: customer.avatar ?? undefined,
     birthDate: customer.birthDate?.toISOString(),
     walletBalance: customer.walletBalance,
+    onboardingCompleted: !!customer.onboardingCompletedAt,
   };
 }
 
