@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Minus, Plus, X } from "lucide-react";
-import { useCart } from "../context/CartContext";
+import { lineUnitTotal, useCart } from "../context/CartContext";
 import { useOrderType } from "../context/OrderTypeContext";
 import { isItemPreorderable } from "../lib/preorder";
-import { getDiscountedPrice, getEffectiveDiscountPercent, type MenuItem } from "../config/siteConfig";
+import { getDiscountedPrice, getEffectiveDiscountPercent, type MenuItem, type MenuItemVariant } from "../config/siteConfig";
 import { toPersianDigits } from "../lib/formatNumber";
 import MarqueeText from "./MarqueeText";
+import AddonPickerModal from "./AddonPickerModal";
 
 const placeholder = "/assets/placeholder.png";
 
@@ -22,7 +23,7 @@ function CartVariantModal({
   categoryTitle?: string;
   onClose: () => void;
 }) {
-  const { getQuantity, addToCart, setQuantity, lineKeyFor, totalCount, openCart } = useCart();
+  const { lines, getQuantity, addToCart, setQuantity, lineKeyFor, totalCount, openCart } = useCart();
   const { orderType, preorder } = useOrderType();
   const variants = item.variants ?? [];
   const discountPercent = getEffectiveDiscountPercent(item, orderType);
@@ -34,20 +35,19 @@ function CartVariantModal({
   const unlimitedPreorder = orderType === "preorder" && !notPreorderable;
   const isUnorderable = unlimitedPreorder ? false : !item.isAvailable || notPreorderable;
 
-  const productCount = variants.reduce(
-    (sum, variant) => sum + getQuantity(item.id, variant.id),
-    0,
-  );
-  const productPrice = variants.reduce((sum, variant) => {
-    const variantPrice = hasDiscount
-      ? getDiscountedPrice(variant.price, discountPercent)
-      : variant.price;
-    return sum + getQuantity(item.id, variant.id) * variantPrice;
-  }, 0);
+  const hasAddons = !!item.addons && item.addons.length > 0;
+  // Variant whose addon picker is open — adding a unit of a product with addons always goes through it.
+  const [pickerVariant, setPickerVariant] = useState<MenuItemVariant | null>(null);
+
+  // Totals cover every cart line of this product, whichever addons each one carries.
+  const productLines = lines.filter((line) => line.itemId === item.id);
+  const productCount = productLines.reduce((sum, line) => sum + line.quantity, 0);
+  const productPrice = productLines.reduce((sum, line) => sum + line.quantity * lineUnitTotal(line), 0);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      // The addon picker stacked on top handles its own Escape.
+      if (e.key === "Escape" && !document.getElementById("addon-picker-title")) onClose();
     };
     document.addEventListener("keydown", onKeyDown);
     const previousOverflow = document.body.style.overflow;
@@ -122,7 +122,17 @@ function CartVariantModal({
 
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5 sm:p-6">
           {variants.map((variant) => {
-            const quantity = getQuantity(item.id, variant.id);
+            // With addons a variant can sit in the cart as several lines (one per addon combination):
+            // the count is their total, and − acts on the most recently added one.
+            const variantLines = hasAddons
+              ? lines.filter((line) => line.itemId === item.id && line.variantId === variant.id)
+              : [];
+            const stepLine = variantLines[variantLines.length - 1];
+            const quantity = hasAddons
+              ? variantLines.reduce((sum, line) => sum + line.quantity, 0)
+              : getQuantity(item.id, variant.id);
+            const addOne = () =>
+              hasAddons ? setPickerVariant(variant) : addToCart(item, variant, 1);
             const finalPrice = hasDiscount
               ? getDiscountedPrice(variant.price, discountPercent)
               : variant.price;
@@ -181,7 +191,11 @@ function CartVariantModal({
                     <button
                       type="button"
                       aria-label="کاهش تعداد"
-                      onClick={() => setQuantity(lineKeyFor(item.id, variant.id), quantity - 1)}
+                      onClick={() =>
+                        stepLine
+                          ? setQuantity(stepLine.key, stepLine.quantity - 1)
+                          : setQuantity(lineKeyFor(item.id, variant.id), quantity - 1)
+                      }
                       className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-cocoa-700 shadow-sm transition active:scale-95"
                     >
                       <Minus className="h-3.5 w-3.5" />
@@ -193,7 +207,7 @@ function CartVariantModal({
                       type="button"
                       aria-label="افزایش تعداد"
                       disabled={atMax || isUnorderable}
-                      onClick={() => addToCart(item, variant, 1)}
+                      onClick={addOne}
                       className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-cocoa-700 shadow-sm transition active:scale-95 disabled:opacity-40"
                     >
                       <Plus className="h-3.5 w-3.5" />
@@ -203,7 +217,7 @@ function CartVariantModal({
                   <button
                     type="button"
                     disabled={outOfStock || isUnorderable}
-                    onClick={() => addToCart(item, variant, 1)}
+                    onClick={addOne}
                     className="flex shrink-0 items-center gap-1 rounded-full bg-sand-400 px-3.5 py-2 text-xs font-bold text-white shadow-[0_10px_20px_-8px_rgba(186,107,38,0.6)] transition-transform hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-40 sm:text-sm"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -244,6 +258,16 @@ function CartVariantModal({
           </div>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {pickerVariant && (
+          <AddonPickerModal
+            item={item}
+            variant={pickerVariant}
+            onClose={() => setPickerVariant(null)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>,
     document.body,
   );

@@ -6,6 +6,8 @@ import { isSiteOpen } from "../lib/businessHours.js";
 
 export const catalogRouter = Router();
 
+const addonsInclude = { include: { addon: true }, orderBy: { addon: { name: "asc" } } } as const;
+
 catalogRouter.get(
   "/settings/status",
   asyncHandler(async (_req, res) => {
@@ -40,7 +42,7 @@ catalogRouter.get(
       include: {
         products: {
           orderBy: { sortOrder: "asc" },
-          include: { variants: true },
+          include: { variants: true, addons: addonsInclude },
         },
       },
     });
@@ -54,7 +56,7 @@ catalogRouter.get(
     const products = await prisma.product.findMany({
       where: { isNew: true },
       orderBy: { sortOrder: "asc" },
-      include: { variants: true, category: true },
+      include: { variants: true, category: true, addons: addonsInclude },
     });
     res.json(products);
   }),
@@ -69,7 +71,7 @@ catalogRouter.get(
         OR: [{ comboExpiresAt: null }, { comboExpiresAt: { gt: new Date() } }],
       },
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-      include: { variants: true },
+      include: { variants: true, addons: addonsInclude },
     });
     res.json(products);
   }),

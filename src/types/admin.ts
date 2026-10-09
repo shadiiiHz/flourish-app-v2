@@ -38,6 +38,13 @@ export interface AdminVariant {
   image?: string | null;
 }
 
+export interface AdminAddon {
+  id: string;
+  name: string;
+  price: number;
+  createdAt: string;
+}
+
 export interface AdminProduct {
   id: string;
   categoryId: string;
@@ -62,6 +69,8 @@ export interface AdminProduct {
   pickupOnly: boolean;
   sortOrder: number;
   variants: AdminVariant[];
+  /** Addons offered to customers on this product. */
+  addons?: { addonId: string }[];
 }
 
 export interface AdminComboProduct {

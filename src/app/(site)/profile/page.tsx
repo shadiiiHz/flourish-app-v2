@@ -131,6 +131,17 @@ function OrdersPanel() {
                       {item.variantTitle
                         ? ` (${item.variantTitle})`
                         : ""} × {item.quantity.toLocaleString("fa-IR")}
+                      {item.addons && item.addons.length > 0 && (
+                        <span className="mt-0.5 block text-xs text-cocoa-500">
+                          افزودنی:{" "}
+                          {item.addons
+                            .map(
+                              (addon) =>
+                                `${addon.name} (${addon.price.toLocaleString("fa-IR")} تومان)`,
+                            )
+                            .join("، ")}
+                        </span>
+                      )}
                     </span>
                     <span className="font-semibold text-cocoa-900">
                       {(item.price * item.quantity).toLocaleString("fa-IR")}{" "}

@@ -13,6 +13,7 @@ import { sendPatternSms } from "../lib/sms.js";
 import { formatOrderNumber } from "../lib/orderNumber.js";
 import { decrementStockForItems } from "../lib/stock.js";
 import { isPreorderableOnDate, weekdayNameFa } from "../lib/preorder.js";
+import { resolveItemAddons, sumAddonPrices } from "../lib/addons.js";
 
 /**
  * Notifies the admin phone over SMS once an order is actually paid — either
@@ -140,7 +141,7 @@ ordersRouter.post(
 
     const cartItems = await prisma.cartItem.findMany({
       where: { customerId },
-      include: { product: true, variant: true },
+      include: { product: { include: { addons: { select: { addonId: true } } } }, variant: true },
     });
     if (cartItems.length === 0) {
       res.status(400).json({ error: "سبد خرید خالی است" });
@@ -183,14 +184,21 @@ ordersRouter.post(
       }
     }
 
-    const orderItems = cartItems.map((item) => {
+    const cartAddons = await resolveItemAddons(cartItems);
+    // One order row per cart line. Its ticked addons are snapshotted by name/price and their cost is
+    // added on top of the discounted unit price (the product discount doesn't apply to addons).
+    const orderItems = cartItems.map((item, index) => {
       const basePrice = item.variant ? item.variant.price : item.product.price;
+      const addons = cartAddons[index];
       return {
         productId: item.productId,
         variantId: item.variantId,
         title: item.product.title,
         variantTitle: item.variant?.title,
-        price: getDiscountedPrice(basePrice, getEffectiveDiscountPercent(item.product, orderType)),
+        addons: addons.length > 0 ? addons.map(({ name, price }) => ({ name, price })) : undefined,
+        price:
+          getDiscountedPrice(basePrice, getEffectiveDiscountPercent(item.product, orderType)) +
+          sumAddonPrices(addons),
         quantity: item.quantity,
       };
     });

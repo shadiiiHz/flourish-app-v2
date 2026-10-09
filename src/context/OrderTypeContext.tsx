@@ -22,6 +22,8 @@ interface OrderTypeContextValue {
   closeModal: () => void;
   setInstant: () => void;
   setPreorder: (selection: PreorderSelection) => void;
+  /** Switches to preorder mode before the customer has picked a date/time slot. */
+  startPreorder: () => void;
 }
 
 const OrderTypeContext = createContext<OrderTypeContextValue | null>(null);
@@ -63,6 +65,7 @@ export function OrderTypeProvider({ children }: { children: ReactNode }) {
     closeModal: () => setIsModalOpen(false),
     setInstant: () => setState({ orderType: "instant", preorder: null }),
     setPreorder: (selection) => setState({ orderType: "preorder", preorder: selection }),
+    startPreorder: () => setState({ orderType: "preorder", preorder: null }),
   };
 
   return <OrderTypeContext.Provider value={value}>{children}</OrderTypeContext.Provider>;

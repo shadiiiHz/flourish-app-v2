@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Minus, Plus, X } from "lucide-react";
 import ProductImageSlider from "./ProductImageSlider";
 import CartVariantModal from "./CartVariantModal";
+import AddonPickerModal from "./AddonPickerModal";
 import { useCart } from "../context/CartContext";
 import { useOrderType } from "../context/OrderTypeContext";
 import { formatPreorderWeekdays, isItemPreorderable } from "../lib/preorder";
@@ -22,7 +23,8 @@ function ProductModal({
   onClose: () => void;
 }) {
   const [variantModalOpen, setVariantModalOpen] = useState(false);
-  const { addToCart, notify, getQuantity, setQuantity, lineKeyFor } = useCart();
+  const [addonModalOpen, setAddonModalOpen] = useState(false);
+  const { lines, addToCart, notify, getQuantity, setQuantity, lineKeyFor } = useCart();
   const { orderType, preorder } = useOrderType();
   const discountPercent = getEffectiveDiscountPercent(item, orderType);
   const hasDiscount = !!discountPercent && item.price > 0;
@@ -30,7 +32,15 @@ function ProductModal({
     ? getDiscountedPrice(item.price, discountPercent)
     : item.price;
   const hasVariants = !!item.variants && item.variants.length > 0;
-  const cartQuantity = getQuantity(item.id);
+  // Without variants, a product with addons is added via the addon picker, not straight from the card.
+  const hasAddons = !hasVariants && !!item.addons && item.addons.length > 0;
+  // A product with addons can sit in the cart as several lines (one per addon combination): the
+  // stepper shows their total, and +/- act on the most recently added line.
+  const addonLines = hasAddons ? lines.filter((line) => line.itemId === item.id) : [];
+  const stepLine = addonLines[addonLines.length - 1];
+  const cartQuantity = hasAddons
+    ? addonLines.reduce((sum, line) => sum + line.quantity, 0)
+    : getQuantity(item.id);
   const notPreorderable = orderType === "preorder" && !isItemPreorderable(item, preorder?.date);
   // Admin restricted this product to certain weekdays and the chosen preorder date isn't one of them.
   const wrongPreorderDay = notPreorderable && item.allowPreorder;
@@ -43,6 +53,10 @@ function ProductModal({
   const handleAddClick = () => {
     if (hasVariants) {
       setVariantModalOpen(true);
+      return;
+    }
+    if (hasAddons) {
+      setAddonModalOpen(true);
       return;
     }
     if (addToCart(item)) {
@@ -190,7 +204,11 @@ function ProductModal({
                 <button
                   type="button"
                   aria-label="کاهش تعداد"
-                  onClick={() => setQuantity(lineKeyFor(item.id), cartQuantity - 1)}
+                  onClick={() =>
+                    stepLine
+                      ? setQuantity(stepLine.key, stepLine.quantity - 1)
+                      : setQuantity(lineKeyFor(item.id), cartQuantity - 1)
+                  }
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-cocoa-700 shadow-sm transition active:scale-95"
                 >
                   <Minus className="h-4 w-4" />
@@ -202,7 +220,7 @@ function ProductModal({
                   type="button"
                   aria-label="افزایش تعداد"
                   disabled={atMax || isUnorderable}
-                  onClick={() => addToCart(item)}
+                  onClick={() => (hasAddons ? setAddonModalOpen(true) : addToCart(item))}
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-cocoa-700 shadow-sm transition active:scale-95 disabled:opacity-40"
                 >
                   <Plus className="h-4 w-4" />
@@ -224,6 +242,9 @@ function ProductModal({
       </motion.div>
 
       <AnimatePresence>
+        {addonModalOpen && (
+          <AddonPickerModal item={item} onClose={() => setAddonModalOpen(false)} />
+        )}
         {variantModalOpen && (
           <CartVariantModal
             item={item}

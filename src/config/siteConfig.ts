@@ -15,6 +15,12 @@ export interface MenuItemVariant {
   image?: string
 }
 
+export interface MenuItemAddon {
+  id: string
+  name: string
+  price: number
+}
+
 export interface MenuItem {
   id: string
   title: string
@@ -35,6 +41,8 @@ export interface MenuItem {
   preorderWeekdays: number[]
   pickupOnly: boolean
   variants?: MenuItemVariant[]
+  /** Optional extras the customer may tick when adding this item to their cart. */
+  addons?: MenuItemAddon[]
   /** Combo items only, when the admin opted in — days left until the combo expires. */
   comboDaysLeft?: number
 }

@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getDiscountedPrice, getEffectiveDiscountPercent, type MenuItem, type MenuItemVariant } from "../config/siteConfig";
+import { getDiscountedPrice, getEffectiveDiscountPercent, type MenuItem, type MenuItemAddon, type MenuItemVariant } from "../config/siteConfig";
 import { useAuth } from "./AuthContext";
 import { useOrderType } from "./OrderTypeContext";
 import {
@@ -28,6 +28,9 @@ export interface CartLine {
   variantId?: string;
   title: string;
   variantTitle?: string;
+  /** Addons ticked for this line — each is its own priced row, billed once per unit of `quantity`. */
+  addons: MenuItemAddon[];
+  /** Unit price of the product itself, excluding addons. */
   price: number;
   image?: string;
   quantity: number;
@@ -52,9 +55,14 @@ interface CartContextValue {
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
-  lineKeyFor: (itemId: string, variantId?: string) => string;
-  getQuantity: (itemId: string, variantId?: string) => number;
-  addToCart: (item: MenuItem, variant?: MenuItemVariant, quantity?: number) => boolean;
+  lineKeyFor: (itemId: string, variantId?: string, addons?: readonly { id: string }[]) => string;
+  getQuantity: (itemId: string, variantId?: string, addons?: readonly { id: string }[]) => number;
+  addToCart: (
+    item: MenuItem,
+    variant?: MenuItemVariant,
+    quantity?: number,
+    addons?: MenuItemAddon[],
+  ) => boolean;
   setQuantity: (key: string, quantity: number) => void;
   removeLine: (key: string) => void;
   clearCart: () => void;
@@ -66,17 +74,22 @@ const CartContext = createContext<CartContextValue | null>(null);
 
 const TAX_RATE = 0.1;
 
-const lineKeyFor = (itemId: string, variantId?: string) =>
-  variantId ? `${itemId}:${variantId}` : itemId;
+/** The same product + variant with a different set of addons is a separate cart line. */
+const lineKeyFor = (itemId: string, variantId?: string, addons: readonly { id: string }[] = []) => {
+  const base = variantId ? `${itemId}:${variantId}` : itemId;
+  if (addons.length === 0) return base;
+  return `${base}+${addons.map((a) => a.id).sort().join("+")}`;
+};
 
 function mapApiCartItem(item: ApiCartItem): CartLineInternal {
   return {
-    key: lineKeyFor(item.productId, item.variantId ?? undefined),
+    key: lineKeyFor(item.productId, item.variantId ?? undefined, item.addons),
     cartItemId: item.id,
     itemId: item.productId,
     variantId: item.variantId ?? undefined,
     title: item.title,
     variantTitle: item.variantTitle ?? undefined,
+    addons: item.addons ?? [],
     price: item.price,
     image: item.image ? apiUploadUrl(item.image) : undefined,
     quantity: item.quantity,
@@ -86,6 +99,10 @@ function mapApiCartItem(item: ApiCartItem): CartLineInternal {
     preorderWeekdays: item.preorderWeekdays ?? [],
   };
 }
+
+/** Product price plus all its addons, for one unit. */
+export const lineUnitTotal = (line: Pick<CartLine, "price" | "addons">) =>
+  line.price + line.addons.reduce((sum, addon) => sum + addon.price, 0);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, openAuth } = useAuth();
@@ -120,18 +137,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const notify = (message: string) => setToast(message);
 
-  const getQuantity = (itemId: string, variantId?: string) => {
-    const key = lineKeyFor(itemId, variantId);
+  const getQuantity = (itemId: string, variantId?: string, addons?: readonly { id: string }[]) => {
+    const key = lineKeyFor(itemId, variantId, addons);
     return lines.find((line) => line.key === key)?.quantity ?? 0;
   };
 
-  const addToCart = (item: MenuItem, variant?: MenuItemVariant, quantity = 1) => {
+  const addToCart = (
+    item: MenuItem,
+    variant?: MenuItemVariant,
+    quantity = 1,
+    addons: MenuItemAddon[] = [],
+  ) => {
     if (!isAuthenticated) {
       openAuth();
       return false;
     }
 
-    const key = lineKeyFor(item.id, variant?.id);
+    const key = lineKeyFor(item.id, variant?.id, addons);
     const unlimited = orderType === "preorder" && item.allowPreorder;
     const maxQuantity = unlimited ? undefined : variant ? variant.stock : item.stock;
     const existing = lines.find((line) => line.key === key);
@@ -167,6 +189,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         variantId: variant?.id,
         title: item.title,
         variantTitle: variant?.title,
+        addons,
         price,
         image: variant?.image || item.images[0],
         quantity: initialQuantity,
@@ -179,6 +202,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const createPromise = addMyCartItem({
       productId: item.id,
       variantId: variant?.id,
+      addonIds: addons.length > 0 ? addons.map((a) => a.id) : undefined,
       quantity: initialQuantity,
       orderType,
     })
@@ -255,7 +279,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [lines],
   );
   const totalPrice = useMemo(
-    () => lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
+    () => lines.reduce((sum, line) => sum + line.quantity * lineUnitTotal(line), 0),
     [lines],
   );
   const taxAmount = useMemo(() => Math.round(totalPrice * TAX_RATE), [totalPrice]);

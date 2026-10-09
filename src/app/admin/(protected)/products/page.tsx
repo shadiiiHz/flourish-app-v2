@@ -18,6 +18,7 @@ import {
   adminBulkImportProducts,
   adminCreateProduct,
   adminDeleteProduct,
+  adminGetAllAddons,
   adminGetAllCategories,
   adminGetProducts,
   adminUpdateProduct,
@@ -36,7 +37,7 @@ import {
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 import ConfirmModal from "@/components/ConfirmModal";
-import type { AdminCategory, AdminProduct, AdminVariant } from "@/types/admin";
+import type { AdminAddon, AdminCategory, AdminProduct, AdminVariant } from "@/types/admin";
 import { EVEN_WEEKDAYS, ODD_WEEKDAYS, PREORDER_WEEKDAYS, formatPreorderWeekdays } from "@/lib/preorder";
 
 type WeightUnit = "گرم" | "کیلوگرم";
@@ -62,6 +63,8 @@ interface FormValues {
   pickupOnly: boolean;
   sortOrder: string;
   variants: AdminVariant[];
+  /** Ids of the addons customers may tick when adding this product to their cart. */
+  addonIds: string[];
 }
 
 const EMPTY_FORM: FormValues = {
@@ -84,6 +87,7 @@ const EMPTY_FORM: FormValues = {
   pickupOnly: false,
   sortOrder: "",
   variants: [],
+  addonIds: [],
 };
 
 function parseWeight(weight: string | null | undefined): {
@@ -174,6 +178,7 @@ function AdminProductsPage() {
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [allAddons, setAllAddons] = useState<AdminAddon[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -224,10 +229,12 @@ function AdminProductsPage() {
         statusFilter === "all" ? undefined : statusFilter,
       ),
       adminGetAllCategories(),
-    ]).then(([p, c]) => {
+      adminGetAllAddons(),
+    ]).then(([p, c, a]) => {
       setProducts(p.items);
       setTotal(p.total);
       setCategories(c);
+      setAllAddons(a);
       if (!editingId && !formik.values.categoryId) {
         formik.setFieldValue("categoryId", c[0]?.id ?? "");
       }
@@ -298,6 +305,7 @@ function AdminProductsPage() {
               : null,
           pickupOnly: values.pickupOnly,
           sortOrder: Number(values.sortOrder) || 0,
+          addonIds: values.addonIds,
           variants: values.variants
             .filter((v) => v.title.trim())
             .map((v) => ({
@@ -362,6 +370,7 @@ function AdminProductsPage() {
         pickupOnly: p.pickupOnly,
         sortOrder: String(p.sortOrder),
         variants: p.variants,
+        addonIds: (p.addons ?? []).map((a) => a.addonId),
       },
     });
     setError(null);
@@ -383,6 +392,14 @@ function AdminProductsPage() {
     formik.setFieldValue(
       "images",
       formik.values.images.filter((_, i) => i !== index),
+    );
+  };
+
+  const toggleAddon = (id: string) => {
+    const current = formik.values.addonIds;
+    formik.setFieldValue(
+      "addonIds",
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     );
   };
 
@@ -1320,6 +1337,45 @@ function AdminProductsPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="mt-5">
+          <label className="text-xs font-semibold text-cocoa-600">
+            افزودنی‌ها (اختیاری — مشتری هنگام افزودن به سبد می‌تواند انتخاب کند)
+          </label>
+          {allAddons.length === 0 ? (
+            <p className="mt-2 text-xs text-cocoa-500">
+              هنوز افزودنی تعریف نشده است. از بخش «افزودنی‌ها» در منو، افزودنی
+              جدید بسازید.
+            </p>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {allAddons.map((addon) => {
+                const checked = formik.values.addonIds.includes(addon.id);
+                return (
+                  <label
+                    key={addon.id}
+                    className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      checked
+                        ? "border-sand-400 bg-sand-50 text-cocoa-900"
+                        : "border-cocoa-900/10 text-cocoa-600 hover:border-sand-400"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleAddon(addon.id)}
+                      className="accent-sand-500"
+                    />
+                    {addon.name}
+                    <span className="text-cocoa-500">
+                      ({addon.price.toLocaleString("fa-IR")} تومان)
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {error && (

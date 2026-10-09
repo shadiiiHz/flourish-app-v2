@@ -38,6 +38,8 @@ export interface OrderItem {
   id: string;
   title: string;
   variantTitle?: string | null;
+  /** Addons chosen for this line; `price` already includes their cost. */
+  addons?: { name: string; price: number }[] | null;
   price: number;
   quantity: number;
 }

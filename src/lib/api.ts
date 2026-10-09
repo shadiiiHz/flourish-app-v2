@@ -9,6 +9,7 @@ import type {
   AdminCategory,
   AdminComboProduct,
   AdminCustomer,
+  AdminAddon,
   AdminDiscountCode,
   AdminHeroSlide,
   AdminMessage,
@@ -121,6 +122,7 @@ interface ApiProduct {
   preorderWeekdays?: number[];
   pickupOnly: boolean;
   variants: ApiVariant[];
+  addons?: { addon: { id: string; name: string; price: number } }[];
 }
 
 interface ApiCategory {
@@ -173,6 +175,7 @@ function mapProduct(p: ApiProduct, categoryTitle: string): MenuItem {
     preorderWeekdays: p.preorderWeekdays ?? [],
     pickupOnly: p.pickupOnly,
     variants: p.variants.length > 0 ? p.variants.map(mapVariant) : undefined,
+    addons: p.addons?.length ? p.addons.map(({ addon }) => addon) : undefined,
   };
 }
 
@@ -397,6 +400,9 @@ export interface ApiCartItem {
   variantId?: string | null;
   title: string;
   variantTitle?: string | null;
+  /** `price` already includes the addons' cost. */
+  addons: { id: string; name: string; price: number }[];
+  addonIds: string[];
   price: number;
   image?: string | null;
   quantity: number;
@@ -410,6 +416,7 @@ export interface ApiCartItem {
 export interface AddCartItemPayload {
   productId: string;
   variantId?: string;
+  addonIds?: string[];
   quantity?: number;
   orderType?: OrderType;
 }
@@ -869,6 +876,42 @@ export function adminUpdateSettings(payload: Partial<AdminSettings>) {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin addons                                                        */
+/* ------------------------------------------------------------------ */
+
+export function adminGetAddons(page = 1, pageSize = 20, search = "") {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  return apiFetch<Paginated<AdminAddon>>(`/api/admin/addons?${params.toString()}`);
+}
+
+export function adminGetAllAddons() {
+  return apiFetch<AdminAddon[]>("/api/admin/addons/all");
+}
+
+export function adminCreateAddon(payload: { name: string; price: number }) {
+  return apiFetch<AdminAddon>("/api/admin/addons", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminUpdateAddon(id: string, payload: { name: string; price: number }) {
+  return apiFetch<AdminAddon>(`/api/admin/addons/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminDeleteAddon(id: string) {
+  return apiFetch(`/api/admin/addons/${id}`, { method: "DELETE" });
+}
+
+export function adminBulkDeleteAddons(ids: string[]) {
+  return adminBulkDelete("/api/admin/addons", ids);
 }
 
 /* ------------------------------------------------------------------ */

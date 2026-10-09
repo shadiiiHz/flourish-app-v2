@@ -5,6 +5,7 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { getDiscountedPrice, getEffectiveDiscountPercent } from "../lib/pricing.js";
 import { parsePagination, paginatedResult } from "../lib/pagination.js";
+import { normalizeAddonIds, resolveItemAddons, type ResolvedAddon } from "../lib/addons.js";
 import { ensureBirthdayMessage } from "../lib/birthdayDiscount.js";
 import type { Prisma } from "@prisma/client";
 
@@ -247,7 +248,7 @@ customersRouter.delete(
 );
 
 const cartItemInclude = {
-  product: true,
+  product: { include: { addons: { select: { addonId: true } } } },
   variant: true,
 } satisfies Prisma.CartItemInclude;
 
@@ -260,7 +261,11 @@ function isUnlimitedInPreorder(orderType: z.infer<typeof orderTypeSchema>, allow
   return orderType === "preorder" && allowPreorder;
 }
 
-function mapCartItem(item: CartItemWithRelations, orderType: z.infer<typeof orderTypeSchema> = "instant") {
+function mapCartItem(
+  item: CartItemWithRelations,
+  addons: ResolvedAddon[],
+  orderType: z.infer<typeof orderTypeSchema> = "instant",
+) {
   const basePrice = item.variant ? item.variant.price : item.product.price;
   const unlimited = isUnlimitedInPreorder(orderType, item.product.allowPreorder);
   return {
@@ -269,7 +274,10 @@ function mapCartItem(item: CartItemWithRelations, orderType: z.infer<typeof orde
     variantId: item.variantId,
     title: item.product.title,
     variantTitle: item.variant?.title,
+    // Base price only — each addon is its own priced row (the product discount doesn't apply to addons).
     price: getDiscountedPrice(basePrice, getEffectiveDiscountPercent(item.product, orderType)),
+    addons,
+    addonIds: addons.map((addon) => addon.id),
     image: item.variant?.image ?? item.product.images[0],
     quantity: item.quantity,
     maxQuantity: unlimited ? null : item.variant ? item.variant.stock : item.product.stock,
@@ -288,7 +296,8 @@ customersRouter.get(
       include: cartItemInclude,
       orderBy: { createdAt: "asc" },
     });
-    res.json(items.map((item) => mapCartItem(item, orderType)));
+    const addons = await resolveItemAddons(items);
+    res.json(items.map((item, index) => mapCartItem(item, addons[index], orderType)));
   }),
 );
 
@@ -296,6 +305,7 @@ const addCartItemSchema = z.object({
   productId: z.string().min(1),
   variantId: z.string().optional(),
   quantity: z.number().int().positive().optional(),
+  addonIds: z.array(z.string().min(1)).optional(),
   orderType: orderTypeSchema.optional().default("instant"),
 });
 
@@ -309,10 +319,11 @@ customersRouter.post(
     }
     const customerId = req.customer!.sub;
     const { productId, variantId, quantity = 1, orderType } = parsed.data;
+    const addonIds = normalizeAddonIds(parsed.data.addonIds);
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
-      include: { variants: true },
+      include: { variants: true, addons: { select: { addonId: true } } },
     });
     if (!product) {
       res.status(404).json({ error: "محصول یافت نشد" });
@@ -323,12 +334,18 @@ customersRouter.post(
       res.status(404).json({ error: "نوع محصول یافت نشد" });
       return;
     }
+    const offeredAddonIds = new Set(product.addons.map((a) => a.addonId));
+    if (addonIds.some((id) => !offeredAddonIds.has(id))) {
+      res.status(400).json({ error: "افزودنی انتخاب‌شده برای این محصول معتبر نیست" });
+      return;
+    }
     const unlimited = isUnlimitedInPreorder(orderType, product.allowPreorder);
     const maxQuantity = unlimited ? null : variant ? variant.stock : product.stock;
 
     const item = await prisma.$transaction(async (tx) => {
+      // The same product with a different set of addons is a separate cart line.
       const existing = await tx.cartItem.findFirst({
-        where: { customerId, productId, variantId: variantId ?? null },
+        where: { customerId, productId, variantId: variantId ?? null, addonIds: { equals: addonIds } },
       });
       const nextQuantity = (existing?.quantity ?? 0) + quantity;
       const clamped = maxQuantity != null ? Math.min(nextQuantity, maxQuantity) : nextQuantity;
@@ -340,11 +357,12 @@ customersRouter.post(
         });
       }
       return tx.cartItem.create({
-        data: { customerId, productId, variantId, quantity: clamped },
+        data: { customerId, productId, variantId, addonIds, quantity: clamped },
         include: cartItemInclude,
       });
     });
-    res.status(201).json(mapCartItem(item, orderType));
+    const [addons] = await resolveItemAddons([item]);
+    res.status(201).json(mapCartItem(item, addons, orderType));
   }),
 );
 
@@ -388,7 +406,8 @@ customersRouter.put(
       data: { quantity: clamped },
       include: cartItemInclude,
     });
-    res.json(mapCartItem(updated, orderType));
+    const [addons] = await resolveItemAddons([updated]);
+    res.json(mapCartItem(updated, addons, orderType));
   }),
 );
 

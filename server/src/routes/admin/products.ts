@@ -53,7 +53,11 @@ const productSchema = z.object({
   pickupOnly: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   variants: z.array(variantSchema).optional(),
+  /** Addons customers may tick when adding this product to their cart. */
+  addonIds: z.array(z.string().min(1)).optional(),
 });
+
+const productInclude = { variants: true, category: true, addons: { select: { addonId: true } } } as const;
 
 const productStatusValues = ["available", "unavailable"] as const;
 type ProductStatusFilter = (typeof productStatusValues)[number];
@@ -110,7 +114,7 @@ adminProductsRouter.get(
       prisma.product.findMany({
         where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-        include: { variants: true, category: true },
+        include: productInclude,
         skip: pagination.skip,
         take: pagination.take,
       }),
@@ -128,7 +132,7 @@ adminProductsRouter.post(
       res.status(400).json({ error: "اطلاعات محصول نامعتبر است" });
       return;
     }
-    const { variants, ...data } = parsed.data;
+    const { variants, addonIds, ...data } = parsed.data;
     const stockError = validateVariantStockSum(data.stock, variants ?? []);
     if (stockError) {
       res.status(400).json({ error: stockError });
@@ -138,8 +142,11 @@ adminProductsRouter.post(
       data: {
         ...data,
         variants: variants ? { create: variants.map(({ id: _id, ...v }) => v) } : undefined,
+        addons: addonIds?.length
+          ? { create: [...new Set(addonIds)].map((addonId) => ({ addonId })) }
+          : undefined,
       },
-      include: { variants: true, category: true },
+      include: productInclude,
     });
     res.status(201).json(product);
   }),
@@ -333,7 +340,7 @@ adminProductsRouter.put(
       res.status(400).json({ error: "اطلاعات محصول نامعتبر است" });
       return;
     }
-    const { variants, ...data } = parsed.data;
+    const { variants, addonIds, ...data } = parsed.data;
 
     // Fetched pre-update only when something that carries images is being
     // replaced, so we know which files dropped out and can delete those —
@@ -366,9 +373,15 @@ adminProductsRouter.put(
           variants,
         );
       }
+      if (addonIds) {
+        await tx.productAddon.deleteMany({ where: { productId: req.params.id } });
+        await tx.productAddon.createMany({
+          data: [...new Set(addonIds)].map((addonId) => ({ productId: req.params.id, addonId })),
+        });
+      }
       return tx.product.findUniqueOrThrow({
         where: { id: req.params.id },
-        include: { variants: true, category: true },
+        include: productInclude,
       });
     });
 

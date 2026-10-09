@@ -100,10 +100,8 @@ function CartDrawer() {
           <>
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5 sm:p-6">
               {lines.map((line) => (
-                <div
-                  key={line.key}
-                  className="flex items-center gap-3 rounded-2xl border border-sand-100 bg-white p-3"
-                >
+                <div key={line.key} className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-3 rounded-2xl border border-sand-100 bg-white p-3">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-sand-50">
                     <img
                       src={line.image || placeholder}
@@ -154,6 +152,25 @@ function CartDrawer() {
                       </button>
                     </div>
                   </div>
+                </div>
+                {/* Each addon is its own row, billed once per unit of the product above. */}
+                {line.addons.map((addon) => (
+                  <div
+                    key={addon.id}
+                    className="mr-6 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-sand-100 bg-sand-50/60 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-bold text-cocoa-900">{addon.name}</p>
+                      <p className="text-[11px] text-cocoa-500">افزودنی {line.title}</p>
+                    </div>
+                    <div className="shrink-0 text-end text-xs font-bold text-sand-400">
+                      {addon.price.toLocaleString("fa-IR")} تومان
+                      <span className="mr-1 font-normal text-cocoa-500">
+                        × {line.quantity.toLocaleString("fa-IR")}
+                      </span>
+                    </div>
+                  </div>
+                ))}
                 </div>
               ))}
             </div>
