@@ -79,7 +79,6 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
           boxShadow: theme.panelShadow,
         }}
       >
-        {/* Anchored to the panel (not the full-width section) so zooming/resizing moves both together. */}
         <span className="pointer-events-none absolute top-0 left-0 z-20 flex h-25 w-25 shrink-0 items-start justify-center overflow-hidden md:-top-8 md:h-64 md:w-64">
           <Image
             src="/assets/autumn/2.svg"
