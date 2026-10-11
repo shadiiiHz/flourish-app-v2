@@ -311,8 +311,8 @@ model Settings {
    */
   businessHoursEnd      String   @default("22:30")
   /**
-   * Percent of an order's item subtotal (pre-tax, pre-discount, pre-shipping) credited to the
-   * customer's wallet as cashback once the order is paid.
+   * Legacy single cashback percent — no longer read; cashback now follows each customer's
+   * LoyaltyTier. Kept only so existing data/migrations stay valid.
    */
   walletCashbackPercent Int      @default(0)
   /**
@@ -321,6 +321,15 @@ model Settings {
    */
   menuBannerImage       String?
   updatedAt             DateTime @updatedAt
+}
+
+/// One of the four fixed customer loyalty levels (level 1..4). The point thresholds live in code
+/// (lib/loyalty.ts); the admin only edits each level's display name and wallet cashback percent.
+model LoyaltyTier {
+  level           Int      @id
+  name            String
+  cashbackPercent Int      @default(0)
+  updatedAt       DateTime @updatedAt
 }
 
 model WalletTransaction {

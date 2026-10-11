@@ -266,6 +266,8 @@ export interface CustomerAuthUser {
   onboardingCompleted: boolean;
   /** Only present on GET /me, while an unexpired birthday discount code exists for the customer and is still unused. */
   birthdayDiscount?: { code: string; percent: number; expiresAt: string } | null;
+  /** Only present on GET /me. */
+  loyalty?: LoyaltyStatus;
 }
 
 export function customerRequestOtp(phone: string) {
@@ -337,8 +339,24 @@ export function getMyOrders(page = 1, pageSize = 20) {
   return apiFetch<Paginated<Order>>(`/api/customers/me/orders?${params.toString()}`);
 }
 
+export interface LoyaltyTier {
+  level: number;
+  name: string;
+  cashbackPercent: number;
+  minPoints: number;
+}
+
+export interface LoyaltyStatus {
+  points: number;
+  tier: LoyaltyTier;
+  /** Null once the customer is on the top level. */
+  nextTier: LoyaltyTier | null;
+  pointsToNextTier: number;
+}
+
 export interface MyWallet {
   balance: number;
+  loyalty: LoyaltyStatus;
   transactions: Paginated<WalletTransaction>;
 }
 
@@ -884,7 +902,6 @@ export interface AdminSettings {
   businessHoursEnabled: boolean;
   businessHoursStart: string;
   businessHoursEnd: string;
-  walletCashbackPercent: number;
   menuBannerImage: string | null;
 }
 
@@ -1084,6 +1101,31 @@ export function adminGetWalletCustomers(page = 1, pageSize = 20, search = "") {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) params.set("search", search);
   return apiFetch<Paginated<AdminCustomer>>(`/api/admin/wallet/customers?${params.toString()}`);
+}
+
+export interface TopLoyaltyCustomer {
+  id: string;
+  phone: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  loyalty: LoyaltyStatus;
+}
+
+export function adminGetTopLoyaltyCustomers(limit = 3) {
+  return apiFetch<TopLoyaltyCustomer[]>(`/api/admin/loyalty/top?limit=${limit}`);
+}
+
+export function adminGetLoyaltyTiers() {
+  return apiFetch<LoyaltyTier[]>("/api/admin/loyalty/tiers");
+}
+
+export function adminUpdateLoyaltyTiers(
+  tiers: Pick<LoyaltyTier, "level" | "name" | "cashbackPercent">[],
+) {
+  return apiFetch<LoyaltyTier[]>("/api/admin/loyalty/tiers", {
+    method: "PUT",
+    body: JSON.stringify({ tiers }),
+  });
 }
 
 export function adminGetCustomerWalletTransactions(customerId: string, page = 1, pageSize = 20) {

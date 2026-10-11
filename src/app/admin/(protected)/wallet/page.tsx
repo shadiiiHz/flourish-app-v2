@@ -10,9 +10,9 @@ import DialogContent from "@mui/material/DialogContent";
 import {
   ApiError,
   adminGetCustomerWalletTransactions,
-  adminGetSettings,
+  adminGetLoyaltyTiers,
   adminGetWalletCustomers,
-  adminUpdateSettings,
+  adminUpdateLoyaltyTiers,
 } from "@/lib/api";
 import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import {
@@ -27,18 +27,35 @@ import {
   type AdminWalletTransaction,
 } from "@/types/admin";
 
-function CashbackPercentForm() {
-  const [percent, setPercent] = useState("0");
+type TierDraft = { level: number; minPoints: number; name: string; cashbackPercent: string };
+
+function LoyaltyTiersForm() {
+  const [tiers, setTiers] = useState<TierDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    adminGetSettings()
-      .then((s) => setPercent(String(s.walletCashbackPercent)))
+    adminGetLoyaltyTiers()
+      .then((rows) =>
+        setTiers(rows.map((t) => ({ ...t, cashbackPercent: String(t.cashbackPercent) }))),
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  const update = (level: number, patch: Partial<TierDraft>) => {
+    setSuccess(false);
+    setTiers((prev) => prev.map((t) => (t.level === level ? { ...t, ...patch } : t)));
+  };
+
+  const rangeLabel = (index: number) => {
+    const from = tiers[index].minPoints;
+    const next = tiers[index + 1];
+    return next
+      ? `${from.toLocaleString("fa-IR")} تا ${(next.minPoints - 1).toLocaleString("fa-IR")} امتیاز`
+      : `${from.toLocaleString("fa-IR")} امتیاز به بالا`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +63,14 @@ function CashbackPercentForm() {
     setSuccess(false);
     setSaving(true);
     try {
-      await adminUpdateSettings({ walletCashbackPercent: Number(percent) || 0 });
+      const saved = await adminUpdateLoyaltyTiers(
+        tiers.map((t) => ({
+          level: t.level,
+          name: t.name.trim(),
+          cashbackPercent: Number(t.cashbackPercent) || 0,
+        })),
+      );
+      setTiers(saved.map((t) => ({ ...t, cashbackPercent: String(t.cashbackPercent) })));
       setSuccess(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "خطا در ذخیره‌سازی");
@@ -58,35 +82,64 @@ function CashbackPercentForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-xl rounded-[1.5rem] border border-sand-100 bg-white p-5"
+      className="max-w-3xl rounded-[1.5rem] border border-sand-100 bg-white p-5"
     >
       <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
         <WalletIcon className="h-4.5 w-4.5 text-sand-500" />
-        درصد پاداش خرید
+        سطح‌بندی مشتریان و درصد پاداش خرید
       </h2>
       <p className="mt-1 text-xs text-cocoa-500">
-        به ازای هر سفارش پرداخت‌شده، این درصد از جمع اقلام سفارش (بدون احتساب مالیات،
-        تخفیف و هزینه ارسال) به کیف پول مشتری واریز می‌شود.
+        به ازای هر ۵ هزار تومان از مبلغ نهایی سفارش‌های پرداخت‌شده (شامل مالیات و هزینه ارسال) یک
+        امتیاز ثبت می‌شود. پاداش هر سفارش به کیف پول مشتری، به‌اندازهٔ درصد سطحِ فعلی او از جمع
+        اقلام سفارش (بدون احتساب مالیات، تخفیف و هزینه ارسال) واریز می‌شود. بازهٔ امتیاز هر سطح
+        ثابت است؛ نام و درصد را می‌توانید تغییر دهید.
       </p>
 
       {loading ? (
         <p className="mt-4 text-sm text-cocoa-500">در حال بارگذاری…</p>
       ) : (
-        <div className="mt-4 max-w-xs">
-          <label className="mb-1 block text-xs font-semibold text-cocoa-600">
-            درصد پاداش (٪)
-          </label>
-          <input
-            type="text"
-            inputMode="numeric"
-            dir="ltr"
-            value={percent}
-            onChange={(e) => {
-              const digits = digitsOnly(e.target.value);
-              setPercent(digits === "" ? "" : String(Math.min(100, Number(digits))));
-            }}
-            className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
-          />
+        <div className="mt-4 flex flex-col gap-3">
+          {tiers.map((tier, index) => (
+            <div
+              key={tier.level}
+              className="grid grid-cols-1 items-end gap-3 rounded-2xl bg-sand-50/60 p-3 sm:grid-cols-[7rem_1fr_9rem]"
+            >
+              <div>
+                <p className="text-xs font-bold text-cocoa-900">
+                  سطح {tier.level.toLocaleString("fa-IR")}
+                </p>
+                <p className="mt-0.5 text-[11px] text-cocoa-500">{rangeLabel(index)}</p>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-cocoa-600">نام سطح</label>
+                <input
+                  type="text"
+                  maxLength={40}
+                  value={tier.name}
+                  onChange={(e) => update(tier.level, { name: e.target.value })}
+                  className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                  درصد پاداش (٪)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  dir="ltr"
+                  value={tier.cashbackPercent}
+                  onChange={(e) => {
+                    const digits = digitsOnly(e.target.value);
+                    update(tier.level, {
+                      cashbackPercent: digits === "" ? "" : String(Math.min(100, Number(digits))),
+                    });
+                  }}
+                  className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -95,7 +148,7 @@ function CashbackPercentForm() {
 
       <button
         type="submit"
-        disabled={saving || loading}
+        disabled={saving || loading || tiers.some((t) => !t.name.trim())}
         className="mt-4 rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
       >
         {saving ? "در حال ذخیره…" : "ذخیره تغییرات"}
@@ -170,6 +223,24 @@ function AdminWalletPage() {
         renderCell: ({ row }) => <span dir="ltr">{row.phone}</span>,
       },
       {
+        field: "loyaltyTier",
+        headerName: "سطح",
+        width: 130,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_, row) => row.loyalty?.tier.name ?? "",
+      },
+      {
+        field: "loyaltyPoints",
+        headerName: "امتیاز",
+        width: 110,
+        type: "number",
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_, row) => row.loyalty?.points ?? 0,
+        renderCell: ({ row }) => (row.loyalty?.points ?? 0).toLocaleString("fa-IR"),
+      },
+      {
         field: "walletBalance",
         headerName: "موجودی کیف پول",
         width: 160,
@@ -223,7 +294,7 @@ function AdminWalletPage() {
       <h1 className="font-display text-xl font-bold text-cocoa-900">کیف پول</h1>
 
       <div className="mt-4">
-        <CashbackPercentForm />
+        <LoyaltyTiersForm />
       </div>
 
       <h2 className="mt-6 text-sm font-bold text-cocoa-900">موجودی مشتریان</h2>

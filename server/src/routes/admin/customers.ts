@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
+import { buildLoyaltyStatus, getLoyaltyTiers, getPointsByCustomer } from "../../lib/loyalty.js";
 import { ensureBirthdayMessage } from "../../lib/birthdayDiscount.js";
 import { notifyCustomerWelcome } from "../../lib/welcomeSms.js";
 
@@ -58,9 +59,14 @@ adminCustomersRouter.get(
       }),
       prisma.customer.count({ where }),
     ]);
+    const [pointsById, tiers] = await Promise.all([
+      getPointsByCustomer(customers.map((c) => c.id)),
+      getLoyaltyTiers(),
+    ]);
     const items = customers.map(({ orders, ...customer }) => ({
       ...customer,
       lastOrderAt: orders[0]?.createdAt ?? null,
+      loyalty: buildLoyaltyStatus(pointsById.get(customer.id) ?? 0, tiers),
     }));
     res.json(paginatedResult(items, total, pagination));
   }),

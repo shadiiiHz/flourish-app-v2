@@ -1,3 +1,4 @@
+import type { LoyaltyStatus } from "@/lib/api";
 import type { Order } from "./order";
 
 export type {
@@ -156,6 +157,8 @@ export interface AdminCustomer {
   birthDate?: string | null;
   source: CustomerSource;
   walletBalance: number;
+  /** Only on the wallet customers list. */
+  loyalty?: LoyaltyStatus;
   createdAt: string;
   lastOrderAt?: string | null;
   _count?: { orders: number };

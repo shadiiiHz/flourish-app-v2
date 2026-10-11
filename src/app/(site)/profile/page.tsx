@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { normalizeDigits, PHONE_REGEX, toPersianDigits } from "@/utils/phone";
-import { getMyOrders, getMyWallet } from "@/lib/api";
+import { getMyOrders, getMyWallet, type LoyaltyStatus } from "@/lib/api";
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -355,6 +355,7 @@ const WALLET_PAGE_SIZE = ORDERS_PAGE_SIZE;
 function WalletPanel() {
   const { isAuthenticated } = useAuth();
   const [balance, setBalance] = useState(0);
+  const [loyalty, setLoyalty] = useState<LoyaltyStatus | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(isAuthenticated);
   const [page, setPage] = useState(1);
@@ -366,6 +367,7 @@ function WalletPanel() {
     getMyWallet(page, WALLET_PAGE_SIZE)
       .then((result) => {
         setBalance(result.balance);
+        setLoyalty(result.loyalty);
         setTransactions(result.transactions.items);
         setTotalPages(result.transactions.totalPages);
       })
@@ -382,6 +384,21 @@ function WalletPanel() {
           {balance.toLocaleString("fa-IR")} تومان
         </p>
       </div>
+      {loyalty && (
+        <div className="mt-3 rounded-2xl border border-sand-100 p-4 text-center">
+          <p className="text-xs font-semibold text-cocoa-600">سطح شما در باشگاه مشتریان</p>
+          <p className="mt-1 font-display text-lg font-bold text-cocoa-900">{loyalty.tier.name}</p>
+          <p className="mt-1 text-xs text-cocoa-500">
+            {loyalty.points.toLocaleString("fa-IR")} امتیاز —{" "}
+            {loyalty.tier.cashbackPercent.toLocaleString("fa-IR")}٪ پاداش خرید به کیف پول
+          </p>
+          <p className="mt-1 text-xs font-semibold text-sand-500">
+            {loyalty.nextTier
+              ? `${loyalty.pointsToNextTier.toLocaleString("fa-IR")} امتیاز تا سطح «${loyalty.nextTier.name}» (${loyalty.nextTier.cashbackPercent.toLocaleString("fa-IR")}٪ پاداش)`
+              : "شما در بالاترین سطح هستید"}
+          </p>
+        </div>
+      )}
       <p className="mt-3 rounded-xl bg-sand-50 p-3 text-center text-sm font-bold text-sand-500">
         توجه: اعتبار کیف پول تا یک ماه از تاریخ واریز قابل استفاده است.
       </p>

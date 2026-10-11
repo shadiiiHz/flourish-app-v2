@@ -2,8 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Package, ShoppingBag, Tags, Users } from "lucide-react";
-import { adminGetCategories, adminGetCustomers, adminGetOrders, adminGetProducts } from "@/lib/api";
+import { Crown, Package, ShoppingBag, Tags, Users } from "lucide-react";
+import {
+  adminGetCategories,
+  adminGetCustomers,
+  adminGetOrders,
+  adminGetProducts,
+  adminGetTopLoyaltyCustomers,
+  type TopLoyaltyCustomer,
+} from "@/lib/api";
 import VisitsLineChart from "@/components/admin/VisitsLineChart";
 
 function StatCard({
@@ -42,6 +49,56 @@ function StatCardSkeleton() {
         <span className="mt-2 block h-5 w-12 animate-pulse rounded-full bg-sand-100" />
       </div>
     </div>
+  );
+}
+
+function TopCustomers() {
+  const [top, setTop] = useState<TopLoyaltyCustomer[] | null>(null);
+
+  useEffect(() => {
+    adminGetTopLoyaltyCustomers(3)
+      .then(setTop)
+      .catch(() => setTop([]));
+  }, []);
+
+  return (
+    <section className="mt-6 rounded-[1.5rem] border border-sand-100 bg-white p-5">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
+        <Crown className="h-4.5 w-4.5 text-sand-500" />
+        برترین مشتریان از نظر امتیاز
+      </h2>
+      {!top ? (
+        <p className="mt-3 text-xs text-cocoa-500">در حال بارگذاری…</p>
+      ) : top.length === 0 ? (
+        <p className="mt-3 text-xs text-cocoa-500">هنوز امتیازی ثبت نشده است.</p>
+      ) : (
+        <ol className="mt-3 grid gap-3 sm:grid-cols-3">
+          {top.map((c, i) => (
+            <li key={c.id}>
+              <Link
+                href={`/admin/orders?customerId=${c.id}`}
+                className="flex items-center gap-3 rounded-2xl bg-sand-50/60 p-3 transition hover:bg-sand-50"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sand-500 text-sm font-bold text-white">
+                  {(i + 1).toLocaleString("fa-IR")}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-cocoa-900">
+                    {[c.firstName, c.lastName].filter(Boolean).join(" ") || "بدون نام"}
+                  </p>
+                  <p dir="ltr" className="text-start text-[11px] text-cocoa-500">
+                    {c.phone}
+                  </p>
+                  <p className="mt-0.5 text-xs font-semibold text-sand-500">
+                    {c.loyalty.points.toLocaleString("fa-IR")} امتیاز · {c.loyalty.tier.name}
+                  </p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }
 
@@ -101,6 +158,8 @@ function AdminDashboardPage() {
           </>
         )}
       </div>
+
+      <TopCustomers />
 
       <VisitsLineChart />
     </div>

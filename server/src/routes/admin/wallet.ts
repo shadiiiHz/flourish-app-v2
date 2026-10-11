@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
+import { buildLoyaltyStatus, getLoyaltyTiers, getPointsByCustomer } from "../../lib/loyalty.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 
 export const adminWalletRouter = Router();
@@ -30,7 +31,15 @@ adminWalletRouter.get(
       }),
       prisma.customer.count({ where }),
     ]);
-    res.json(paginatedResult(customers, total, pagination));
+    const [pointsById, tiers] = await Promise.all([
+      getPointsByCustomer(customers.map((c) => c.id)),
+      getLoyaltyTiers(),
+    ]);
+    const items = customers.map((c) => ({
+      ...c,
+      loyalty: buildLoyaltyStatus(pointsById.get(c.id) ?? 0, tiers),
+    }));
+    res.json(paginatedResult(items, total, pagination));
   }),
 );
 

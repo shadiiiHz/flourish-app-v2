@@ -19,11 +19,13 @@ function formatJalaliDate(date: Date): string {
  * (no credit, rejected number, unset body id) must never fail code creation.
  * Returns whether the SMS was actually sent, so the admin panel can say so.
  * In the approved template {0} is the customer's first name (falling back to
- * "مشتری"), {1} is the code and {2} is the Jalali date it is valid until.
+ * "مشتری"), {1} is the discount percent, {2} is the code and {3} is the
+ * Jalali date it is valid until.
  */
 export async function notifyCustomerOfDiscountCode(
   customer: { phone: string; firstName: string | null },
   code: string,
+  percent: number,
   expiresAt: Date,
 ): Promise<boolean> {
   if (!env.melipayamakCustomerDiscountBodyId) return false;
@@ -31,6 +33,7 @@ export async function notifyCustomerOfDiscountCode(
   try {
     await sendPatternSms(customer.phone, env.melipayamakCustomerDiscountBodyId, [
       name,
+      String(percent),
       code,
       formatJalaliDate(expiresAt),
     ]);

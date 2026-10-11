@@ -18,7 +18,6 @@ const settingsSchema = z.object({
   businessHoursEnabled: z.boolean().optional(),
   businessHoursStart: timeString.optional(),
   businessHoursEnd: timeString.optional(),
-  walletCashbackPercent: z.number().int().min(0).max(100).optional(),
   menuBannerImage: z.string().optional(),
 });
 

@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { getSettings } from "../lib/shipping.js";
 import { isSiteOpen } from "../lib/businessHours.js";
+import { getLoyaltyTiers } from "../lib/loyalty.js";
 
 export const catalogRouter = Router();
 
@@ -11,14 +12,15 @@ const addonsInclude = { include: { addon: true }, orderBy: { addon: { name: "asc
 catalogRouter.get(
   "/settings/status",
   asyncHandler(async (_req, res) => {
-    const settings = await getSettings();
+    const [settings, tiers] = await Promise.all([getSettings(), getLoyaltyTiers()]);
     res.json({
       siteClosed: !isSiteOpen(settings),
       manuallyClosed: settings.siteClosed,
       businessHoursEnabled: settings.businessHoursEnabled,
       businessHoursStart: settings.businessHoursStart,
       businessHoursEnd: settings.businessHoursEnd,
-      walletCashbackPercent: settings.walletCashbackPercent,
+      // Highest tier percent — the storefront banner advertises "up to X%".
+      walletCashbackPercent: Math.max(0, ...tiers.map((t) => t.cashbackPercent)),
       menuBannerImage: settings.menuBannerImage,
     });
   }),

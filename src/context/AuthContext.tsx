@@ -18,6 +18,7 @@ import {
   customerRequestPasswordChange,
   customerVerifyOtp,
   updateMyProfile,
+  type LoyaltyStatus,
 } from "../lib/api";
 
 export interface AuthUser {
@@ -31,6 +32,7 @@ export interface AuthUser {
   walletBalance: number;
   onboardingCompleted: boolean;
   birthdayDiscount?: { code: string; percent: number; expiresAt: string } | null;
+  loyalty?: LoyaltyStatus;
 }
 
 export type AuthView = "otp-phone" | "otp-verify" | "password";

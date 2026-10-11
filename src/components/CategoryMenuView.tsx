@@ -238,7 +238,7 @@ function CategoryMenuView({
                   اعتبار بازگشتی | CashBack
                 </h2>
                 <p className="mt-0.5 text-[11px] text-cocoa-500 sm:text-xs">
-                  {toPersianDigits(String(walletCashbackPercent))}درصد اعتبار بازگشتی به کیف پول
+                  تا {toPersianDigits(String(walletCashbackPercent))} درصد اعتبار بازگشتی به کیف پول، بر اساس سطح باشگاه مشتریان
                 </p>
               </div>
             </div>

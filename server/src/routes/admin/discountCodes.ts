@@ -141,7 +141,12 @@ adminDiscountCodesRouter.post(
           customer: { select: { id: true, phone: true, firstName: true, lastName: true } },
         },
       });
-      const smsSent = await notifyCustomerOfDiscountCode(customer, created.code, expiresAt);
+      const smsSent = await notifyCustomerOfDiscountCode(
+        customer,
+        created.code,
+        created.percent,
+        expiresAt,
+      );
       res.status(201).json({ ...created, smsSent });
       return;
     }

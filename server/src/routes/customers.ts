@@ -7,6 +7,7 @@ import { getDiscountedPrice, getEffectiveDiscountPercent } from "../lib/pricing.
 import { parsePagination, paginatedResult } from "../lib/pagination.js";
 import { normalizeAddonIds, resolveItemAddons, type ResolvedAddon } from "../lib/addons.js";
 import { ensureBirthdayMessage } from "../lib/birthdayDiscount.js";
+import { getLoyaltyStatus } from "../lib/loyalty.js";
 import type { Prisma } from "@prisma/client";
 
 export const customersRouter = Router();
@@ -127,8 +128,10 @@ customersRouter.get(
       }),
       prisma.walletTransaction.count({ where: { customerId } }),
     ]);
+    const loyalty = await getLoyaltyStatus(customerId);
     res.json({
       balance: customer?.walletBalance ?? 0,
+      loyalty,
       transactions: paginatedResult(transactions, total, pagination),
     });
   }),

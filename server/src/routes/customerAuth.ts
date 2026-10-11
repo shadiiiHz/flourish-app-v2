@@ -9,6 +9,7 @@ import { requireCustomerAuth } from "../middleware/requireCustomerAuth.js";
 import { sendSms, sendPatternSms } from "../lib/sms.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { getActiveBirthdayDiscount } from "../lib/birthdayDiscount.js";
+import { getLoyaltyStatus } from "../lib/loyalty.js";
 import { notifyCustomerWelcome } from "../lib/welcomeSms.js";
 
 export const customerAuthRouter = Router();
@@ -154,8 +155,11 @@ customerAuthRouter.get(
       res.status(401).json({ error: "کاربر یافت نشد" });
       return;
     }
-    const birthdayDiscount = await getActiveBirthdayDiscount(customer.id);
-    res.json({ ...toAuthUser(customer), birthdayDiscount });
+    const [birthdayDiscount, loyalty] = await Promise.all([
+      getActiveBirthdayDiscount(customer.id),
+      getLoyaltyStatus(customer.id),
+    ]);
+    res.json({ ...toAuthUser(customer), birthdayDiscount, loyalty });
   }),
 );
 

@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "./prisma.js";
-import { getSettings } from "./shipping.js";
+import { getCustomerPoints, getLoyaltyTiers, tierForPoints } from "./loyalty.js";
 
 /** How long a cashback grant stays spendable before it's clawed back — see expireStaleWalletCashback. */
 const CASHBACK_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
@@ -89,7 +89,8 @@ export async function refundWalletHold(
 
 /**
  * Credits cashback for an order once it's marked as delivered, based on the
- * admin-configured percent of the item subtotal actually paid out of pocket
+ * cashback percent of the customer's loyalty tier (admin-configured per tier,
+ * using the tier they held before this purchase) applied to the item subtotal actually paid out of pocket
  * — any part of the subtotal covered by wallet balance (which can only have
  * come from previously-earned cashback) is excluded, so cashback can't be
  * recycled into more cashback on money that was itself a reward. Safe to
@@ -99,8 +100,11 @@ export async function creditWalletCashback(orderId: string) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !order.customerId) return;
   if (order.paymentStatus !== "paid") return;
-  const settings = await getSettings();
-  const percent = settings.walletCashbackPercent;
+  const [points, tiers] = await Promise.all([
+    getCustomerPoints(order.customerId, order.id),
+    getLoyaltyTiers(),
+  ]);
+  const percent = tierForPoints(points, tiers).cashbackPercent;
   if (percent <= 0) return;
   const netSubtotal = Math.max(0, order.subtotal - order.walletAmountUsed);
   const cashback = Math.floor((netSubtotal * percent) / 100);
