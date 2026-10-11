@@ -1,6 +1,6 @@
 import { prisma } from "./prisma.js";
 
-/** Every 5,000 Toman of an order's final total earns one loyalty point. */
+/** Every 5,000 Toman of an order's items subtotal (after the discount code) earns one loyalty point. */
 export const TOMAN_PER_POINT = 5000;
 
 /** Minimum points for each level (1..4). Fixed — the admin only edits each level's name and cashback percent. */
@@ -26,15 +26,16 @@ export interface LoyaltyStatus {
 
 /**
  * Orders that count towards a customer's points: paid and not cancelled. The
- * amount is the order's final total (items − discount + tax + shipping), including
- * any part settled from the wallet. Points are always derived from the orders
+ * amount is the order's items subtotal minus its discount code (tax and shipping are not
+ * counted), including any part settled from the wallet. Points are always derived from the orders
  * themselves, so cancelling/editing/deleting an order and back-filling existing
  * customers all need no extra bookkeeping.
  */
 export const countedOrders = { paymentStatus: "paid", status: { not: "cancelled" } } as const;
 
-export function pointsFromTotal(totalToman: number): number {
-  return Math.floor(Math.max(0, totalToman) / TOMAN_PER_POINT);
+/** `amountToman` is the sum of (subtotal − discountAmount) over the counted orders. */
+export function pointsFromAmount(amountToman: number): number {
+  return Math.floor(Math.max(0, amountToman) / TOMAN_PER_POINT);
 }
 
 /** The four levels with their admin-configured names/percents, creating any missing rows with defaults. */
@@ -71,9 +72,9 @@ export function tierForPoints(points: number, tiers: LoyaltyTierInfo[]): Loyalty
 export async function getCustomerPoints(customerId: string, excludeOrderId?: string): Promise<number> {
   const agg = await prisma.order.aggregate({
     where: { customerId, ...countedOrders, ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}) },
-    _sum: { total: true },
+    _sum: { subtotal: true, discountAmount: true },
   });
-  return pointsFromTotal(agg._sum.total ?? 0);
+  return pointsFromAmount((agg._sum.subtotal ?? 0) - (agg._sum.discountAmount ?? 0));
 }
 
 /** Points for many customers at once (admin lists). Customers with no counted orders map to 0. */
@@ -83,10 +84,15 @@ export async function getPointsByCustomer(customerIds: string[]): Promise<Map<st
   const groups = await prisma.order.groupBy({
     by: ["customerId"],
     where: { customerId: { in: customerIds }, ...countedOrders },
-    _sum: { total: true },
+    _sum: { subtotal: true, discountAmount: true },
   });
   for (const group of groups) {
-    if (group.customerId) result.set(group.customerId, pointsFromTotal(group._sum.total ?? 0));
+    if (group.customerId) {
+      result.set(
+        group.customerId,
+        pointsFromAmount((group._sum.subtotal ?? 0) - (group._sum.discountAmount ?? 0)),
+      );
+    }
   }
   return result;
 }

@@ -29,6 +29,7 @@ import {
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import ConfirmModal from "@/components/ConfirmModal";
 import { formatOrderNumber } from "@/lib/orderNumber";
+import { orderPoints } from "@/lib/loyaltyPoints";
 import {
   ORDER_SOURCE_LABELS,
   ORDER_STATUS_LABELS,
@@ -570,6 +571,13 @@ function AdminOrdersPage() {
                     selectedOrder.total - selectedOrder.walletAmountUsed
                   ).toLocaleString("fa-IR")}{" "}
                   تومان
+                </span>
+              </div>
+
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-cocoa-600">امتیاز این سفارش</span>
+                <span className="font-semibold text-cocoa-900">
+                  {orderPoints(selectedOrder).toLocaleString("fa-IR")} امتیاز
                 </span>
               </div>
 

@@ -7,7 +7,7 @@ import {
   countedOrders,
   getLoyaltyTiers,
   LOYALTY_MIN_POINTS,
-  pointsFromTotal,
+  pointsFromAmount,
 } from "../../lib/loyalty.js";
 
 export const adminLoyaltyRouter = Router();
@@ -27,14 +27,16 @@ adminLoyaltyRouter.get(
     const groups = await prisma.order.groupBy({
       by: ["customerId"],
       where: { customerId: { not: null }, ...countedOrders },
-      _sum: { total: true },
-      orderBy: { _sum: { total: "desc" } },
-      // A few extra rows so customers who round down to 0 points can be dropped without under-filling.
-      take: limit + 20,
+      _sum: { subtotal: true, discountAmount: true },
     });
+    // Points use subtotal − discount, which the DB can't order by, so rank in memory.
     const ranked = groups
-      .map((g) => ({ customerId: g.customerId as string, points: pointsFromTotal(g._sum.total ?? 0) }))
+      .map((g) => ({
+        customerId: g.customerId as string,
+        points: pointsFromAmount((g._sum.subtotal ?? 0) - (g._sum.discountAmount ?? 0)),
+      }))
       .filter((g) => g.points > 0)
+      .sort((a, b) => b.points - a.points)
       .slice(0, limit);
     const [customers, tiers] = await Promise.all([
       prisma.customer.findMany({
