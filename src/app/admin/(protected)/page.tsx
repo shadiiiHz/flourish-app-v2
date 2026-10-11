@@ -82,11 +82,11 @@ function TopCustomers() {
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sand-500 text-sm font-bold text-white">
                   {(i + 1).toLocaleString("fa-IR")}
                 </span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1 text-right">
                   <p className="truncate text-sm font-bold text-cocoa-900">
                     {[c.firstName, c.lastName].filter(Boolean).join(" ") || "بدون نام"}
                   </p>
-                  <p dir="ltr" className="text-start text-[11px] text-cocoa-500">
+                  <p dir="ltr" className="text-right text-[11px] text-cocoa-500">
                     {c.phone}
                   </p>
                   <p className="mt-0.5 text-xs font-semibold text-sand-500">
