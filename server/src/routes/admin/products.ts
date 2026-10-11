@@ -41,6 +41,7 @@ const productSchema = z.object({
   discountPercent: z.number().int().min(0).max(100).nullable().optional(),
   stock: z.number().int().nonnegative().nullable().optional(),
   isNew: z.boolean().optional(),
+  isSeasonal: z.boolean().optional(),
   isAvailable: z.boolean().optional(),
   allowPreorder: z.boolean().optional(),
   /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */

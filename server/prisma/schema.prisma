@@ -91,6 +91,8 @@ model Product {
   discountPercent         Int?
   stock                   Int?
   isNew                   Boolean          @default(false)
+  /// Shown in the homepage seasonal section (above "new items"); the section only renders while at least one product has this on.
+  isSeasonal              Boolean          @default(false)
   isAvailable             Boolean          @default(true)
   allowPreorder           Boolean          @default(true)
   /// Weekdays (JS getDay numbering: 0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day.
@@ -324,6 +326,10 @@ model Settings {
    * built-in /assets/cat-banner.jpg ships as-is.
    */
   menuBannerImage       String?
+  /**
+   * Which of the four seasonal designs (spring | summer | autumn | winter) the homepage seasonal section uses.
+   */
+  seasonalTheme         String   @default("spring")
   updatedAt             DateTime @updatedAt
 }
 

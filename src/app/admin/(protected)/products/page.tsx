@@ -55,6 +55,7 @@ interface FormValues {
   discountPercent: string;
   stock: string;
   isNew: boolean;
+  isSeasonal: boolean;
   isAvailable: boolean;
   allowPreorder: boolean;
   /** Empty means preorderable every day. */
@@ -80,6 +81,7 @@ const EMPTY_FORM: FormValues = {
   discountPercent: "",
   stock: "",
   isNew: false,
+  isSeasonal: false,
   isAvailable: true,
   allowPreorder: true,
   preorderWeekdays: [],
@@ -296,6 +298,7 @@ function AdminProductsPage() {
             : null,
           stock: values.stock ? Number(values.stock) : null,
           isNew: values.isNew,
+          isSeasonal: values.isSeasonal,
           isAvailable: values.isAvailable,
           allowPreorder: values.allowPreorder,
           preorderWeekdays: values.preorderWeekdays,
@@ -362,6 +365,7 @@ function AdminProductsPage() {
           p.discountPercent != null ? String(p.discountPercent) : "",
         stock: p.isAvailable ? (p.stock != null ? String(p.stock) : "") : "0",
         isNew: p.isNew,
+        isSeasonal: p.isSeasonal,
         isAvailable: p.isAvailable,
         allowPreorder: p.allowPreorder,
         preorderWeekdays: p.preorderWeekdays ?? [],
@@ -705,6 +709,7 @@ function AdminProductsPage() {
       },
       { field: "stock", headerName: "موجودی", valueGetter: (_, row) => row.stock ?? "" },
       { field: "isNew", headerName: "جدید", valueGetter: (_, row) => (row.isNew ? "بله" : "خیر") },
+      { field: "isSeasonal", headerName: "فصلی", valueGetter: (_, row) => (row.isSeasonal ? "بله" : "خیر") },
       {
         field: "isAvailable",
         headerName: "موجود",
@@ -993,6 +998,16 @@ function AdminProductsPage() {
               className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
             />
             نمایش در «آیتم‌های جدید»
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+            <input
+              type="checkbox"
+              name="isSeasonal"
+              checked={formik.values.isSeasonal}
+              onChange={formik.handleChange}
+              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+            />
+            نمایش در بخش «فصلی»
           </label>
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">

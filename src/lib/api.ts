@@ -206,6 +206,26 @@ export async function getNewProducts(): Promise<MenuItem[]> {
   return data.map((p) => mapProduct(p, p.category.title));
 }
 
+export type SeasonalThemeId = "spring" | "summer" | "autumn" | "winter";
+
+export interface SeasonalSection {
+  theme: SeasonalThemeId;
+  items: MenuItem[];
+}
+
+export async function getSeasonalSection(): Promise<SeasonalSection> {
+  try {
+    const data = await apiFetch<{ theme: SeasonalThemeId; products: ApiNewProduct[] }>(
+      "/api/products/seasonal",
+      { next: { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] } },
+    );
+    return { theme: data.theme, items: data.products.map((p) => mapProduct(p, p.category.title)) };
+  } catch {
+    // The section is optional decoration — never take the homepage down with it.
+    return { theme: "spring", items: [] };
+  }
+}
+
 /** Combo products have no category — labeled "کمبو" instead for the product detail badge. */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -903,6 +923,7 @@ export interface AdminSettings {
   businessHoursStart: string;
   businessHoursEnd: string;
   menuBannerImage: string | null;
+  seasonalTheme: SeasonalThemeId;
 }
 
 export function adminGetSettings() {

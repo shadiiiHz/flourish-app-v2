@@ -7,6 +7,7 @@ import {
   ArrowDown,
   ArrowUp,
   Clock,
+  Flower2,
   ImagePlus,
   KeyRound,
   Store,
@@ -26,7 +27,9 @@ import {
   adminUploadImage,
   apiUploadUrl,
   revalidateCatalog,
+  type SeasonalThemeId,
 } from "@/lib/api";
+import { SEASONAL_THEMES, SEASONAL_THEME_IDS } from "@/config/seasonalThemes";
 import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 import type { AdminHeroSlide } from "@/types/admin";
 
@@ -133,6 +136,7 @@ function AdminSettingsPage() {
           },
         });
         setMenuBannerImage(s.menuBannerImage);
+        setSeasonalTheme(s.seasonalTheme ?? "spring");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -159,6 +163,27 @@ function AdminSettingsPage() {
       }
     },
   });
+
+  const [seasonalTheme, setSeasonalTheme] = useState<SeasonalThemeId>("spring");
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
+
+  const handleThemeChange = async (theme: SeasonalThemeId) => {
+    if (theme === seasonalTheme || themeSaving) return;
+    const previous = seasonalTheme;
+    setThemeError(null);
+    setThemeSaving(true);
+    setSeasonalTheme(theme);
+    try {
+      await adminUpdateSettings({ seasonalTheme: theme });
+      revalidateCatalog();
+    } catch (err) {
+      setSeasonalTheme(previous);
+      setThemeError(err instanceof ApiError ? err.message : "خطا در ذخیره‌سازی");
+    } finally {
+      setThemeSaving(false);
+    }
+  };
 
   const [menuBannerImage, setMenuBannerImage] = useState<string | null>(null);
   const [bannerUploading, setBannerUploading] = useState(false);
@@ -571,6 +596,57 @@ function AdminSettingsPage() {
           {passwordFormik.isSubmitting ? "در حال تغییر…" : "تغییر رمز عبور"}
         </button>
       </form>
+
+      <div className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
+          <Flower2 className="h-4.5 w-4.5 text-sand-500" />
+          طراحی بخش فصلی صفحه اصلی
+        </h2>
+        <p className="mt-1 text-xs text-cocoa-500">
+          طراحی بخش «فصلی» بالای آیتم‌های جدید را انتخاب کنید. این بخش فقط وقتی نمایش داده می‌شود که
+          حداقل یک محصول برایش علامت خورده باشد.
+        </p>
+
+        {loading ? (
+          <p className="mt-4 text-sm text-cocoa-500">در حال بارگذاری…</p>
+        ) : (
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {SEASONAL_THEME_IDS.map((id) => {
+              const theme = SEASONAL_THEMES[id];
+              const selected = id === seasonalTheme;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => handleThemeChange(id)}
+                  disabled={themeSaving}
+                  aria-pressed={selected}
+                  className={`overflow-hidden rounded-2xl border-2 text-right transition disabled:opacity-70 ${
+                    selected ? "border-sand-500 shadow-md" : "border-transparent hover:border-sand-200"
+                  }`}
+                >
+                  <div className="relative h-20" style={{ background: theme.swatch }}>
+                    <div
+                      className="absolute inset-3 rounded-xl border backdrop-blur-md"
+                      style={{ background: theme.panelBackground, borderColor: theme.panelBorder }}
+                    />
+                    <span
+                      className="absolute right-5 top-5 h-5 w-5 rounded-full"
+                      style={{ background: theme.badgeBackground }}
+                    />
+                  </div>
+                  <div className="bg-sand-50/60 px-3 py-2 text-xs font-bold text-cocoa-900">
+                    {theme.label}
+                    {selected && <span className="mr-1 font-semibold text-sand-500">(فعال)</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {themeError && <p className="mt-3 text-xs font-semibold text-danger-500">{themeError}</p>}
+      </div>
 
       <div className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">

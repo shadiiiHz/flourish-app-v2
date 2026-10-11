@@ -64,6 +64,22 @@ catalogRouter.get(
   }),
 );
 
+/** Products flagged for the homepage seasonal section, plus the design the admin picked for it. */
+catalogRouter.get(
+  "/products/seasonal",
+  asyncHandler(async (_req, res) => {
+    const [settings, products] = await Promise.all([
+      getSettings(),
+      prisma.product.findMany({
+        where: { isSeasonal: true, isCombo: false },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        include: { variants: true, category: true, addons: addonsInclude },
+      }),
+    ]);
+    res.json({ theme: settings.seasonalTheme, products });
+  }),
+);
+
 catalogRouter.get(
   "/products/combo",
   asyncHandler(async (_req, res) => {

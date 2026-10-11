@@ -19,6 +19,7 @@ const settingsSchema = z.object({
   businessHoursStart: timeString.optional(),
   businessHoursEnd: timeString.optional(),
   menuBannerImage: z.string().optional(),
+  seasonalTheme: z.enum(["spring", "summer", "autumn", "winter"]).optional(),
 });
 
 adminSettingsRouter.get(

@@ -60,6 +60,7 @@ export interface AdminProduct {
   discountPercent?: number | null;
   stock?: number | null;
   isNew: boolean;
+  isSeasonal: boolean;
   isAvailable: boolean;
   allowPreorder: boolean;
   /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */
