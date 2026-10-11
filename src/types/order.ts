@@ -37,6 +37,8 @@ export type DeliveryMethod = "delivery" | "pickup";
 export interface OrderItem {
   id: string;
   title: string;
+  productId?: string | null;
+  variantId?: string | null;
   variantTitle?: string | null;
   /** Addons chosen for this line; `price` already includes their cost. */
   addons?: { name: string; price: number }[] | null;
@@ -53,6 +55,7 @@ export interface Order {
   orderType: OrderType;
   source: OrderSource;
   deliveryMethod: DeliveryMethod;
+  addressId?: string | null;
   scheduledDate?: string | null;
   scheduledTimeSlot?: string | null;
   addressText?: string | null;

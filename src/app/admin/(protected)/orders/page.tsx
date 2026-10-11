@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Check, Copy, Eye, MapPin, ShoppingBag, X } from "lucide-react";
+import { Check, Copy, Eye, MapPin, Pencil, ShoppingBag, X } from "lucide-react";
 import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -304,13 +304,13 @@ function AdminOrdersPage() {
       {
         field: "actions",
         headerName: "جزئیات",
-        width: 90,
+        width: 110,
         sortable: false,
         filterable: false,
         align: "center",
         headerAlign: "center",
         renderCell: ({ row }) => (
-          <div className="flex h-full w-full items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center gap-1.5">
             <button
               type="button"
               onClick={() => setSelectedOrder(row)}
@@ -319,6 +319,15 @@ function AdminOrdersPage() {
             >
               <Eye className="h-3.5 w-3.5" />
             </button>
+            {row.source === "admin" && row.status !== "cancelled" && (
+              <Link
+                href={`/admin/orders/${row.id}/edit`}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-sand-100 text-cocoa-700 transition hover:bg-sand-50"
+                aria-label="ویرایش سفارش"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Link>
+            )}
           </div>
         ),
       },
@@ -643,6 +652,16 @@ function AdminOrdersPage() {
                     </Select>
                   </FormControl>
                 </div>
+              )}
+
+              {selectedOrder.source === "admin" && selectedOrder.status !== "cancelled" && (
+                <Link
+                  href={`/admin/orders/${selectedOrder.id}/edit`}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-sand-500 px-4 py-2 text-xs font-bold text-white"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  ویرایش سفارش
+                </Link>
               )}
 
               <p className="mt-3 text-xs text-cocoa-500">

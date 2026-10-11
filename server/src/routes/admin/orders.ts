@@ -77,11 +77,20 @@ adminOrdersRouter.get(
   }),
 );
 
-const orderItemInputSchema = z.object({
-  productId: z.string().min(1),
-  variantId: z.string().optional(),
-  quantity: z.number().int().positive(),
-});
+const orderItemInputSchema = z
+  .object({
+    productId: z.string().min(1).optional(),
+    variantId: z.string().optional(),
+    quantity: z.number().int().positive(),
+    /** Keeps a line's recorded price instead of re-pricing it from the current catalog — used when editing an existing order. */
+    unitPrice: z.number().int().nonnegative().optional(),
+    /** Only for lines without a catalog product (e.g. the product was since deleted). */
+    title: z.string().min(1).optional(),
+    variantTitle: z.string().optional(),
+  })
+  .refine((item) => !!item.productId || (!!item.title && item.unitPrice != null), {
+    message: "اطلاعات یکی از آیتم‌ها ناقص است",
+  });
 
 const createOrderSchema = z
   .object({
@@ -109,6 +118,246 @@ const createOrderSchema = z
     message: "برای ارسال باید یک آدرس (ثبت‌شده یا دستی) مشخص شود",
   });
 
+type CreateOrderInput = z.infer<typeof createOrderSchema>;
+
+interface OrderDraft {
+  customer: NonNullable<Awaited<ReturnType<typeof prisma.customer.findUnique>>>;
+  appliedDiscount: { id: string; code: string; percent: number; isPersonal: boolean } | null;
+  orderItems: {
+    productId?: string;
+    variantId?: string;
+    title: string;
+    variantTitle?: string;
+    price: number;
+    quantity: number;
+  }[];
+  fields: {
+    customerName?: string;
+    note?: string;
+    orderType: "instant" | "preorder";
+    deliveryMethod: "delivery" | "pickup";
+    addressId?: string;
+    addressText?: string;
+    distanceKm?: number;
+    subtotal: number;
+    discountCode?: string;
+    discountAmount: number;
+    tax: number;
+    shippingCost: number;
+    total: number;
+    walletAmountUsed: number;
+    paymentStatus: "pending" | "paid";
+  };
+}
+
+class DraftError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Validates an admin order payload and works out everything that will be
+ * stored (line items, discount, tax, shipping, wallet usage) without writing
+ * anything — shared by order creation and order editing so both price orders
+ * by exactly the same rules. Throws DraftError for any invalid input.
+ *
+ * When editing, `existing` is the order being replaced: its already-consumed
+ * personal discount code stays usable, and the wallet amount it currently
+ * holds counts as available again (it is refunded before the new one is taken).
+ */
+async function buildOrderDraft(
+  data: CreateOrderInput,
+  existing?: { discountCode: string | null; walletAmountUsed: number },
+): Promise<OrderDraft> {
+  const {
+    customerId,
+    items,
+    manualSubtotal,
+    deliveryMethod,
+    addressId,
+    addressText,
+    shippingCost: manualShippingCost,
+    discountCode,
+    walletAmount,
+    paymentStatus,
+    customerName,
+    note,
+    orderType,
+  } = data;
+
+  const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+  if (!customer) throw new DraftError(404, "مشتری یافت نشد");
+
+  let appliedDiscount: OrderDraft["appliedDiscount"] = null;
+  if (discountCode) {
+    const discount = await prisma.discountCode.findUnique({
+      where: { code: discountCode.toUpperCase() },
+    });
+    if (!discount || !discount.isActive) {
+      // A personal code this very order already consumed is deactivated, but stays valid for it.
+      const keptByThisOrder = !!discount && !!existing && existing.discountCode === discount.code;
+      if (!keptByThisOrder) throw new DraftError(400, "کد تخفیف معتبر نیست");
+    }
+    if (discount!.customerId && discount!.customerId !== customerId) {
+      throw new DraftError(400, "این کد تخفیف مخصوص این مشتری نیست");
+    }
+    if (discount!.usedAt && existing?.discountCode !== discount!.code) {
+      throw new DraftError(400, "این کد تخفیف قبلاً استفاده شده است");
+    }
+    if (
+      discount!.expiresAt &&
+      discount!.expiresAt.getTime() < Date.now() &&
+      existing?.discountCode !== discount!.code
+    ) {
+      throw new DraftError(400, "این کد تخفیف منقضی شده است");
+    }
+    appliedDiscount = {
+      id: discount!.id,
+      code: discount!.code,
+      percent: discount!.percent,
+      isPersonal: !!discount!.customerId,
+    };
+  }
+
+  const orderItems: OrderDraft["orderItems"] = [];
+
+  if (manualSubtotal != null) {
+    // Admin chose to skip picking real products and just entered a total.
+    orderItems.push({
+      title: "اقلام سفارش (بدون جزئیات)",
+      price: manualSubtotal,
+      quantity: 1,
+    });
+  } else {
+    const catalogItems = items!.filter((i) => i.productId);
+    const productIds = [...new Set(catalogItems.map((i) => i.productId!))];
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      include: { variants: true },
+    });
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    if (deliveryMethod === "delivery") {
+      const pickupOnlyTitles = [
+        ...new Set(
+          catalogItems
+            .map((item) => productById.get(item.productId!))
+            .filter((p) => p?.pickupOnly)
+            .map((p) => p!.title),
+        ),
+      ];
+      if (pickupOnlyTitles.length > 0) {
+        const names = pickupOnlyTitles.map((t) => `«${t}»`).join("، ");
+        const verb = pickupOnlyTitles.length > 1 ? "هستند" : "است";
+        throw new DraftError(400, `${names} فقط با تحویل حضوری قابل سفارش ${verb}`);
+      }
+    }
+
+    for (const item of items!) {
+      if (!item.productId) {
+        orderItems.push({
+          title: item.title!,
+          variantTitle: item.variantTitle,
+          price: item.unitPrice!,
+          quantity: item.quantity,
+        });
+        continue;
+      }
+      const product = productById.get(item.productId);
+      if (!product) throw new DraftError(400, "یکی از محصولات انتخاب‌شده یافت نشد");
+      const variant = item.variantId
+        ? product.variants.find((v) => v.id === item.variantId)
+        : undefined;
+      if (item.variantId && !variant) {
+        throw new DraftError(400, `نوع انتخاب‌شده برای «${product.title}» یافت نشد`);
+      }
+      const basePrice = variant ? variant.price : product.price;
+      orderItems.push({
+        productId: product.id,
+        variantId: variant?.id,
+        title: product.title,
+        variantTitle: variant?.title,
+        price:
+          item.unitPrice ??
+          getDiscountedPrice(basePrice, getEffectiveDiscountPercent(product, orderType)),
+        quantity: item.quantity,
+      });
+    }
+  }
+
+  const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const discountAmount = appliedDiscount
+    ? Math.round((subtotal * appliedDiscount.percent) / 100)
+    : 0;
+  const tax = Math.round((subtotal - discountAmount) * TAX_RATE);
+
+  let address: Awaited<ReturnType<typeof prisma.address.findFirst>> = null;
+  let distanceKm: number | undefined;
+  let finalShippingCost = 0;
+  let finalAddressText: string | undefined;
+
+  if (deliveryMethod === "delivery") {
+    if (addressId) {
+      address = await prisma.address.findFirst({ where: { id: addressId, customerId } });
+      if (!address) throw new DraftError(404, "آدرس یافت نشد");
+      if (address.lat != null && address.lng != null) {
+        const shippingResult = await calculateShipping(address.lat, address.lng);
+        if (shippingResult.outOfRange) {
+          throw new DraftError(400, "این آدرس خارج از محدوده سرویس‌دهی فلوریش است");
+        }
+        distanceKm = shippingResult.distanceKm;
+        finalShippingCost = shippingResult.shippingCost;
+      } else {
+        finalShippingCost = manualShippingCost ?? 0;
+      }
+      finalAddressText = [address.address, address.details].filter(Boolean).join(" — ");
+    } else {
+      finalAddressText = addressText;
+      finalShippingCost = manualShippingCost ?? 0;
+    }
+  } else {
+    finalAddressText = "مراجعه حضوری به فلوریش";
+  }
+
+  const total = subtotal - discountAmount + tax + finalShippingCost;
+
+  let walletAmountUsed = 0;
+  if (walletAmount && walletAmount > 0) {
+    const availableWallet = customer.walletBalance + (existing?.walletAmountUsed ?? 0);
+    walletAmountUsed = Math.min(walletAmount, availableWallet, total);
+  }
+
+  return {
+    customer,
+    appliedDiscount,
+    orderItems,
+    fields: {
+      customerName:
+        customerName ||
+        [customer.firstName, customer.lastName].filter(Boolean).join(" ") ||
+        undefined,
+      note,
+      orderType,
+      deliveryMethod,
+      addressId: address?.id,
+      addressText: finalAddressText,
+      distanceKm,
+      subtotal,
+      discountCode: appliedDiscount?.code,
+      discountAmount,
+      tax,
+      shippingCost: finalShippingCost,
+      total,
+      walletAmountUsed,
+      paymentStatus,
+    },
+  };
+}
+
 /**
  * Manual, in-person/phone order entry for the admin panel — bypasses the
  * cart + Zarinpal flow entirely (products/quantities are chosen directly,
@@ -126,203 +375,38 @@ adminOrdersRouter.post(
         .json({ error: parsed.error.issues[0]?.message ?? "اطلاعات سفارش نامعتبر است" });
       return;
     }
-    const {
-      customerId,
-      items,
-      manualSubtotal,
-      deliveryMethod,
-      addressId,
-      addressText,
-      shippingCost: manualShippingCost,
-      discountCode,
-      walletAmount,
-      paymentStatus,
-      customerName,
-      note,
-      orderType,
-    } = parsed.data;
 
-    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
-    if (!customer) {
-      res.status(404).json({ error: "مشتری یافت نشد" });
-      return;
-    }
-
-    let appliedDiscount: { id: string; code: string; percent: number; isPersonal: boolean } | null = null;
-    if (discountCode) {
-      const discount = await prisma.discountCode.findUnique({
-        where: { code: discountCode.toUpperCase() },
-      });
-      if (!discount || !discount.isActive) {
-        res.status(400).json({ error: "کد تخفیف معتبر نیست" });
+    let draft: OrderDraft;
+    try {
+      draft = await buildOrderDraft(parsed.data);
+    } catch (err) {
+      if (err instanceof DraftError) {
+        res.status(err.status).json({ error: err.message });
         return;
       }
-      if (discount.customerId && discount.customerId !== customerId) {
-        res.status(400).json({ error: "این کد تخفیف مخصوص این مشتری نیست" });
-        return;
-      }
-      if (discount.usedAt) {
-        res.status(400).json({ error: "این کد تخفیف قبلاً استفاده شده است" });
-        return;
-      }
-      if (discount.expiresAt && discount.expiresAt.getTime() < Date.now()) {
-        res.status(400).json({ error: "این کد تخفیف منقضی شده است" });
-        return;
-      }
-      appliedDiscount = {
-        id: discount.id,
-        code: discount.code,
-        percent: discount.percent,
-        isPersonal: !!discount.customerId,
-      };
+      throw err;
     }
-
-    const orderItems: {
-      productId?: string;
-      variantId?: string;
-      title: string;
-      variantTitle?: string;
-      price: number;
-      quantity: number;
-    }[] = [];
-
-    if (manualSubtotal != null) {
-      // Admin chose to skip picking real products and just entered a total.
-      orderItems.push({
-        title: "اقلام سفارش (بدون جزئیات)",
-        price: manualSubtotal,
-        quantity: 1,
-      });
-    } else {
-      const productIds = [...new Set(items!.map((i) => i.productId))];
-      const products = await prisma.product.findMany({
-        where: { id: { in: productIds } },
-        include: { variants: true },
-      });
-      const productById = new Map(products.map((p) => [p.id, p]));
-
-      if (deliveryMethod === "delivery") {
-        const pickupOnlyTitles = [
-          ...new Set(
-            items!
-              .map((item) => productById.get(item.productId))
-              .filter((p) => p?.pickupOnly)
-              .map((p) => p!.title),
-          ),
-        ];
-        if (pickupOnlyTitles.length > 0) {
-          const names = pickupOnlyTitles.map((t) => `«${t}»`).join("، ");
-          const verb = pickupOnlyTitles.length > 1 ? "هستند" : "است";
-          res.status(400).json({ error: `${names} فقط با تحویل حضوری قابل سفارش ${verb}` });
-          return;
-        }
-      }
-
-      for (const item of items!) {
-        const product = productById.get(item.productId);
-        if (!product) {
-          res.status(400).json({ error: "یکی از محصولات انتخاب‌شده یافت نشد" });
-          return;
-        }
-        const variant = item.variantId
-          ? product.variants.find((v) => v.id === item.variantId)
-          : undefined;
-        if (item.variantId && !variant) {
-          res.status(400).json({ error: `نوع انتخاب‌شده برای «${product.title}» یافت نشد` });
-          return;
-        }
-        const basePrice = variant ? variant.price : product.price;
-        orderItems.push({
-          productId: product.id,
-          variantId: variant?.id,
-          title: product.title,
-          variantTitle: variant?.title,
-          price: getDiscountedPrice(basePrice, getEffectiveDiscountPercent(product, orderType)),
-          quantity: item.quantity,
-        });
-      }
-    }
-
-    const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const discountAmount = appliedDiscount
-      ? Math.round((subtotal * appliedDiscount.percent) / 100)
-      : 0;
-    const tax = Math.round((subtotal - discountAmount) * TAX_RATE);
-
-    let address: Awaited<ReturnType<typeof prisma.address.findFirst>> = null;
-    let distanceKm: number | undefined;
-    let finalShippingCost = 0;
-    let finalAddressText: string | undefined;
-
-    if (deliveryMethod === "delivery") {
-      if (addressId) {
-        address = await prisma.address.findFirst({ where: { id: addressId, customerId } });
-        if (!address) {
-          res.status(404).json({ error: "آدرس یافت نشد" });
-          return;
-        }
-        if (address.lat != null && address.lng != null) {
-          const shippingResult = await calculateShipping(address.lat, address.lng);
-          if (shippingResult.outOfRange) {
-            res.status(400).json({ error: "این آدرس خارج از محدوده سرویس‌دهی فلوریش است" });
-            return;
-          }
-          distanceKm = shippingResult.distanceKm;
-          finalShippingCost = shippingResult.shippingCost;
-        } else {
-          finalShippingCost = manualShippingCost ?? 0;
-        }
-        finalAddressText = [address.address, address.details].filter(Boolean).join(" — ");
-      } else {
-        finalAddressText = addressText;
-        finalShippingCost = manualShippingCost ?? 0;
-      }
-    } else {
-      finalAddressText = "مراجعه حضوری به فلوریش";
-    }
-
-    const total = subtotal - discountAmount + tax + finalShippingCost;
-
-    let walletAmountUsed = 0;
-    if (walletAmount && walletAmount > 0) {
-      walletAmountUsed = Math.min(walletAmount, customer.walletBalance, total);
-    }
+    const { customer, appliedDiscount, orderItems, fields } = draft;
+    const customerId = customer.id;
 
     const order = await prisma.order.create({
       data: {
         customerId,
         customerPhone: customer.phone,
-        customerName:
-          customerName ||
-          [customer.firstName, customer.lastName].filter(Boolean).join(" ") ||
-          undefined,
-        note,
-        orderType,
+        ...fields,
         source: "admin",
         // Manual/in-person orders are entered after the fact (the admin is recording a
         // sale that already happened), so they should land as delivered by default
         // rather than starting the pending → confirmed → … pipeline meant for
         // website orders.
         status: "delivered",
-        deliveryMethod,
-        addressId: address?.id,
-        addressText: finalAddressText,
-        distanceKm,
-        subtotal,
-        discountCode: appliedDiscount?.code,
-        discountAmount,
-        tax,
-        shippingCost: finalShippingCost,
-        total,
-        walletAmountUsed,
-        paymentStatus,
         items: { create: orderItems },
       },
       include: { items: true, customer: true },
     });
 
-    if (walletAmountUsed > 0) {
-      await redeemWallet(customerId, walletAmountUsed, order.id);
+    if (fields.walletAmountUsed > 0) {
+      await redeemWallet(customerId, fields.walletAmountUsed, order.id);
     }
 
     if (appliedDiscount?.isPersonal) {
@@ -332,12 +416,126 @@ adminOrdersRouter.post(
       });
     }
 
-    if (orderType !== "preorder") {
+    if (fields.orderType !== "preorder") {
       await decrementStockForItems(order.items);
     }
     await creditWalletCashback(order.id);
 
     res.status(201).json(order);
+  }),
+);
+
+adminOrdersRouter.get(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const order = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { items: true, customer: true, address: { select: { lat: true, lng: true } } },
+    });
+    if (!order) {
+      res.status(404).json({ error: "سفارش یافت نشد" });
+      return;
+    }
+    res.json(order);
+  }),
+);
+
+/**
+ * Edits a manually-created (admin) order. The order's old side effects —
+ * stock taken, wallet money held, cashback granted, personal discount code
+ * consumed — are rolled back, the order is rewritten from the new payload,
+ * and the same side effects are applied again for the new values. The
+ * customer, order number, status and creation date are kept. The new payload
+ * is fully validated before anything is touched.
+ */
+adminOrdersRouter.put(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const parsed = createOrderSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: parsed.error.issues[0]?.message ?? "اطلاعات سفارش نامعتبر است" });
+      return;
+    }
+    const existing = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { items: true },
+    });
+    if (!existing) {
+      res.status(404).json({ error: "سفارش یافت نشد" });
+      return;
+    }
+    if (existing.source !== "admin") {
+      res.status(400).json({ error: "فقط سفارش‌های دستی قابل ویرایش هستند" });
+      return;
+    }
+    if (existing.status === "cancelled") {
+      res.status(400).json({ error: "سفارش لغو شده قابل ویرایش نیست" });
+      return;
+    }
+    if (existing.customerId !== parsed.data.customerId) {
+      res.status(400).json({ error: "مشتری سفارش قابل تغییر نیست" });
+      return;
+    }
+
+    let draft: OrderDraft;
+    try {
+      draft = await buildOrderDraft(parsed.data, existing);
+    } catch (err) {
+      if (err instanceof DraftError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+    const { customer, appliedDiscount, orderItems, fields } = draft;
+    const customerId = customer.id;
+
+    // Roll back what the old version of the order did.
+    await reverseWalletCashback(existing.id);
+    await refundWalletHold(existing.id, "بازگشت وجه کیف پول به دلیل ویرایش سفارش");
+    await restockItems(existing.items);
+    if (existing.discountCode && existing.discountCode !== appliedDiscount?.code) {
+      await prisma.discountCode.updateMany({
+        where: { code: existing.discountCode, customerId: { not: null } },
+        data: { usedAt: null, isActive: true },
+      });
+    }
+
+    const order = await prisma.order.update({
+      where: { id: existing.id },
+      data: {
+        ...fields,
+        // Optional fields must be cleared explicitly when the edit drops them.
+        addressId: fields.addressId ?? null,
+        addressText: fields.addressText ?? null,
+        distanceKm: fields.distanceKm ?? null,
+        discountCode: fields.discountCode ?? null,
+        note: fields.note ?? null,
+        items: { deleteMany: {}, create: orderItems },
+      },
+      include: { items: true, customer: true, address: { select: { lat: true, lng: true } } },
+    });
+
+    // Re-apply the side effects for the new values.
+    if (fields.walletAmountUsed > 0) {
+      await redeemWallet(customerId, fields.walletAmountUsed, order.id);
+    }
+    if (appliedDiscount?.isPersonal) {
+      await prisma.discountCode.update({
+        where: { id: appliedDiscount.id },
+        data: { usedAt: new Date(), isActive: false },
+      });
+    }
+    if (fields.orderType !== "preorder") {
+      await decrementStockForItems(order.items);
+    }
+    if (order.status === "delivered") {
+      await creditWalletCashback(order.id);
+    }
+
+    res.json(order);
   }),
 );
 

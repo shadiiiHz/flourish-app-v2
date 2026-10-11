@@ -3,14 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Ban, CheckCircle2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Ban, CheckCircle2, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
 import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import {
   ApiError,
   adminBulkDeleteDiscountCodes,
+  adminCreateCustomerDiscountCode,
   adminCreateManualDiscountCode,
   adminDeleteDiscountCode,
   adminGenerateDiscountCode,
+  adminGetCustomers,
   adminGetDiscountCodes,
   adminUpdateDiscountCode,
 } from "@/lib/api";
@@ -23,17 +25,18 @@ import {
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import ConfirmModal from "@/components/ConfirmModal";
 import { digitsOnly, toPersianDigits } from "@/lib/formatNumber";
-import type { AdminDiscountCode } from "@/types/admin";
+import type { AdminCustomer, AdminDiscountCode } from "@/types/admin";
 
-type Mode = "manual" | "auto";
+type Mode = "manual" | "auto" | "customer";
 
 interface FormValues {
   mode: Mode;
   code: string;
   percent: string;
+  validDays: string;
 }
 
-const EMPTY_FORM: FormValues = { mode: "manual", code: "", percent: "" };
+const EMPTY_FORM: FormValues = { mode: "manual", code: "", percent: "", validDays: "7" };
 
 const validationSchema = Yup.object({
   percent: Yup.number()
@@ -61,6 +64,10 @@ function AdminDiscountCodesPage() {
     ids: new Set(),
   });
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [createdSmsNote, setCreatedSmsNote] = useState<string | null>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerResults, setCustomerResults] = useState<AdminCustomer[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomer | null>(null);
   const selectedIds = useMemo(
     () =>
       resolveSelectedRowIds(
@@ -69,6 +76,17 @@ function AdminDiscountCodesPage() {
       ),
     [selectionModel, codes],
   );
+
+  useEffect(() => {
+    if (!customerSearch.trim()) {
+      setCustomerResults([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      adminGetCustomers(1, 8, customerSearch).then((res) => setCustomerResults(res.items));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [customerSearch]);
 
   const fetchCodes = () =>
     adminGetDiscountCodes(page, pageSize, debouncedSearch).then((res) => {
@@ -111,8 +129,38 @@ function AdminDiscountCodesPage() {
     onSubmit: async (values, helpers) => {
       setError(null);
       setCreatedCode(null);
+      setCreatedSmsNote(null);
       try {
-        if (values.mode === "manual") {
+        if (values.mode === "customer") {
+          if (!selectedCustomer) {
+            setError("یک مشتری انتخاب کنید");
+            return;
+          }
+          const customCode = values.code.trim();
+          if (customCode && customCode.length < 3) {
+            setError("کد تخفیف باید حداقل ۳ کاراکتر باشد");
+            return;
+          }
+          const days = Number(values.validDays);
+          if (!Number.isInteger(days) || days < 1 || days > 365) {
+            setError("مدت اعتبار باید بین ۱ تا ۳۶۵ روز باشد");
+            return;
+          }
+          const created = await adminCreateCustomerDiscountCode(
+            selectedCustomer.id,
+            Number(values.percent),
+            days,
+            customCode || undefined,
+          );
+          setCreatedCode(created.code);
+          setCreatedSmsNote(
+            created.smsSent
+              ? "پیامک کد تخفیف برای مشتری ارسال شد."
+              : "پیامک ارسال نشد (قالب پیامک تنظیم نشده یا ارسال با خطا مواجه شد).",
+          );
+          setSelectedCustomer(null);
+          setCustomerSearch("");
+        } else if (values.mode === "manual") {
           const code = values.code.trim();
           if (code.length < 3) {
             setError("کد تخفیف باید حداقل ۳ کاراکتر باشد");
@@ -260,6 +308,13 @@ function AdminDiscountCodesPage() {
           ),
       },
       {
+        field: "expiresAt",
+        headerName: "انقضا",
+        width: 130,
+        valueGetter: (_, row) =>
+          row.expiresAt ? new Date(row.expiresAt).toLocaleDateString("fa-IR") : "بدون انقضا",
+      },
+      {
         field: "createdAt",
         headerName: "تاریخ ایجاد",
         width: 130,
@@ -345,6 +400,18 @@ function AdminDiscountCodesPage() {
           </button>
           <button
             type="button"
+            onClick={() => formik.setFieldValue("mode", "customer")}
+            className={`flex items-center gap-1 rounded-full px-4 py-1.5 text-xs font-bold transition ${
+              formik.values.mode === "customer"
+                ? "bg-sand-500 text-white"
+                : "text-cocoa-600 hover:text-cocoa-900"
+            }`}
+          >
+            <UserRound className="h-3.5 w-3.5" />
+            برای مشتری خاص
+          </button>
+          <button
+            type="button"
             onClick={() => formik.setFieldValue("mode", "auto")}
             className={`flex items-center gap-1 rounded-full px-4 py-1.5 text-xs font-bold transition ${
               formik.values.mode === "auto"
@@ -357,16 +424,75 @@ function AdminDiscountCodesPage() {
           </button>
         </div>
 
+        {formik.values.mode === "customer" && (
+          <div className="mt-4">
+            <label className="mb-1 block text-xs font-semibold text-cocoa-600">مشتری</label>
+            {selectedCustomer ? (
+              <div className="flex items-center justify-between rounded-xl bg-sand-50/60 p-3">
+                <div>
+                  <p className="text-sm font-semibold text-cocoa-900">
+                    {[selectedCustomer.firstName, selectedCustomer.lastName].filter(Boolean).join(" ") ||
+                      "بدون نام"}
+                  </p>
+                  <p className="mt-1 text-xs text-cocoa-500">{toPersianDigits(selectedCustomer.phone)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCustomer(null)}
+                  className="rounded-full border border-cocoa-900/10 px-3 py-1.5 text-xs font-semibold text-cocoa-700 hover:bg-white"
+                >
+                  تغییر مشتری
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="جستجو بر اساس نام یا موبایل…"
+                  className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                />
+                {customerResults.length > 0 && (
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    {customerResults.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCustomer(c);
+                          setCustomerResults([]);
+                          setCustomerSearch("");
+                        }}
+                        className="flex items-center justify-between rounded-xl border border-cocoa-900/10 px-3 py-2 text-right text-sm hover:bg-sand-50"
+                      >
+                        <span>{[c.firstName, c.lastName].filter(Boolean).join(" ") || "بدون نام"}</span>
+                        <span dir="ltr" className="text-xs text-cocoa-500">
+                          {c.phone}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {formik.values.mode === "manual" && (
+          {(formik.values.mode === "manual" || formik.values.mode === "customer") && (
             <div>
               <label className="mb-1 block text-xs font-semibold text-cocoa-600">
-                کد تخفیف
+                {formik.values.mode === "customer" ? "کد تخفیف (اختیاری)" : "کد تخفیف"}
               </label>
               <input
                 dir="ltr"
                 name="code"
-                placeholder="مثلاً FLOURISH20"
+                placeholder={
+                  formik.values.mode === "customer"
+                    ? "خالی = تولید خودکار"
+                    : "مثلاً FLOURISH20"
+                }
                 value={formik.values.code}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
@@ -398,6 +524,26 @@ function AdminDiscountCodesPage() {
           </div>
         </div>
 
+        {formik.values.mode === "customer" && (
+          <div className="mt-3">
+            <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+              مدت اعتبار (روز)
+            </label>
+            <input
+              dir="ltr"
+              inputMode="numeric"
+              name="validDays"
+              value={formik.values.validDays}
+              onChange={(e) => formik.setFieldValue("validDays", digitsOnly(e.target.value))}
+              className="w-full max-w-xs rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+            />
+            <p className="mt-1.5 text-xs text-cocoa-500">
+              اگر متن کد را خالی بگذارید خودکار و یکتا تولید می‌شود. کد فقط برای همین مشتری و یک‌بار مصرف است و تا پایان
+              آخرین روز اعتبار کار می‌کند. بعد از ایجاد، پیامک کد برای مشتری ارسال می‌شود.
+            </p>
+          </div>
+        )}
+
         {formik.values.mode === "auto" && (
           <p className="mt-3 text-xs text-cocoa-500">
             کد تخفیف به صورت خودکار و یکتا تولید می‌شود؛ فقط کافی است درصد تخفیف
@@ -414,6 +560,7 @@ function AdminDiscountCodesPage() {
             <span dir="ltr" className="font-mono">
               {createdCode}
             </span>
+            {createdSmsNote && ` — ${createdSmsNote}`}
           </p>
         )}
 

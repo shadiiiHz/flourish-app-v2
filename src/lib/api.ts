@@ -731,7 +731,16 @@ export function adminUpdateOrderPaymentStatus(id: string, paymentStatus: "pendin
 
 export interface AdminCreateOrderPayload {
   customerId: string;
-  items?: { productId: string; variantId?: string; quantity: number }[];
+  items?: {
+    productId?: string;
+    variantId?: string;
+    quantity: number;
+    /** Keeps this recorded price instead of re-pricing from the catalog (editing an existing order). */
+    unitPrice?: number;
+    /** Only for a line with no catalog product. */
+    title?: string;
+    variantTitle?: string;
+  }[];
   /** Skips per-product entry entirely — a single generic line item is created with this as its price. */
   manualSubtotal?: number;
   deliveryMethod: DeliveryMethod;
@@ -751,6 +760,18 @@ export interface AdminCreateOrderPayload {
 export function adminCreateOrder(payload: AdminCreateOrderPayload) {
   return apiFetch<AdminOrder>("/api/admin/orders", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminGetOrder(id: string) {
+  return apiFetch<AdminOrder>(`/api/admin/orders/${id}`);
+}
+
+/** Replaces a manual (admin-created) order's contents; the server rolls back and re-applies stock, wallet and discount effects. */
+export function adminUpdateOrder(id: string, payload: AdminCreateOrderPayload) {
+  return apiFetch<AdminOrder>(`/api/admin/orders/${id}`, {
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 }
@@ -936,6 +957,31 @@ export function adminGenerateDiscountCode(percent: number) {
     method: "POST",
     body: JSON.stringify({ mode: "auto", percent }),
   });
+}
+
+/** A personal single-use code for one customer, valid for `validDays` days and texted to them (when the SMS template is configured). */
+export function adminCreateCustomerDiscountCode(
+  customerId: string,
+  percent: number,
+  validDays: number,
+  code?: string,
+) {
+  return apiFetch<AdminDiscountCode & { smsSent?: boolean }>("/api/admin/discount-codes", {
+    method: "POST",
+    body: JSON.stringify({ mode: "customer", customerId, percent, validDays, code }),
+  });
+}
+
+/** Codes that can still be redeemed right now (active, unexpired, unused) for this customer: their personal ones plus the general codes anyone can use. */
+export function adminGetCustomerUsableDiscountCodes(customerId: string) {
+  const params = new URLSearchParams({
+    page: "1",
+    pageSize: "50",
+    customerId,
+    usable: "true",
+    includeGeneric: "true",
+  });
+  return apiFetch<Paginated<AdminDiscountCode>>(`/api/admin/discount-codes?${params.toString()}`);
 }
 
 export function adminUpdateDiscountCode(
