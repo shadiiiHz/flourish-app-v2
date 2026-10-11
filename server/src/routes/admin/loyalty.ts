@@ -24,16 +24,23 @@ adminLoyaltyRouter.get(
   "/top",
   asyncHandler(async (req, res) => {
     const limit = Math.min(20, Math.max(1, Math.floor(Number(req.query.limit)) || 3));
-    const groups = await prisma.order.groupBy({
-      by: ["customerId"],
-      where: { customerId: { not: null }, ...countedOrders },
-      _sum: { subtotal: true, discountAmount: true },
-    });
+    const [groups, offsetRows] = await Promise.all([
+      prisma.order.groupBy({
+        by: ["customerId"],
+        where: { customerId: { not: null }, ...countedOrders },
+        _sum: { subtotal: true, discountAmount: true },
+      }),
+      prisma.customer.findMany({ where: { loyaltyPointsOffset: { not: 0 } }, select: { id: true, loyaltyPointsOffset: true } }),
+    ]);
+    const offsets = new Map(offsetRows.map((c) => [c.id, c.loyaltyPointsOffset]));
     // Points use subtotal − discount, which the DB can't order by, so rank in memory.
     const ranked = groups
       .map((g) => ({
         customerId: g.customerId as string,
-        points: pointsFromAmount((g._sum.subtotal ?? 0) - (g._sum.discountAmount ?? 0)),
+        points: Math.max(
+          0,
+          pointsFromAmount((g._sum.subtotal ?? 0) - (g._sum.discountAmount ?? 0)) + (offsets.get(g.customerId as string) ?? 0),
+        ),
       }))
       .filter((g) => g.points > 0)
       .sort((a, b) => b.points - a.points)

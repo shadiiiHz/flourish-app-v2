@@ -68,30 +68,162 @@ export function tierForPoints(points: number, tiers: LoyaltyTierInfo[]): Loyalty
   return current;
 }
 
-/** A customer's points. `excludeOrderId` leaves one order out (the tier they held *before* that purchase). */
-export async function getCustomerPoints(customerId: string, excludeOrderId?: string): Promise<number> {
-  const agg = await prisma.order.aggregate({
-    where: { customerId, ...countedOrders, ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}) },
-    _sum: { subtotal: true, discountAmount: true },
+/** Months without a counted order before a customer drops one level (and again for every further period). */
+export const DECAY_PERIOD_MONTHS = 3;
+
+function addMonths(date: Date, months: number): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+
+/**
+ * Pure demotion rule. The idle clock starts at the later of the last counted order and the last
+ * demotion; every full 3 months since then costs one level (never below level 1). A demoted customer's
+ * points are cut to the minimum of the level they land on, so they have to earn that level's range again.
+ * Returns the new offset/anchor, or null when nothing changes.
+ */
+export function computeDecay(input: {
+  derivedPoints: number;
+  offset: number;
+  anchor: Date | null;
+  lastOrderAt: Date | null;
+  now: Date;
+}): { offset: number; anchor: Date } | null {
+  const { derivedPoints, offset, anchor, lastOrderAt, now } = input;
+  const reference = [lastOrderAt, anchor].filter((d): d is Date => !!d).sort((a, b) => b.getTime() - a.getTime())[0];
+  if (!reference) return null;
+  let periods = 0;
+  while (addMonths(reference, DECAY_PERIOD_MONTHS * (periods + 1)) <= now) periods++;
+  if (periods === 0) return null;
+
+  const points = Math.max(0, derivedPoints + offset);
+  let level = 1;
+  LOYALTY_MIN_POINTS.forEach((min, i) => {
+    if (points >= min) level = i + 1;
   });
-  return pointsFromAmount((agg._sum.subtotal ?? 0) - (agg._sum.discountAmount ?? 0));
+  if (level === 1) return null;
+  const newLevel = Math.max(1, level - periods);
+  return {
+    offset: LOYALTY_MIN_POINTS[newLevel - 1] - derivedPoints,
+    anchor: addMonths(reference, DECAY_PERIOD_MONTHS * periods),
+  };
+}
+
+/**
+ * Applies any due inactivity demotion to one customer and saves it. `now` / `excludeOrderId` let the
+ * cashback code ask "what level did they hold just before this purchase" — decay as of that order's date,
+ * ignoring that order. Safe to call repeatedly; concurrent callers can't demote twice.
+ */
+export async function applyLoyaltyDecay(
+  customerId: string,
+  opts: { now?: Date; excludeOrderId?: string } = {},
+): Promise<void> {
+  const where = { customerId, ...countedOrders, ...(opts.excludeOrderId ? { id: { not: opts.excludeOrderId } } : {}) };
+  const [customer, agg] = await Promise.all([
+    prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { loyaltyPointsOffset: true, loyaltyDecayAnchor: true },
+    }),
+    prisma.order.aggregate({ where, _sum: { subtotal: true, discountAmount: true }, _max: { createdAt: true } }),
+  ]);
+  if (!customer) return;
+  const result = computeDecay({
+    derivedPoints: pointsFromAmount((agg._sum.subtotal ?? 0) - (agg._sum.discountAmount ?? 0)),
+    offset: customer.loyaltyPointsOffset,
+    anchor: customer.loyaltyDecayAnchor,
+    lastOrderAt: agg._max.createdAt,
+    now: opts.now ?? new Date(),
+  });
+  if (!result) return;
+  await prisma.customer.updateMany({
+    where: {
+      id: customerId,
+      loyaltyPointsOffset: customer.loyaltyPointsOffset,
+      loyaltyDecayAnchor: customer.loyaltyDecayAnchor,
+    },
+    data: { loyaltyPointsOffset: result.offset, loyaltyDecayAnchor: result.anchor },
+  });
+}
+
+/** Demotes every customer whose idle period has run out. Run daily. */
+export async function sweepLoyaltyDecay(): Promise<void> {
+  const [groups, customers] = await Promise.all([
+    prisma.order.groupBy({
+      by: ["customerId"],
+      where: { customerId: { not: null }, ...countedOrders },
+      _sum: { subtotal: true, discountAmount: true },
+      _max: { createdAt: true },
+    }),
+    prisma.customer.findMany({ select: { id: true, loyaltyPointsOffset: true, loyaltyDecayAnchor: true } }),
+  ]);
+  const byId = new Map(customers.map((c) => [c.id, c]));
+  const now = new Date();
+  for (const g of groups) {
+    const customer = g.customerId ? byId.get(g.customerId) : undefined;
+    if (!customer) continue;
+    const result = computeDecay({
+      derivedPoints: pointsFromAmount((g._sum.subtotal ?? 0) - (g._sum.discountAmount ?? 0)),
+      offset: customer.loyaltyPointsOffset,
+      anchor: customer.loyaltyDecayAnchor,
+      lastOrderAt: g._max.createdAt,
+      now,
+    });
+    if (!result) continue;
+    await prisma.customer.updateMany({
+      where: {
+        id: customer.id,
+        loyaltyPointsOffset: customer.loyaltyPointsOffset,
+        loyaltyDecayAnchor: customer.loyaltyDecayAnchor,
+      },
+      data: { loyaltyPointsOffset: result.offset, loyaltyDecayAnchor: result.anchor },
+    });
+  }
+}
+
+const DECAY_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/** Starts the daily demotion sweep (plain interval, like the other crons). Call once from the server entrypoint. */
+export function startLoyaltyDecayCron(): void {
+  const sweep = () => {
+    sweepLoyaltyDecay().catch((err) => {
+      console.error("Failed to sweep loyalty decay:", err);
+    });
+  };
+  sweep();
+  setInterval(sweep, DECAY_SWEEP_INTERVAL_MS);
+}
+
+/** A customer's points (order-derived + demotion offset). `excludeOrderId` leaves one order out (the tier they held *before* that purchase). */
+export async function getCustomerPoints(customerId: string, excludeOrderId?: string): Promise<number> {
+  const [agg, customer] = await Promise.all([
+    prisma.order.aggregate({
+      where: { customerId, ...countedOrders, ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}) },
+      _sum: { subtotal: true, discountAmount: true },
+    }),
+    prisma.customer.findUnique({ where: { id: customerId }, select: { loyaltyPointsOffset: true } }),
+  ]);
+  const derived = pointsFromAmount((agg._sum.subtotal ?? 0) - (agg._sum.discountAmount ?? 0));
+  return Math.max(0, derived + (customer?.loyaltyPointsOffset ?? 0));
 }
 
 /** Points for many customers at once (admin lists). Customers with no counted orders map to 0. */
 export async function getPointsByCustomer(customerIds: string[]): Promise<Map<string, number>> {
   const result = new Map<string, number>(customerIds.map((id) => [id, 0]));
   if (customerIds.length === 0) return result;
-  const groups = await prisma.order.groupBy({
-    by: ["customerId"],
-    where: { customerId: { in: customerIds }, ...countedOrders },
-    _sum: { subtotal: true, discountAmount: true },
-  });
+  const [groups, customers] = await Promise.all([
+    prisma.order.groupBy({
+      by: ["customerId"],
+      where: { customerId: { in: customerIds }, ...countedOrders },
+      _sum: { subtotal: true, discountAmount: true },
+    }),
+    prisma.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true, loyaltyPointsOffset: true } }),
+  ]);
+  const offsets = new Map(customers.map((c) => [c.id, c.loyaltyPointsOffset]));
   for (const group of groups) {
     if (group.customerId) {
-      result.set(
-        group.customerId,
-        pointsFromAmount((group._sum.subtotal ?? 0) - (group._sum.discountAmount ?? 0)),
-      );
+      const derived = pointsFromAmount((group._sum.subtotal ?? 0) - (group._sum.discountAmount ?? 0));
+      result.set(group.customerId, Math.max(0, derived + (offsets.get(group.customerId) ?? 0)));
     }
   }
   return result;
@@ -109,6 +241,7 @@ export function buildLoyaltyStatus(points: number, tiers: LoyaltyTierInfo[]): Lo
 }
 
 export async function getLoyaltyStatus(customerId: string): Promise<LoyaltyStatus> {
+  await applyLoyaltyDecay(customerId);
   const [points, tiers] = await Promise.all([getCustomerPoints(customerId), getLoyaltyTiers()]);
   return buildLoyaltyStatus(points, tiers);
 }

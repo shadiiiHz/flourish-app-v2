@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, ShoppingBag, Wallet as WalletIcon } from "lucide-react";
+import { ChevronDown, Eye, ShoppingBag, Wallet as WalletIcon } from "lucide-react";
 import type { GridColDef } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -35,6 +35,7 @@ function LoyaltyTiersForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     adminGetLoyaltyTiers()
@@ -84,75 +85,89 @@ function LoyaltyTiersForm() {
       onSubmit={handleSubmit}
       className="max-w-3xl rounded-[1.5rem] border border-sand-100 bg-white p-5"
     >
-      <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
-        <WalletIcon className="h-4.5 w-4.5 text-sand-500" />
-        سطح‌بندی مشتریان و درصد پاداش خرید
-      </h2>
-      <p className="mt-1 text-xs text-cocoa-500">
-        به ازای هر ۵ هزار تومان از جمع اقلام سفارش‌های پرداخت‌شده (پس از اعمال کد تخفیف و بدون
-        احتساب مالیات و هزینه ارسال) یک امتیاز ثبت می‌شود. پاداش هر سفارش به کیف پول مشتری، به‌اندازهٔ درصد سطحِ فعلی او از جمع
-        اقلام سفارش (بدون احتساب مالیات، تخفیف و هزینه ارسال) واریز می‌شود. بازهٔ امتیاز هر سطح
-        ثابت است؛ نام و درصد را می‌توانید تغییر دهید.
-      </p>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 text-sm font-bold text-cocoa-900"
+      >
+        <span className="flex items-center gap-2">
+          <WalletIcon className="h-4.5 w-4.5 text-sand-500" />
+          سطح‌بندی مشتریان و درصد پاداش خرید
+        </span>
+        <ChevronDown
+          className={`h-4.5 w-4.5 text-sand-500 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div>
+          <p className="mt-1 text-xs text-cocoa-500">
+            به ازای هر ۵ هزار تومان از جمع اقلام سفارش‌های پرداخت‌شده (پس از اعمال کد تخفیف و بدون
+            احتساب مالیات و هزینه ارسال) یک امتیاز ثبت می‌شود. پاداش هر سفارش به کیف پول مشتری، به‌اندازهٔ درصد سطحِ فعلی او از جمع
+            اقلام سفارش (بدون احتساب مالیات، تخفیف و هزینه ارسال) واریز می‌شود. بازهٔ امتیاز هر سطح
+            ثابت است؛ نام و درصد را می‌توانید تغییر دهید.
+          </p>
 
-      {loading ? (
-        <p className="mt-4 text-sm text-cocoa-500">در حال بارگذاری…</p>
-      ) : (
-        <div className="mt-4 flex flex-col gap-3">
-          {tiers.map((tier, index) => (
-            <div
-              key={tier.level}
-              className="grid grid-cols-1 items-end gap-3 rounded-2xl bg-sand-50/60 p-3 sm:grid-cols-[7rem_1fr_9rem]"
-            >
-              <div>
-                <p className="text-xs font-bold text-cocoa-900">
-                  سطح {tier.level.toLocaleString("fa-IR")}
-                </p>
-                <p className="mt-0.5 text-[11px] text-cocoa-500">{rangeLabel(index)}</p>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-cocoa-600">نام سطح</label>
-                <input
-                  type="text"
-                  maxLength={40}
-                  value={tier.name}
-                  onChange={(e) => update(tier.level, { name: e.target.value })}
-                  className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-cocoa-600">
-                  درصد پاداش (٪)
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  value={tier.cashbackPercent}
-                  onChange={(e) => {
-                    const digits = digitsOnly(e.target.value);
-                    update(tier.level, {
-                      cashbackPercent: digits === "" ? "" : String(Math.min(100, Number(digits))),
-                    });
-                  }}
-                  className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
-                />
-              </div>
+          {loading ? (
+            <p className="mt-4 text-sm text-cocoa-500">در حال بارگذاری…</p>
+          ) : (
+            <div className="mt-4 flex flex-col gap-3">
+              {tiers.map((tier, index) => (
+                <div
+                  key={tier.level}
+                  className="grid grid-cols-1 items-end gap-3 rounded-2xl bg-sand-50/60 p-3 sm:grid-cols-[7rem_1fr_9rem]"
+                >
+                  <div>
+                    <p className="text-xs font-bold text-cocoa-900">
+                      سطح {tier.level.toLocaleString("fa-IR")}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-cocoa-500">{rangeLabel(index)}</p>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-cocoa-600">نام سطح</label>
+                    <input
+                      type="text"
+                      maxLength={40}
+                      value={tier.name}
+                      onChange={(e) => update(tier.level, { name: e.target.value })}
+                      className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                      درصد پاداش (٪)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      dir="ltr"
+                      value={tier.cashbackPercent}
+                      onChange={(e) => {
+                        const digits = digitsOnly(e.target.value);
+                        update(tier.level, {
+                          cashbackPercent: digits === "" ? "" : String(Math.min(100, Number(digits))),
+                        });
+                      }}
+                      className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+
+          {error && <p className="mt-3 text-xs font-semibold text-danger-500">{error}</p>}
+          {success && <p className="mt-3 text-xs font-semibold text-sand-500">تغییرات ذخیره شد</p>}
+
+          <button
+            type="submit"
+            disabled={saving || loading || tiers.some((t) => !t.name.trim())}
+            className="mt-4 rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+          >
+            {saving ? "در حال ذخیره…" : "ذخیره تغییرات"}
+          </button>
         </div>
       )}
-
-      {error && <p className="mt-3 text-xs font-semibold text-danger-500">{error}</p>}
-      {success && <p className="mt-3 text-xs font-semibold text-sand-500">تغییرات ذخیره شد</p>}
-
-      <button
-        type="submit"
-        disabled={saving || loading || tiers.some((t) => !t.name.trim())}
-        className="mt-4 rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
-      >
-        {saving ? "در حال ذخیره…" : "ذخیره تغییرات"}
-      </button>
     </form>
   );
 }

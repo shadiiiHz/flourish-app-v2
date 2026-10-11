@@ -14,6 +14,7 @@ import { discountCodesRouter } from "./routes/discountCodes.js";
 import { trackRouter } from "./routes/track.js";
 import { startWalletCashbackExpiryCron } from "./lib/wallet.js";
 import { startBirthdayCheckCron } from "./lib/birthdayDiscount.js";
+import { startLoyaltyDecayCron } from "./lib/loyalty.js";
 
 const app = express();
 
@@ -51,4 +52,5 @@ app.listen(env.port, () => {
   console.log(`Flourish API listening on http://localhost:${env.port}`);
   startWalletCashbackExpiryCron();
   startBirthdayCheckCron();
+  startLoyaltyDecayCron();
 });

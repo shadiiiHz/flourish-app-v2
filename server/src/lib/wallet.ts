@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "./prisma.js";
-import { getCustomerPoints, getLoyaltyTiers, tierForPoints } from "./loyalty.js";
+import { applyLoyaltyDecay, getCustomerPoints, getLoyaltyTiers, tierForPoints } from "./loyalty.js";
 
 /** How long a cashback grant stays spendable before it's clawed back — see expireStaleWalletCashback. */
 const CASHBACK_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
@@ -100,6 +100,8 @@ export async function creditWalletCashback(orderId: string) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !order.customerId) return;
   if (order.paymentStatus !== "paid") return;
+  // The tier held just before this purchase includes any inactivity demotion due by the order date.
+  await applyLoyaltyDecay(order.customerId, { now: order.createdAt, excludeOrderId: order.id });
   const [points, tiers] = await Promise.all([
     getCustomerPoints(order.customerId, order.id),
     getLoyaltyTiers(),

@@ -165,6 +165,10 @@ model Customer {
   walletBalance      Int                 @default(0)
   /// Set once the customer finishes or skips the first-login guided tour, so it is shown only once.
   onboardingCompletedAt DateTime?
+  /// Adjustment added to the points derived from orders (lib/loyalty.ts). Zero until inactivity demotes the customer.
+  loyaltyPointsOffset Int @default(0)
+  /// When the last inactivity demotion was applied; the 3-month idle clock runs from the later of this and the last order.
+  loyaltyDecayAnchor DateTime?
   orders             Order[]
   addresses          Address[]
   cartItems          CartItem[]
