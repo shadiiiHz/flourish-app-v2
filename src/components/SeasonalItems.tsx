@@ -14,6 +14,19 @@ interface SeasonalItemsProps {
 }
 
 /** Homepage seasonal section (above "new items"): glass panel styled after the season the admin picked. Hidden when empty. */
+/** Decorative art lives in public/assets/<season>/{1,2}.svg; seasons without art yet fall back to autumn. */
+function SeasonalArt({ season, file, ...props }: { season: SeasonalThemeId; file: 1 | 2; width: number; height: number; className: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <Image
+      src={`/assets/${failed ? "autumn" : season}/${file}.svg`}
+      alt=""
+      onError={() => setFailed(true)}
+      {...props}
+    />
+  );
+}
+
 function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [sliderState, setSliderState] = useState({
@@ -80,9 +93,9 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
         }}
       >
         <span className="pointer-events-none absolute top-0 left-0 z-20 flex h-25 w-25 shrink-0 items-start justify-center overflow-hidden md:-top-8 md:h-64 md:w-64">
-          <Image
-            src="/assets/autumn/2.svg"
-            alt=""
+          <SeasonalArt
+            season={themeId}
+            file={2}
             width={100}
             height={100}
             className="h-full w-full object-contain"
@@ -91,9 +104,9 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
 
         <div className="mb-6 flex items-center gap-3 sm:mb-8">
           <span className="flex h-10 w-10 md:h-18 md:w-18 items-center justify-center shrink-0 overflow-hidden bg-transparent">
-            <Image
-              src="/assets/autumn/1.svg"
-              alt=""
+            <SeasonalArt
+              season={themeId}
+              file={1}
               width={72}
               height={72}
               className="h-full w-full object-contain"
