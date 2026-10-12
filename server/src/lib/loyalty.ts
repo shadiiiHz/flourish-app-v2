@@ -1,6 +1,6 @@
 import { prisma } from "./prisma.js";
 
-/** Every 5,000 Toman of an order's items subtotal (after the discount code) earns one loyalty point. */
+/** Every 5,000 Toman of an order's items subtotal (after the discount code, excluding the part paid from the wallet) earns one loyalty point. */
 export const TOMAN_PER_POINT = 5000;
 
 /** Minimum points for each level (1..4). Fixed — the admin only edits each level's name and cashback percent. */
@@ -33,7 +33,12 @@ export interface LoyaltyStatus {
  */
 export const countedOrders = { paymentStatus: "paid", status: { not: "cancelled" } } as const;
 
-/** `amountToman` is the sum of (subtotal − discountAmount) over the counted orders. */
+/** Sum of (subtotal − discountAmount − walletAmountUsed) over the counted orders: money paid from the wallet (cashback) earns no points. */
+export function netPointsAmount(sum: { subtotal: number | null; discountAmount: number | null; walletAmountUsed: number | null }): number {
+  return (sum.subtotal ?? 0) - (sum.discountAmount ?? 0) - (sum.walletAmountUsed ?? 0);
+}
+
+/** `amountToman` is the result of netPointsAmount over the counted orders. */
 export function pointsFromAmount(amountToman: number): number {
   return Math.floor(Math.max(0, amountToman) / TOMAN_PER_POINT);
 }
@@ -125,11 +130,11 @@ export async function applyLoyaltyDecay(
       where: { id: customerId },
       select: { loyaltyPointsOffset: true, loyaltyDecayAnchor: true },
     }),
-    prisma.order.aggregate({ where, _sum: { subtotal: true, discountAmount: true }, _max: { createdAt: true } }),
+    prisma.order.aggregate({ where, _sum: { subtotal: true, discountAmount: true, walletAmountUsed: true }, _max: { createdAt: true } }),
   ]);
   if (!customer) return;
   const result = computeDecay({
-    derivedPoints: pointsFromAmount((agg._sum.subtotal ?? 0) - (agg._sum.discountAmount ?? 0)),
+    derivedPoints: pointsFromAmount(netPointsAmount(agg._sum)),
     offset: customer.loyaltyPointsOffset,
     anchor: customer.loyaltyDecayAnchor,
     lastOrderAt: agg._max.createdAt,
@@ -152,7 +157,7 @@ export async function sweepLoyaltyDecay(): Promise<void> {
     prisma.order.groupBy({
       by: ["customerId"],
       where: { customerId: { not: null }, ...countedOrders },
-      _sum: { subtotal: true, discountAmount: true },
+      _sum: { subtotal: true, discountAmount: true, walletAmountUsed: true },
       _max: { createdAt: true },
     }),
     prisma.customer.findMany({ select: { id: true, loyaltyPointsOffset: true, loyaltyDecayAnchor: true } }),
@@ -163,7 +168,7 @@ export async function sweepLoyaltyDecay(): Promise<void> {
     const customer = g.customerId ? byId.get(g.customerId) : undefined;
     if (!customer) continue;
     const result = computeDecay({
-      derivedPoints: pointsFromAmount((g._sum.subtotal ?? 0) - (g._sum.discountAmount ?? 0)),
+      derivedPoints: pointsFromAmount(netPointsAmount(g._sum)),
       offset: customer.loyaltyPointsOffset,
       anchor: customer.loyaltyDecayAnchor,
       lastOrderAt: g._max.createdAt,
@@ -199,11 +204,11 @@ export async function getCustomerPoints(customerId: string, excludeOrderId?: str
   const [agg, customer] = await Promise.all([
     prisma.order.aggregate({
       where: { customerId, ...countedOrders, ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}) },
-      _sum: { subtotal: true, discountAmount: true },
+      _sum: { subtotal: true, discountAmount: true, walletAmountUsed: true },
     }),
     prisma.customer.findUnique({ where: { id: customerId }, select: { loyaltyPointsOffset: true } }),
   ]);
-  const derived = pointsFromAmount((agg._sum.subtotal ?? 0) - (agg._sum.discountAmount ?? 0));
+  const derived = pointsFromAmount(netPointsAmount(agg._sum));
   return Math.max(0, derived + (customer?.loyaltyPointsOffset ?? 0));
 }
 
@@ -215,14 +220,14 @@ export async function getPointsByCustomer(customerIds: string[]): Promise<Map<st
     prisma.order.groupBy({
       by: ["customerId"],
       where: { customerId: { in: customerIds }, ...countedOrders },
-      _sum: { subtotal: true, discountAmount: true },
+      _sum: { subtotal: true, discountAmount: true, walletAmountUsed: true },
     }),
     prisma.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true, loyaltyPointsOffset: true } }),
   ]);
   const offsets = new Map(customers.map((c) => [c.id, c.loyaltyPointsOffset]));
   for (const group of groups) {
     if (group.customerId) {
-      const derived = pointsFromAmount((group._sum.subtotal ?? 0) - (group._sum.discountAmount ?? 0));
+      const derived = pointsFromAmount(netPointsAmount(group._sum));
       result.set(group.customerId, Math.max(0, derived + (offsets.get(group.customerId) ?? 0)));
     }
   }

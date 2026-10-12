@@ -7,6 +7,7 @@ import {
   countedOrders,
   getLoyaltyTiers,
   LOYALTY_MIN_POINTS,
+  netPointsAmount,
   pointsFromAmount,
 } from "../../lib/loyalty.js";
 
@@ -28,7 +29,7 @@ adminLoyaltyRouter.get(
       prisma.order.groupBy({
         by: ["customerId"],
         where: { customerId: { not: null }, ...countedOrders },
-        _sum: { subtotal: true, discountAmount: true },
+        _sum: { subtotal: true, discountAmount: true, walletAmountUsed: true },
       }),
       prisma.customer.findMany({ where: { loyaltyPointsOffset: { not: 0 } }, select: { id: true, loyaltyPointsOffset: true } }),
     ]);
@@ -39,7 +40,7 @@ adminLoyaltyRouter.get(
         customerId: g.customerId as string,
         points: Math.max(
           0,
-          pointsFromAmount((g._sum.subtotal ?? 0) - (g._sum.discountAmount ?? 0)) + (offsets.get(g.customerId as string) ?? 0),
+          pointsFromAmount(netPointsAmount(g._sum)) + (offsets.get(g.customerId as string) ?? 0),
         ),
       }))
       .filter((g) => g.points > 0)
