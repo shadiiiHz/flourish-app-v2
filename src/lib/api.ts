@@ -1141,7 +1141,7 @@ export function adminGetLoyaltyTiers() {
 }
 
 export function adminUpdateLoyaltyTiers(
-  tiers: Pick<LoyaltyTier, "level" | "name" | "cashbackPercent">[],
+  tiers: Pick<LoyaltyTier, "name" | "cashbackPercent" | "minPoints">[],
 ) {
   return apiFetch<LoyaltyTier[]>("/api/admin/loyalty/tiers", {
     method: "PUT",

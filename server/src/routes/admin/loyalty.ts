@@ -6,7 +6,6 @@ import {
   buildLoyaltyStatus,
   countedOrders,
   getLoyaltyTiers,
-  LOYALTY_MIN_POINTS,
   netPointsAmount,
   pointsFromAmount,
 } from "../../lib/loyalty.js";
@@ -63,18 +62,23 @@ adminLoyaltyRouter.get(
   }),
 );
 
+const MAX_TIERS = 10;
+
+/** Levels are sent in order (first = level 1). Each starts at its own minimum points; the first must start at 0. */
 const tiersSchema = z.object({
   tiers: z
     .array(
       z.object({
-        level: z.number().int().min(1).max(LOYALTY_MIN_POINTS.length),
         name: z.string().trim().min(1, "نام هر سطح الزامی است").max(40),
         cashbackPercent: z.number().int().min(0).max(100),
+        minPoints: z.number().int().min(0).max(100_000_000),
       }),
     )
-    .length(LOYALTY_MIN_POINTS.length)
-    .refine((tiers) => new Set(tiers.map((t) => t.level)).size === tiers.length, {
-      message: "سطح‌ها تکراری هستند",
+    .min(1, "حداقل یک سطح لازم است")
+    .max(MAX_TIERS, `حداکثر ${MAX_TIERS} سطح مجاز است`)
+    .refine((tiers) => tiers[0].minPoints === 0, { message: "سطح اول باید از صفر امتیاز شروع شود" })
+    .refine((tiers) => tiers.every((t, i) => i === 0 || t.minPoints > tiers[i - 1].minPoints), {
+      message: "سقف امتیاز هر سطح باید بیشتر از سطح قبلی باشد",
     }),
 });
 
@@ -86,15 +90,12 @@ adminLoyaltyRouter.put(
       res.status(400).json({ error: parsed.error.issues[0]?.message ?? "اطلاعات سطح‌ها نامعتبر است" });
       return;
     }
-    await getLoyaltyTiers(); // make sure all four rows exist
-    await prisma.$transaction(
-      parsed.data.tiers.map((t) =>
-        prisma.loyaltyTier.update({
-          where: { level: t.level },
-          data: { name: t.name, cashbackPercent: t.cashbackPercent },
-        }),
-      ),
-    );
+    await prisma.$transaction([
+      prisma.loyaltyTier.deleteMany(),
+      prisma.loyaltyTier.createMany({
+        data: parsed.data.tiers.map((t, i) => ({ level: i + 1, ...t })),
+      }),
+    ]);
     res.json(await getLoyaltyTiers());
   }),
 );

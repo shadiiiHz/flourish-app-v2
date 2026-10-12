@@ -3,11 +3,13 @@ import { prisma } from "./prisma.js";
 /** Every 5,000 Toman of an order's items subtotal (after the discount code, excluding the part paid from the wallet) earns one loyalty point. */
 export const TOMAN_PER_POINT = 5000;
 
-/** Minimum points for each level (1..4). Fixed — the admin only edits each level's name and cashback percent. */
-export const LOYALTY_MIN_POINTS = [0, 5000, 15000, 30000] as const;
-
-const DEFAULT_TIER_NAMES = ["Seed", "Bloom", "Prestige", "Flourish"] as const;
-const DEFAULT_TIER_PERCENTS = [5, 9, 12, 20] as const;
+/** Levels created when none exist yet. The admin can change the number of levels, each one's point range, name and cashback percent. */
+const DEFAULT_TIERS = [
+  { name: "Seed", cashbackPercent: 5, minPoints: 0 },
+  { name: "Bloom", cashbackPercent: 9, minPoints: 5000 },
+  { name: "Prestige", cashbackPercent: 12, minPoints: 15000 },
+  { name: "Flourish", cashbackPercent: 20, minPoints: 30000 },
+] as const;
 
 export interface LoyaltyTierInfo {
   level: number;
@@ -43,16 +45,12 @@ export function pointsFromAmount(amountToman: number): number {
   return Math.floor(Math.max(0, amountToman) / TOMAN_PER_POINT);
 }
 
-/** The four levels with their admin-configured names/percents, creating any missing rows with defaults. */
+/** The levels (1..N) with their admin-configured ranges/names/percents, creating the defaults if none exist. */
 export async function getLoyaltyTiers(): Promise<LoyaltyTierInfo[]> {
   let rows = await prisma.loyaltyTier.findMany({ orderBy: { level: "asc" } });
-  if (rows.length < LOYALTY_MIN_POINTS.length) {
+  if (rows.length === 0) {
     await prisma.loyaltyTier.createMany({
-      data: LOYALTY_MIN_POINTS.map((_, i) => ({
-        level: i + 1,
-        name: DEFAULT_TIER_NAMES[i],
-        cashbackPercent: DEFAULT_TIER_PERCENTS[i],
-      })),
+      data: DEFAULT_TIERS.map((t, i) => ({ level: i + 1, ...t })),
       skipDuplicates: true,
     });
     rows = await prisma.loyaltyTier.findMany({ orderBy: { level: "asc" } });
@@ -61,7 +59,7 @@ export async function getLoyaltyTiers(): Promise<LoyaltyTierInfo[]> {
     level: row.level,
     name: row.name,
     cashbackPercent: row.cashbackPercent,
-    minPoints: LOYALTY_MIN_POINTS[row.level - 1] ?? 0,
+    minPoints: row.minPoints,
   }));
 }
 
@@ -89,13 +87,15 @@ function addMonths(date: Date, months: number): Date {
  * Returns the new offset/anchor, or null when nothing changes.
  */
 export function computeDecay(input: {
+  /** Minimum points of each level, ascending (index 0 is level 1). */
+  minPoints: readonly number[];
   derivedPoints: number;
   offset: number;
   anchor: Date | null;
   lastOrderAt: Date | null;
   now: Date;
 }): { offset: number; anchor: Date } | null {
-  const { derivedPoints, offset, anchor, lastOrderAt, now } = input;
+  const { minPoints, derivedPoints, offset, anchor, lastOrderAt, now } = input;
   const reference = [lastOrderAt, anchor].filter((d): d is Date => !!d).sort((a, b) => b.getTime() - a.getTime())[0];
   if (!reference) return null;
   let periods = 0;
@@ -104,13 +104,13 @@ export function computeDecay(input: {
 
   const points = Math.max(0, derivedPoints + offset);
   let level = 1;
-  LOYALTY_MIN_POINTS.forEach((min, i) => {
+  minPoints.forEach((min, i) => {
     if (points >= min) level = i + 1;
   });
   if (level === 1) return null;
   const newLevel = Math.max(1, level - periods);
   return {
-    offset: LOYALTY_MIN_POINTS[newLevel - 1] - derivedPoints,
+    offset: (minPoints[newLevel - 1] ?? 0) - derivedPoints,
     anchor: addMonths(reference, DECAY_PERIOD_MONTHS * periods),
   };
 }
@@ -125,15 +125,17 @@ export async function applyLoyaltyDecay(
   opts: { now?: Date; excludeOrderId?: string } = {},
 ): Promise<void> {
   const where = { customerId, ...countedOrders, ...(opts.excludeOrderId ? { id: { not: opts.excludeOrderId } } : {}) };
-  const [customer, agg] = await Promise.all([
+  const [customer, agg, tiers] = await Promise.all([
     prisma.customer.findUnique({
       where: { id: customerId },
       select: { loyaltyPointsOffset: true, loyaltyDecayAnchor: true },
     }),
     prisma.order.aggregate({ where, _sum: { subtotal: true, discountAmount: true, walletAmountUsed: true }, _max: { createdAt: true } }),
+    getLoyaltyTiers(),
   ]);
   if (!customer) return;
   const result = computeDecay({
+    minPoints: tiers.map((t) => t.minPoints),
     derivedPoints: pointsFromAmount(netPointsAmount(agg._sum)),
     offset: customer.loyaltyPointsOffset,
     anchor: customer.loyaltyDecayAnchor,
@@ -153,7 +155,7 @@ export async function applyLoyaltyDecay(
 
 /** Demotes every customer whose idle period has run out. Run daily. */
 export async function sweepLoyaltyDecay(): Promise<void> {
-  const [groups, customers] = await Promise.all([
+  const [groups, customers, tiers] = await Promise.all([
     prisma.order.groupBy({
       by: ["customerId"],
       where: { customerId: { not: null }, ...countedOrders },
@@ -161,13 +163,16 @@ export async function sweepLoyaltyDecay(): Promise<void> {
       _max: { createdAt: true },
     }),
     prisma.customer.findMany({ select: { id: true, loyaltyPointsOffset: true, loyaltyDecayAnchor: true } }),
+    getLoyaltyTiers(),
   ]);
+  const minPoints = tiers.map((t) => t.minPoints);
   const byId = new Map(customers.map((c) => [c.id, c]));
   const now = new Date();
   for (const g of groups) {
     const customer = g.customerId ? byId.get(g.customerId) : undefined;
     if (!customer) continue;
     const result = computeDecay({
+      minPoints,
       derivedPoints: pointsFromAmount(netPointsAmount(g._sum)),
       offset: customer.loyaltyPointsOffset,
       anchor: customer.loyaltyDecayAnchor,

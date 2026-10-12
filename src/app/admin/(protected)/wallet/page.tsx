@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Eye, ShoppingBag, Wallet as WalletIcon } from "lucide-react";
+import { ChevronDown, Eye, Plus, ShoppingBag, Trash2, Wallet as WalletIcon } from "lucide-react";
 import type { GridColDef } from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -13,6 +13,7 @@ import {
   adminGetLoyaltyTiers,
   adminGetWalletCustomers,
   adminUpdateLoyaltyTiers,
+  type LoyaltyTier,
 } from "@/lib/api";
 import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
 import {
@@ -27,7 +28,20 @@ import {
   type AdminWalletTransaction,
 } from "@/types/admin";
 
-type TierDraft = { level: number; minPoints: number; name: string; cashbackPercent: string };
+/** `maxPoints` is the level's ceiling (empty for the last level, which has no ceiling); the next level starts one point above it. */
+type TierDraft = { key: number; name: string; cashbackPercent: string; maxPoints: string };
+
+const MAX_TIERS = 10;
+let nextTierKey = 1;
+
+function toDrafts(rows: LoyaltyTier[]): TierDraft[] {
+  return rows.map((t, i) => ({
+    key: nextTierKey++,
+    name: t.name,
+    cashbackPercent: String(t.cashbackPercent),
+    maxPoints: i < rows.length - 1 ? String(rows[i + 1].minPoints - 1) : "",
+  }));
+}
 
 function LoyaltyTiersForm() {
   const [tiers, setTiers] = useState<TierDraft[]>([]);
@@ -39,24 +53,51 @@ function LoyaltyTiersForm() {
 
   useEffect(() => {
     adminGetLoyaltyTiers()
-      .then((rows) =>
-        setTiers(rows.map((t) => ({ ...t, cashbackPercent: String(t.cashbackPercent) }))),
-      )
+      .then((rows) => setTiers(toDrafts(rows)))
       .finally(() => setLoading(false));
   }, []);
 
-  const update = (level: number, patch: Partial<TierDraft>) => {
+  const update = (key: number, patch: Partial<TierDraft>) => {
     setSuccess(false);
-    setTiers((prev) => prev.map((t) => (t.level === level ? { ...t, ...patch } : t)));
+    setTiers((prev) => prev.map((t) => (t.key === key ? { ...t, ...patch } : t)));
   };
 
-  const rangeLabel = (index: number) => {
-    const from = tiers[index].minPoints;
-    const next = tiers[index + 1];
-    return next
-      ? `${from.toLocaleString("fa-IR")} تا ${(next.minPoints - 1).toLocaleString("fa-IR")} امتیاز`
-      : `${from.toLocaleString("fa-IR")} امتیاز به بالا`;
+  const addTier = () => {
+    setSuccess(false);
+    setTiers((prev) => {
+      const last = prev[prev.length - 1];
+      const lastMin = prev.length > 1 ? Number(prev[prev.length - 2].maxPoints) + 1 : 0;
+      // The old last level gets a ceiling so the new one has room above it.
+      const ceiling = lastMin + 5000;
+      const withCeiling = prev.map((t) => (t === last ? { ...t, maxPoints: String(ceiling) } : t));
+      return [...withCeiling, { key: nextTierKey++, name: "", cashbackPercent: "0", maxPoints: "" }];
+    });
   };
+
+  const removeTier = (key: number) => {
+    setSuccess(false);
+    setTiers((prev) => {
+      const next = prev.filter((t) => t.key !== key);
+      // The last level never has a ceiling.
+      return next.map((t, i) => (i === next.length - 1 ? { ...t, maxPoints: "" } : t));
+    });
+  };
+
+  /** Minimum points of each level, derived from the previous level's ceiling. */
+  const minPointsOf = (index: number) => (index === 0 ? 0 : Number(tiers[index - 1].maxPoints) + 1);
+
+  const rangeLabel = (index: number) => {
+    const from = minPointsOf(index);
+    return index < tiers.length - 1
+      ? `از ${from.toLocaleString("fa-IR")} امتیاز`
+      : `از ${from.toLocaleString("fa-IR")} امتیاز به بالا`;
+  };
+
+  const ceilingsValid = tiers.every((t, i) => {
+    if (i === tiers.length - 1) return true;
+    if (t.maxPoints === "") return false;
+    return Number(t.maxPoints) >= minPointsOf(i);
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,13 +106,13 @@ function LoyaltyTiersForm() {
     setSaving(true);
     try {
       const saved = await adminUpdateLoyaltyTiers(
-        tiers.map((t) => ({
-          level: t.level,
+        tiers.map((t, i) => ({
           name: t.name.trim(),
           cashbackPercent: Number(t.cashbackPercent) || 0,
+          minPoints: minPointsOf(i),
         })),
       );
-      setTiers(saved.map((t) => ({ ...t, cashbackPercent: String(t.cashbackPercent) })));
+      setTiers(toDrafts(saved));
       setSuccess(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "خطا در ذخیره‌سازی");
@@ -104,8 +145,9 @@ function LoyaltyTiersForm() {
           <p className="mt-1 text-xs text-cocoa-500">
             به ازای هر ۵ هزار تومان از جمع اقلام سفارش‌های پرداخت‌شده (پس از اعمال کد تخفیف و بدون
             احتساب مالیات و هزینه ارسال) یک امتیاز ثبت می‌شود. پاداش هر سفارش به کیف پول مشتری، به‌اندازهٔ درصد سطحِ فعلی او از جمع
-            اقلام سفارش (بدون احتساب مالیات، تخفیف و هزینه ارسال) واریز می‌شود. بازهٔ امتیاز هر سطح
-            ثابت است؛ نام و درصد را می‌توانید تغییر دهید.
+            اقلام سفارش (بدون احتساب مالیات، تخفیف و هزینه ارسال) واریز می‌شود. تعداد سطح‌ها، نام،
+            سقف امتیاز و درصد پاداش هر سطح را می‌توانید تعیین کنید. اگر مشتری ۳ ماه سفارش نداشته
+            باشد، یک سطح پایین می‌آید.
           </p>
 
           {loading ? (
@@ -114,12 +156,12 @@ function LoyaltyTiersForm() {
             <div className="mt-4 flex flex-col gap-3">
               {tiers.map((tier, index) => (
                 <div
-                  key={tier.level}
-                  className="grid grid-cols-1 items-end gap-3 rounded-2xl bg-sand-50/60 p-3 sm:grid-cols-[7rem_1fr_9rem]"
+                  key={tier.key}
+                  className="grid grid-cols-1 items-end gap-3 rounded-2xl bg-sand-50/60 p-3 sm:grid-cols-[7rem_1fr_8rem_8rem_auto]"
                 >
                   <div>
                     <p className="text-xs font-bold text-cocoa-900">
-                      سطح {tier.level.toLocaleString("fa-IR")}
+                      سطح {(index + 1).toLocaleString("fa-IR")}
                     </p>
                     <p className="mt-0.5 text-[11px] text-cocoa-500">{rangeLabel(index)}</p>
                   </div>
@@ -129,9 +171,26 @@ function LoyaltyTiersForm() {
                       type="text"
                       maxLength={40}
                       value={tier.name}
-                      onChange={(e) => update(tier.level, { name: e.target.value })}
+                      onChange={(e) => update(tier.key, { name: e.target.value })}
                       className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
                     />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                      سقف امتیاز
+                    </label>
+                    {index < tiers.length - 1 ? (
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        dir="ltr"
+                        value={tier.maxPoints}
+                        onChange={(e) => update(tier.key, { maxPoints: digitsOnly(e.target.value) })}
+                        className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                      />
+                    ) : (
+                      <p className="rounded-xl bg-white/60 px-3 py-2.5 text-sm text-cocoa-500">بدون سقف</p>
+                    )}
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-cocoa-600">
@@ -144,15 +203,34 @@ function LoyaltyTiersForm() {
                       value={tier.cashbackPercent}
                       onChange={(e) => {
                         const digits = digitsOnly(e.target.value);
-                        update(tier.level, {
+                        update(tier.key, {
                           cashbackPercent: digits === "" ? "" : String(Math.min(100, Number(digits))),
                         });
                       }}
                       className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
                     />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => removeTier(tier.key)}
+                    disabled={tiers.length <= 1}
+                    aria-label="حذف سطح"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-danger-500 transition-colors hover:bg-white disabled:opacity-30"
+                  >
+                    <Trash2 className="h-4.5 w-4.5" />
+                  </button>
                 </div>
               ))}
+              {tiers.length < MAX_TIERS && (
+                <button
+                  type="button"
+                  onClick={addTier}
+                  className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-sand-300 py-2.5 text-xs font-bold text-sand-500 transition-colors hover:bg-sand-50"
+                >
+                  <Plus className="h-4 w-4" />
+                  افزودن سطح
+                </button>
+              )}
             </div>
           )}
 
@@ -161,7 +239,7 @@ function LoyaltyTiersForm() {
 
           <button
             type="submit"
-            disabled={saving || loading || tiers.some((t) => !t.name.trim())}
+            disabled={saving || loading || tiers.some((t) => !t.name.trim()) || !ceilingsValid}
             className="mt-4 rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
           >
             {saving ? "در حال ذخیره…" : "ذخیره تغییرات"}
