@@ -9,6 +9,7 @@ import {
   refundWalletHold,
   reverseWalletCashback,
 } from "../../lib/wallet.js";
+import { notifyLoyaltyUpgrade } from "../../lib/loyaltyUpgradeSms.js";
 import { calculateShipping } from "../../lib/shipping.js";
 import { TAX_RATE, getDiscountedPrice, getEffectiveDiscountPercent } from "../../lib/pricing.js";
 import { decrementStockForItems, restockItems } from "../../lib/stock.js";
@@ -420,6 +421,7 @@ adminOrdersRouter.post(
       await decrementStockForItems(order.items);
     }
     await creditWalletCashback(order.id);
+    await notifyLoyaltyUpgrade(order.customerId);
 
     res.status(201).json(order);
   }),
@@ -534,6 +536,7 @@ adminOrdersRouter.put(
     if (order.status === "delivered") {
       await creditWalletCashback(order.id);
     }
+    await notifyLoyaltyUpgrade(order.customerId);
 
     res.json(order);
   }),
@@ -563,6 +566,7 @@ adminOrdersRouter.patch(
     if (order.paymentStatus === "paid" && order.status === "delivered") {
       await creditWalletCashback(order.id);
     }
+    await notifyLoyaltyUpgrade(order.customerId);
     res.json(order);
   }),
 );
@@ -612,6 +616,7 @@ adminOrdersRouter.patch(
         await restockItems(order.items);
       }
     }
+    await notifyLoyaltyUpgrade(order.customerId);
     res.json(order);
   }),
 );

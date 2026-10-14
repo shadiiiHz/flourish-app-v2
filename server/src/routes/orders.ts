@@ -10,6 +10,7 @@ import { TAX_RATE, getDiscountedPrice, getEffectiveDiscountPercent } from "../li
 import { env } from "../lib/env.js";
 import { redeemWallet, refundWalletHold } from "../lib/wallet.js";
 import { sendPatternSms } from "../lib/sms.js";
+import { notifyLoyaltyUpgrade } from "../lib/loyaltyUpgradeSms.js";
 import { formatOrderNumber } from "../lib/orderNumber.js";
 import { decrementStockForItems } from "../lib/stock.js";
 import { isPreorderableOnDate, weekdayNameFa } from "../lib/preorder.js";
@@ -280,6 +281,7 @@ ordersRouter.post(
         await decrementStockForItems(paidOrder.items);
       }
       await notifyAdminOfNewOrder(order.orderNumber);
+      await notifyLoyaltyUpgrade(customerId);
       res.status(201).json({ order: paidOrder, paymentUrl: null });
       return;
     }
@@ -363,6 +365,7 @@ ordersRouter.get(
       await decrementStockForItems(order.items);
     }
     await notifyAdminOfNewOrder(order.orderNumber);
+    await notifyLoyaltyUpgrade(order.customerId);
     res.redirect(`${env.appUrl}/checkout/result?status=paid&orderId=${order.id}`);
   }),
 );

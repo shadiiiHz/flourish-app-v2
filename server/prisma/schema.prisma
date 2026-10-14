@@ -171,6 +171,8 @@ model Customer {
   loyaltyPointsOffset Int @default(0)
   /// When the last inactivity demotion was applied; the 3-month idle clock runs from the later of this and the last order.
   loyaltyDecayAnchor DateTime?
+  /// The loyalty level the customer was last texted about (or already held when the SMS was introduced); a higher level than this triggers the "level up" SMS.
+  loyaltyNotifiedLevel Int @default(1)
   orders             Order[]
   addresses          Address[]
   cartItems          CartItem[]

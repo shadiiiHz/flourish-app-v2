@@ -32,6 +32,9 @@ export const env = {
   melipayamakCustomerDiscountBodyId: process.env.MELIPAYAMAK_CUSTOMER_DISCOUNT_BODY_ID
     ? Number(process.env.MELIPAYAMAK_CUSTOMER_DISCOUNT_BODY_ID)
     : undefined,
+  melipayamakLoyaltyUpgradeBodyId: process.env.MELIPAYAMAK_LOYALTY_UPGRADE_BODY_ID
+    ? Number(process.env.MELIPAYAMAK_LOYALTY_UPGRADE_BODY_ID)
+    : undefined,
   adminNotifyPhone: process.env.ADMIN_NOTIFY_PHONE,
   zarinpalMerchantId: process.env.ZARINPAL_MERCHANT_ID,
   zarinpalSandbox: process.env.ZARINPAL_SANDBOX === "true",

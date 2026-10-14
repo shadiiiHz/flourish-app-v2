@@ -94,7 +94,7 @@ export function computeDecay(input: {
   anchor: Date | null;
   lastOrderAt: Date | null;
   now: Date;
-}): { offset: number; anchor: Date } | null {
+}): { offset: number; anchor: Date; level: number } | null {
   const { minPoints, derivedPoints, offset, anchor, lastOrderAt, now } = input;
   const reference = [lastOrderAt, anchor].filter((d): d is Date => !!d).sort((a, b) => b.getTime() - a.getTime())[0];
   if (!reference) return null;
@@ -112,6 +112,7 @@ export function computeDecay(input: {
   return {
     offset: (minPoints[newLevel - 1] ?? 0) - derivedPoints,
     anchor: addMonths(reference, DECAY_PERIOD_MONTHS * periods),
+    level: newLevel,
   };
 }
 
@@ -149,7 +150,7 @@ export async function applyLoyaltyDecay(
       loyaltyPointsOffset: customer.loyaltyPointsOffset,
       loyaltyDecayAnchor: customer.loyaltyDecayAnchor,
     },
-    data: { loyaltyPointsOffset: result.offset, loyaltyDecayAnchor: result.anchor },
+    data: { loyaltyPointsOffset: result.offset, loyaltyDecayAnchor: result.anchor, loyaltyNotifiedLevel: result.level },
   });
 }
 
@@ -186,7 +187,7 @@ export async function sweepLoyaltyDecay(): Promise<void> {
         loyaltyPointsOffset: customer.loyaltyPointsOffset,
         loyaltyDecayAnchor: customer.loyaltyDecayAnchor,
       },
-      data: { loyaltyPointsOffset: result.offset, loyaltyDecayAnchor: result.anchor },
+      data: { loyaltyPointsOffset: result.offset, loyaltyDecayAnchor: result.anchor, loyaltyNotifiedLevel: result.level },
     });
   }
 }
