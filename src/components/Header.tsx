@@ -19,7 +19,7 @@ function Header() {
       className="px-3 pt-3 sm:px-6 sm:pt-5"
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-full border border-white/40 bg-white/40 px-3 py-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(138,84,39,0.25)] backdrop-blur-2xl backdrop-saturate-150 sm:px-6 sm:py-3">
-        {/* Logo + nav — right side in RTL */}
+        {/* Logo — right side in RTL */}
         <div className="flex items-center justify-center gap-3 sm:gap-5">
           <Link
             href="/"
@@ -35,19 +35,16 @@ function Header() {
               className="h-full w-full object-contain object-center"
             />
           </Link>
-
-          <nav className="flex items-center">
-            <Link
-              href="/club"
-              className="rounded-full px-2 py-1.5 text-xs font-bold text-sand-500 transition-colors hover:bg-sand-50/60 sm:px-3 sm:text-sm"
-            >
-              باشگاه مشتریان
-            </Link>
-          </nav>
         </div>
 
         {/* Actions — left side in RTL */}
         <div className="flex items-center gap-2 sm:gap-4">
+          <Link
+            href="/club"
+            className="rounded-full px-2 py-1.5 text-xs font-bold text-sand-500 transition-colors hover:bg-sand-50/60 sm:px-3 sm:text-sm"
+          >
+            باشگاه مشتریان
+          </Link>
           {isAuthenticated ? (
             <ProfileMenu />
           ) : (
