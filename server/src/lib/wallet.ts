@@ -3,7 +3,8 @@ import { prisma } from "./prisma.js";
 import { applyLoyaltyDecay, getCustomerPoints, getLoyaltyTiers, tierForPoints } from "./loyalty.js";
 
 /** How long a cashback grant stays spendable before it's clawed back — see expireStaleWalletCashback. */
-const CASHBACK_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
+export const CASHBACK_EXPIRY_DAYS = 30;
+const CASHBACK_EXPIRY_MS = CASHBACK_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
 /**
  * Marks `amount` of the customer's oldest still-active cashback grants as

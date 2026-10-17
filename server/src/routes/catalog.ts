@@ -3,7 +3,8 @@ import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { getSettings } from "../lib/shipping.js";
 import { isSiteOpen } from "../lib/businessHours.js";
-import { getLoyaltyTiers } from "../lib/loyalty.js";
+import { DECAY_PERIOD_MONTHS, TOMAN_PER_POINT, getLoyaltyTiers } from "../lib/loyalty.js";
+import { CASHBACK_EXPIRY_DAYS } from "../lib/wallet.js";
 
 export const catalogRouter = Router();
 
@@ -22,6 +23,19 @@ catalogRouter.get(
       // Highest tier percent — the storefront banner advertises "up to X%".
       walletCashbackPercent: Math.max(0, ...tiers.map((t) => t.cashbackPercent)),
       menuBannerImage: settings.menuBannerImage,
+    });
+  }),
+);
+
+/** Public club levels — the customer-club page explains them to everyone, signed in or not. */
+catalogRouter.get(
+  "/loyalty/tiers",
+  asyncHandler(async (_req, res) => {
+    res.json({
+      tiers: await getLoyaltyTiers(),
+      tomanPerPoint: TOMAN_PER_POINT,
+      decayPeriodMonths: DECAY_PERIOD_MONTHS,
+      cashbackExpiryDays: CASHBACK_EXPIRY_DAYS,
     });
   }),
 );

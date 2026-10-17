@@ -377,7 +377,34 @@ export interface LoyaltyStatus {
 export interface MyWallet {
   balance: number;
   loyalty: LoyaltyStatus;
+  /** Every club level, ascending — for the level ladder on the club page. */
+  tiers: LoyaltyTier[];
   transactions: Paginated<WalletTransaction>;
+}
+
+export interface PublicLoyaltyInfo {
+  /** Club levels, ascending. */
+  tiers: LoyaltyTier[];
+  tomanPerPoint: number;
+  decayPeriodMonths: number;
+  cashbackExpiryDays: number;
+}
+
+/** Public club levels and rules. Null on failure so the club page still renders. */
+export async function getPublicLoyaltyInfo(): Promise<PublicLoyaltyInfo | null> {
+  try {
+    const data = await apiFetch<PublicLoyaltyInfo | LoyaltyTier[]>("/api/loyalty/tiers", {
+      next: { revalidate: 60 },
+    });
+    // An older backend (not yet redeployed) answers with the bare tier list.
+    if (Array.isArray(data)) {
+      return { tiers: data, tomanPerPoint: 5000, decayPeriodMonths: 3, cashbackExpiryDays: 30 };
+    }
+    if (!Array.isArray(data?.tiers)) return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export function getMyWallet(page = 1, pageSize = 20) {

@@ -36,14 +36,14 @@ function Header() {
             />
           </Link>
 
-          {/* <nav className="flex items-center">
+          <nav className="flex items-center">
             <Link
-              to="/menu"
-              className="text-sm font-bold text-sand-500 transition-colors hover:text-sand-500 sm:text-base"
+              href="/club"
+              className="rounded-full px-2 py-1.5 text-xs font-bold text-sand-500 transition-colors hover:bg-sand-50/60 sm:px-3 sm:text-sm"
             >
-              منو
+              باشگاه مشتریان
             </Link>
-          </nav> */}
+          </nav>
         </div>
 
         {/* Actions — left side in RTL */}
