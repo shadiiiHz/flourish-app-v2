@@ -8,7 +8,6 @@ import { getMyWallet, type MyWallet } from "@/lib/api";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
-/** Signed-in visitors see where they stand; everyone else gets a sign-up nudge. */
 export default function MyClubStatus() {
   const { isAuthenticated, isLoading, openAuth } = useAuth();
   const [data, setData] = useState<MyWallet | null>(null);
