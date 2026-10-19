@@ -21,11 +21,13 @@ import {
   adminGetAllAddons,
   adminGetAllCategories,
   adminGetProducts,
+  adminGetStockCandidates,
   adminUpdateProduct,
   adminUploadImage,
   apiUploadUrl,
   revalidateCatalog,
   type AdminProductStatusFilter,
+  type AdminStockCandidate,
   type BulkImportResult,
 } from "@/lib/api";
 import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
@@ -37,6 +39,7 @@ import {
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 import ConfirmModal from "@/components/ConfirmModal";
+import DependentProductsModal from "@/components/admin/DependentProductsModal";
 import type { AdminAddon, AdminCategory, AdminProduct, AdminVariant } from "@/types/admin";
 import { EVEN_WEEKDAYS, ODD_WEEKDAYS, PREORDER_WEEKDAYS, formatPreorderWeekdays } from "@/lib/preorder";
 
@@ -54,6 +57,10 @@ interface FormValues {
   servingSize: string;
   discountPercent: string;
   stock: string;
+  /** Empty means the product keeps its own stock; otherwise it draws 1:1 from this parent product's stock. */
+  stockSourceId: string;
+  /** Products that draw their stock 1:1 from this one (this product is their parent). */
+  dependentIds: string[];
   isNew: boolean;
   isSeasonal: boolean;
   isAvailable: boolean;
@@ -80,6 +87,8 @@ const EMPTY_FORM: FormValues = {
   servingSize: "",
   discountPercent: "",
   stock: "",
+  stockSourceId: "",
+  dependentIds: [],
   isNew: false,
   isSeasonal: false,
   isAvailable: true,
@@ -181,6 +190,8 @@ function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [allAddons, setAllAddons] = useState<AdminAddon[]>([]);
+  const [stockCandidates, setStockCandidates] = useState<AdminStockCandidate[]>([]);
+  const [dependentsModalOpen, setDependentsModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -232,11 +243,13 @@ function AdminProductsPage() {
       ),
       adminGetAllCategories(),
       adminGetAllAddons(),
-    ]).then(([p, c, a]) => {
+      adminGetStockCandidates(),
+    ]).then(([p, c, a, sp]) => {
       setProducts(p.items);
       setTotal(p.total);
       setCategories(c);
       setAllAddons(a);
+      setStockCandidates(sp);
       if (!editingId && !formik.values.categoryId) {
         formik.setFieldValue("categoryId", c[0]?.id ?? "");
       }
@@ -276,7 +289,9 @@ function AdminProductsPage() {
     validationSchema,
     onSubmit: async (values, helpers) => {
       setError(null);
-      const stockError = validateVariantStock(values.stock, values.variants);
+      const stockError = values.stockSourceId
+        ? null
+        : validateVariantStock(values.stock, values.variants);
       if (stockError) {
         setError(stockError);
         return;
@@ -297,6 +312,9 @@ function AdminProductsPage() {
             ? Number(values.discountPercent)
             : null,
           stock: values.stock ? Number(values.stock) : null,
+          stockSourceId: values.stockSourceId || null,
+          // Only a parent manages dependents; a product that itself depends on another leaves them alone.
+          ...(values.stockSourceId ? {} : { dependentIds: values.dependentIds }),
           isNew: values.isNew,
           isSeasonal: values.isSeasonal,
           isAvailable: values.isAvailable,
@@ -364,6 +382,8 @@ function AdminProductsPage() {
         discountPercent:
           p.discountPercent != null ? String(p.discountPercent) : "",
         stock: p.isAvailable ? (p.stock != null ? String(p.stock) : "") : "0",
+        stockSourceId: p.stockSourceId ?? "",
+        dependentIds: stockCandidates.filter((c) => c.stockSourceId === p.id).map((c) => c.id),
         isNew: p.isNew,
         isSeasonal: p.isSeasonal,
         isAvailable: p.isAvailable,
@@ -889,6 +909,7 @@ function AdminProductsPage() {
               placeholder="خالی = بدون محدودیت"
               name="stock"
               value={formik.values.stock}
+              disabled={!!formik.values.stockSourceId}
               onChange={(e) => {
                 const value = e.target.value;
                 formik.setFieldValue("stock", value);
@@ -897,12 +918,60 @@ function AdminProductsPage() {
                 }
               }}
               onBlur={formik.handleBlur}
-              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+              className="w-full rounded-xl border border-cocoa-900/10 px-3 py-2.5 text-sm outline-none focus:border-sand-400 disabled:bg-cocoa-900/5 disabled:text-cocoa-500"
             />
             {formik.touched.stock && formik.errors.stock && (
               <p className="mt-1 text-xs font-semibold text-danger-500">
                 {formik.errors.stock}
               </p>
+            )}
+            {formik.values.stockSourceId ? (
+              <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-sand-50 px-3 py-2 text-xs text-cocoa-600">
+                <span>
+                  موجودی این محصول و همهٔ انواعش از «
+                  {stockCandidates.find((c) => c.id === formik.values.stockSourceId)?.title ?? "محصول مادر"}
+                  » محاسبه می‌شود (۱ به ۱).
+                </span>
+                <button
+                  type="button"
+                  onClick={() => formik.setFieldValue("stockSourceId", "")}
+                  className="shrink-0 font-bold text-danger-500 hover:underline"
+                >
+                  قطع وابستگی
+                </button>
+              </div>
+            ) : (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => setDependentsModalOpen(true)}
+                  disabled={formik.values.variants.some((v) => v.title.trim())}
+                  className="flex w-full items-center justify-between gap-2 rounded-xl border border-dashed border-sand-300 px-3 py-2.5 text-sm font-semibold text-cocoa-700 transition hover:bg-sand-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span>محصولات وابسته به این موجودی</span>
+                  <span className="rounded-full bg-sand-100 px-2 py-0.5 text-xs font-bold text-sand-600">
+                    {formik.values.dependentIds.length.toLocaleString("fa-IR")}
+                  </span>
+                </button>
+                {formik.values.variants.some((v) => v.title.trim()) ? (
+                  <p className="mt-1 text-xs text-cocoa-500">
+                    محصولی که دارای انواع است نمی‌تواند مادر باشد.
+                  </p>
+                ) : (
+                  formik.values.dependentIds.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {formik.values.dependentIds.map((id) => (
+                        <span
+                          key={id}
+                          className="rounded-full bg-sand-50 px-2.5 py-1 text-xs font-semibold text-cocoa-700"
+                        >
+                          {stockCandidates.find((c) => c.id === id)?.title ?? id}
+                        </span>
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
             )}
           </div>
           <div>
@@ -1201,7 +1270,9 @@ function AdminProductsPage() {
               <Plus className="h-3.5 w-3.5" /> افزودن نوع
             </button>
           </div>
-          {formik.values.stock !== "" && formik.values.variants.some((v) => v.title.trim()) && (
+          {formik.values.stock !== "" &&
+            !formik.values.stockSourceId &&
+            formik.values.variants.some((v) => v.title.trim()) && (
             <p
               className={`mt-1.5 text-xs font-semibold ${
                 validateVariantStock(formik.values.stock, formik.values.variants)
@@ -1299,13 +1370,14 @@ function AdminProductsPage() {
                     type="number"
                     min={0}
                     placeholder="موجودی این نوع"
-                    value={v.stock ?? ""}
+                    value={formik.values.stockSourceId ? formik.values.stock : (v.stock ?? "")}
+                    disabled={!!formik.values.stockSourceId}
                     onChange={(e) =>
                       updateVariant(i, {
                         stock: e.target.value ? Number(e.target.value) : undefined,
                       })
                     }
-                    className="w-28 shrink-0 rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400"
+                    className="w-28 shrink-0 rounded-lg border border-cocoa-900/10 px-2.5 py-2 text-xs outline-none focus:border-sand-400 disabled:bg-cocoa-900/5 disabled:text-cocoa-500"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -1462,6 +1534,16 @@ function AdminProductsPage() {
           sx={{ border: "none", height: 800 }}
         />
       </div>
+
+      <DependentProductsModal
+        isOpen={dependentsModalOpen}
+        parentId={editingId}
+        description={`موجودی محصولات انتخاب‌شده از «${formik.values.title || "این محصول"}» محاسبه می‌شود (۱ به ۱)`}
+        candidates={stockCandidates}
+        selectedIds={formik.values.dependentIds}
+        onConfirm={(ids) => formik.setFieldValue("dependentIds", ids)}
+        onClose={() => setDependentsModalOpen(false)}
+      />
 
       <ConfirmModal
         isOpen={!!deletingProduct}

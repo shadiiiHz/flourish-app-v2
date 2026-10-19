@@ -89,7 +89,12 @@ model Product {
   ingredients             String?
   servingSize             String?
   discountPercent         Int?
+  /// For a dependent product this is only a mirror of the parent's stock (1:1), kept in sync by lib/stock.ts — never edited directly.
   stock                   Int?
+  /// When set, this product has no inventory of its own: it draws from this "parent" product's stock 1:1. Parents have no variants and cannot themselves be dependents.
+  stockSourceId           String?
+  stockSource             Product?         @relation("StockSource", fields: [stockSourceId], references: [id], onDelete: SetNull)
+  stockDependents         Product[]        @relation("StockSource")
   isNew                   Boolean          @default(false)
   /// Shown in the homepage seasonal section (above "new items"); the section only renders while at least one product has this on.
   isSeasonal              Boolean          @default(false)
@@ -114,6 +119,8 @@ model Product {
   cartItems               CartItem[]
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt
+
+  @@index([stockSourceId])
 }
 
 /// An optional extra (e.g. "extra shot", "gift wrap") an admin defines once and can then offer on any number of products.

@@ -9,6 +9,7 @@ import { parsePagination, parseSearch, paginatedResult } from "../../lib/paginat
 import { deleteUploadedFiles } from "../../lib/uploads.js";
 import { syncProductVariants } from "../../lib/variants.js";
 import { validateVariantStockSum } from "../../lib/variantStock.js";
+import { syncDependentStock } from "../../lib/stock.js";
 
 export const adminProductsRouter = Router();
 
@@ -16,6 +17,9 @@ const bulkImportUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
 });
+
+/** The database is remote, so a product save (many small queries) can outlast Prisma's 5s default. */
+const LONG_TRANSACTION = { timeout: 30_000, maxWait: 10_000 };
 
 const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1) });
 
@@ -40,6 +44,8 @@ const productSchema = z.object({
   servingSize: z.string().nullable().optional(),
   discountPercent: z.number().int().min(0).max(100).nullable().optional(),
   stock: z.number().int().nonnegative().nullable().optional(),
+  /** Makes this a dependent product: no own inventory, it draws 1:1 from this parent product's stock. */
+  stockSourceId: z.string().min(1).nullable().optional(),
   isNew: z.boolean().optional(),
   isSeasonal: z.boolean().optional(),
   isAvailable: z.boolean().optional(),
@@ -56,7 +62,40 @@ const productSchema = z.object({
   variants: z.array(variantSchema).optional(),
   /** Addons customers may tick when adding this product to their cart. */
   addonIds: z.array(z.string().min(1)).optional(),
+  /** Parent side of the stock link: the full set of products that draw their stock 1:1 from this one. Omit to leave links untouched. */
+  dependentIds: z.array(z.string().min(1)).optional(),
 });
+
+/**
+ * Checks that `sourceId` may act as the parent of a dependent product and
+ * returns the parent's current stock (which the dependent mirrors). Parents
+ * must be plain catalog products: no variants (their stock is split per
+ * variant, which can't be mirrored 1:1), not themselves dependents (no
+ * chains), and not combo items. A product that already has dependents of its
+ * own can't become a dependent. A dependent itself may have variants — each
+ * one mirrors the parent's stock.
+ */
+async function resolveStockSource(
+  productId: string | null,
+  sourceId: string,
+): Promise<{ stock: number | null } | { error: string }> {
+  if (productId && sourceId === productId) return { error: "محصول نمی‌تواند به خودش وابسته باشد" };
+  const parent = await prisma.product.findUnique({
+    where: { id: sourceId },
+    select: { stock: true, stockSourceId: true, isCombo: true, _count: { select: { variants: true } } },
+  });
+  if (!parent) return { error: "محصول مادر یافت نشد" };
+  if (parent.isCombo) return { error: "محصول کمبو نمی‌تواند محصول مادر باشد" };
+  if (parent._count.variants > 0) return { error: "محصولی که دارای انواع است نمی‌تواند محصول مادر باشد" };
+  if (parent.stockSourceId) return { error: "محصول مادر خودش نمی‌تواند به محصول دیگری وابسته باشد" };
+  if (productId) {
+    const dependents = await prisma.product.count({ where: { stockSourceId: productId } });
+    if (dependents > 0) {
+      return { error: "این محصول خودش مادر محصولات دیگر است و نمی‌تواند وابسته باشد" };
+    }
+  }
+  return { stock: parent.stock };
+}
 
 const productInclude = { variants: true, category: true, addons: { select: { addonId: true } } } as const;
 
@@ -125,6 +164,138 @@ adminProductsRouter.get(
   }),
 );
 
+/** Every catalog product with what the "dependent products" picker needs to decide who can be linked. */
+adminProductsRouter.get(
+  "/stock-candidates",
+  asyncHandler(async (_req, res) => {
+    const products = await prisma.product.findMany({
+      where: { isCombo: false },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        images: true,
+        stock: true,
+        stockSourceId: true,
+        category: { select: { title: true } },
+        _count: { select: { variants: true, stockDependents: true } },
+      },
+    });
+    res.json(
+      products.map((p) => ({
+        id: p.id,
+        title: p.title,
+        image: p.images[0] ?? null,
+        categoryTitle: p.category?.title ?? null,
+        stock: p.stock,
+        stockSourceId: p.stockSourceId,
+        variantCount: p._count.variants,
+        dependentCount: p._count.stockDependents,
+      })),
+    );
+  }),
+);
+
+/**
+ * One page of stock parents (products that still have at least one dependent),
+ * each with its dependents embedded. A parent whose last dependent is removed
+ * simply stops matching and drops off the list.
+ */
+adminProductsRouter.get(
+  "/relations",
+  asyncHandler(async (req, res) => {
+    const search = parseSearch(req);
+    const where: Prisma.ProductWhereInput = {
+      isCombo: false,
+      stockDependents: { some: {} },
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: "insensitive" as const } },
+              { stockDependents: { some: { title: { contains: search, mode: "insensitive" as const } } } },
+            ],
+          }
+        : {}),
+    };
+    const pagination = parsePagination(req);
+    const [parents, total] = await prisma.$transaction([
+      prisma.product.findMany({
+        where,
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        skip: pagination.skip,
+        take: pagination.take,
+        select: {
+          id: true,
+          title: true,
+          images: true,
+          stock: true,
+          category: { select: { title: true } },
+          stockDependents: {
+            orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+            select: { id: true, title: true },
+          },
+        },
+      }),
+      prisma.product.count({ where }),
+    ]);
+    res.json(
+      paginatedResult(
+        parents.map((p) => ({
+          id: p.id,
+          title: p.title,
+          image: p.images[0] ?? null,
+          categoryTitle: p.category?.title ?? null,
+          stock: p.stock,
+          children: p.stockDependents,
+        })),
+        total,
+        pagination,
+      ),
+    );
+  }),
+);
+
+/**
+ * Validates the set of products to attach as dependents of `parentId` (null
+ * while the parent is still being created). The parent must be a plain
+ * product — no variants, not itself a dependent. Each dependent must be a
+ * non-combo product that isn't a parent of others and isn't already tied to a
+ * different parent.
+ */
+async function validateDependents(
+  parentId: string | null,
+  ids: string[],
+  parent: { variantCount: number; stockSourceId: string | null },
+): Promise<string | null> {
+  if (ids.length === 0) return null;
+  if (parentId && ids.includes(parentId)) return "محصول نمی‌تواند به خودش وابسته باشد";
+  if (parent.variantCount > 0) return "محصولی که دارای انواع است نمی‌تواند محصول مادر باشد";
+  if (parent.stockSourceId) return "این محصول خودش به محصول دیگری وابسته است و نمی‌تواند مادر باشد";
+  const children = await prisma.product.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, title: true, isCombo: true, stockSourceId: true, _count: { select: { stockDependents: true } } },
+  });
+  if (children.length !== ids.length) return "برخی از محصولات وابسته یافت نشدند";
+  for (const child of children) {
+    if (child.isCombo) return `«${child.title}» کمبو است و نمی‌تواند وابسته باشد`;
+    if (child._count.stockDependents > 0) return `«${child.title}» خودش مادر محصولات دیگر است`;
+    if (child.stockSourceId && child.stockSourceId !== parentId) {
+      return `«${child.title}» به محصول مادر دیگری وابسته است`;
+    }
+  }
+  return null;
+}
+
+/** Makes `ids` exactly the dependents of `parentId` (unlinking the rest) and mirrors the parent's stock onto them and their variants. */
+async function applyDependents(tx: Prisma.TransactionClient, parentId: string, ids: string[]) {
+  await tx.product.updateMany({
+    where: { stockSourceId: parentId, id: { notIn: ids } },
+    data: { stockSourceId: null },
+  });
+  await tx.product.updateMany({ where: { id: { in: ids } }, data: { stockSourceId: parentId } });
+  await syncDependentStock(tx, [parentId]);
+}
+
 adminProductsRouter.post(
   "/",
   asyncHandler(async (req, res) => {
@@ -133,8 +304,27 @@ adminProductsRouter.post(
       res.status(400).json({ error: "اطلاعات محصول نامعتبر است" });
       return;
     }
-    const { variants, addonIds, ...data } = parsed.data;
-    const stockError = validateVariantStockSum(data.stock, variants ?? []);
+    const { variants: _variants, addonIds, dependentIds, ...data } = parsed.data;
+    let variants = parsed.data.variants;
+    const dependentError = await validateDependents(null, dependentIds ?? [], {
+      variantCount: variants?.length ?? 0,
+      stockSourceId: data.stockSourceId ?? null,
+    });
+    if (dependentError) {
+      res.status(400).json({ error: dependentError });
+      return;
+    }
+    if (data.stockSourceId) {
+      const source = await resolveStockSource(null, data.stockSourceId);
+      if ("error" in source) {
+        res.status(400).json({ error: source.error });
+        return;
+      }
+      data.stock = source.stock;
+      // Each variant of a dependent mirrors the parent's stock too.
+      variants = variants?.map((v) => ({ ...v, stock: source.stock }));
+    }
+    const stockError = data.stockSourceId ? null : validateVariantStockSum(data.stock, variants ?? []);
     if (stockError) {
       res.status(400).json({ error: stockError });
       return;
@@ -149,6 +339,9 @@ adminProductsRouter.post(
       },
       include: productInclude,
     });
+    if (dependentIds?.length) {
+      await prisma.$transaction((tx) => applyDependents(tx, product.id, dependentIds), LONG_TRANSACTION);
+    }
     res.status(201).json(product);
   }),
 );
@@ -333,6 +526,37 @@ adminProductsRouter.post(
   }),
 );
 
+/** Replaces the full set of products that draw their stock from `:id`. An empty list unlinks them all. */
+adminProductsRouter.put(
+  "/:id/dependents",
+  asyncHandler(async (req, res) => {
+    const parsed = z.object({ dependentIds: z.array(z.string().min(1)) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "اطلاعات نامعتبر است" });
+      return;
+    }
+    const dependentIds = [...new Set(parsed.data.dependentIds)];
+    const parent = await prisma.product.findUnique({
+      where: { id: req.params.id },
+      select: { stockSourceId: true, isCombo: true, _count: { select: { variants: true } } },
+    });
+    if (!parent || parent.isCombo) {
+      res.status(404).json({ error: "محصول یافت نشد" });
+      return;
+    }
+    const error = await validateDependents(req.params.id, dependentIds, {
+      variantCount: parent._count.variants,
+      stockSourceId: parent.stockSourceId,
+    });
+    if (error) {
+      res.status(400).json({ error });
+      return;
+    }
+    await prisma.$transaction((tx) => applyDependents(tx, req.params.id, dependentIds), LONG_TRANSACTION);
+    res.json({ ok: true });
+  }),
+);
+
 adminProductsRouter.put(
   "/:id",
   asyncHandler(async (req, res) => {
@@ -341,21 +565,61 @@ adminProductsRouter.put(
       res.status(400).json({ error: "اطلاعات محصول نامعتبر است" });
       return;
     }
-    const { variants, addonIds, ...data } = parsed.data;
+    const { variants: _variants, addonIds, dependentIds, ...data } = parsed.data;
+    let variants = parsed.data.variants;
 
-    // Fetched pre-update only when something that carries images is being
-    // replaced, so we know which files dropped out and can delete those —
-    // and only those; a PUT that omits `images`/`variants` leaves them
-    // untouched, so nothing of that kind should be swept.
-    const previous =
-      variants || data.images !== undefined
-        ? await prisma.product.findUnique({
-            where: { id: req.params.id },
-            include: { variants: true },
-          })
-        : null;
+    // Fetched pre-update so we know which image files dropped out and can
+    // delete those — and only those; a PUT that omits `images`/`variants`
+    // leaves them untouched, so nothing of that kind is swept — and to check
+    // the product's current stock-dependency links.
+    const previous = await prisma.product.findUnique({
+      where: { id: req.params.id },
+      include: { variants: true },
+    });
 
-    if (variants) {
+    let mirroredStock: { stock: number | null } | null = null;
+    const effectiveSourceId =
+      data.stockSourceId !== undefined ? data.stockSourceId : (previous?.stockSourceId ?? null);
+    if (effectiveSourceId) {
+      const source = await resolveStockSource(req.params.id, effectiveSourceId);
+      if ("error" in source) {
+        res.status(400).json({ error: source.error });
+        return;
+      }
+      // A dependent has no inventory of its own — whatever stock the form sent is ignored,
+      // and its variants mirror the parent's stock as well.
+      data.stock = source.stock;
+      mirroredStock = source;
+      variants = variants?.map((v) => ({ ...v, stock: source.stock }));
+    }
+
+    // Parent side: the product being saved must be a plain product to have dependents.
+    const existingDependentCount = await prisma.product.count({
+      where: { stockSourceId: req.params.id },
+    });
+    const finalDependentCount =
+      dependentIds !== undefined ? dependentIds.length : existingDependentCount;
+    if (finalDependentCount > 0) {
+      const dependentError = await validateDependents(req.params.id, dependentIds ?? [], {
+        variantCount: variants ? variants.length : (previous?.variants.length ?? 0),
+        stockSourceId: effectiveSourceId,
+      });
+      if (dependentError) {
+        res.status(400).json({ error: dependentError });
+        return;
+      }
+      const effectiveVariantCount = variants ? variants.length : (previous?.variants.length ?? 0);
+      if (effectiveVariantCount > 0 || effectiveSourceId) {
+        res.status(400).json({
+          error: effectiveSourceId
+            ? "این محصول خودش وابسته است و نمی‌تواند مادر باشد"
+            : "این محصول مادر محصولات دیگر است و نمی‌تواند دارای انواع باشد",
+        });
+        return;
+      }
+    }
+
+    if (variants && !mirroredStock) {
       const effectiveStock = data.stock !== undefined ? data.stock : previous?.stock;
       const stockError = validateVariantStockSum(effectiveStock, variants);
       if (stockError) {
@@ -366,6 +630,14 @@ adminProductsRouter.put(
 
     const product = await prisma.$transaction(async (tx) => {
       await tx.product.update({ where: { id: req.params.id }, data });
+      // Only touch dependents when there is something to link, unlink or keep in sync — every
+      // extra query here is a round trip to the remote database inside the transaction.
+      if (dependentIds !== undefined && (dependentIds.length > 0 || existingDependentCount > 0)) {
+        await applyDependents(tx, req.params.id, dependentIds);
+      } else if (existingDependentCount > 0) {
+        // This product is a parent: push its (possibly just edited) stock to its dependents.
+        await syncDependentStock(tx, [req.params.id]);
+      }
       if (variants) {
         await syncProductVariants(
           tx,
@@ -373,6 +645,13 @@ adminProductsRouter.put(
           (previous?.variants ?? []).map((v) => v.id),
           variants,
         );
+      }
+      if (mirroredStock) {
+        // Covers variants that exist but weren't part of this payload (e.g. just linked to a parent).
+        await tx.productVariant.updateMany({
+          where: { productId: req.params.id },
+          data: { stock: mirroredStock.stock },
+        });
       }
       if (addonIds) {
         await tx.productAddon.deleteMany({ where: { productId: req.params.id } });
@@ -384,7 +663,7 @@ adminProductsRouter.put(
         where: { id: req.params.id },
         include: productInclude,
       });
-    });
+    }, LONG_TRANSACTION);
 
     const orphaned: (string | null | undefined)[] = [];
     if (data.images !== undefined && previous) {

@@ -710,6 +710,48 @@ export function adminGetProducts(
   return apiFetch<Paginated<AdminProduct>>(`/api/admin/products?${params.toString()}`);
 }
 
+export interface AdminStockCandidate {
+  id: string;
+  title: string;
+  image: string | null;
+  categoryTitle: string | null;
+  stock: number | null;
+  /** Set when the product already draws its stock from a parent. */
+  stockSourceId: string | null;
+  variantCount: number;
+  /** Greater than zero when the product is itself a parent of others. */
+  dependentCount: number;
+}
+
+export interface AdminRelation {
+  id: string;
+  title: string;
+  image: string | null;
+  categoryTitle: string | null;
+  stock: number | null;
+  children: { id: string; title: string }[];
+}
+
+/** One page of stock parents (products with at least one dependent), each with its dependents. */
+export function adminGetRelations(page = 1, pageSize = 10, search = "") {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  return apiFetch<Paginated<AdminRelation>>(`/api/admin/products/relations?${params.toString()}`);
+}
+
+/** Unpaginated — every non-combo product, for the "dependent products" picker on the product form. */
+export function adminGetStockCandidates() {
+  return apiFetch<AdminStockCandidate[]>("/api/admin/products/stock-candidates");
+}
+
+/** Replaces the full set of products that draw their stock from this parent; an empty list unlinks them all. */
+export function adminSetProductDependents(parentId: string, dependentIds: string[]) {
+  return apiFetch<{ ok: true }>(`/api/admin/products/${parentId}/dependents`, {
+    method: "PUT",
+    body: JSON.stringify({ dependentIds }),
+  });
+}
+
 export function adminCreateProduct(payload: Record<string, unknown>) {
   return apiFetch<AdminProduct>("/api/admin/products", {
     method: "POST",

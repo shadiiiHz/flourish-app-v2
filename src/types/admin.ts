@@ -58,7 +58,10 @@ export interface AdminProduct {
   ingredients?: string | null;
   servingSize?: string | null;
   discountPercent?: number | null;
+  /** For a dependent product (stockSourceId set) this is a read-only mirror of the parent's stock. */
   stock?: number | null;
+  /** When set, this product has no inventory of its own and draws 1:1 from this parent product's stock. */
+  stockSourceId?: string | null;
   isNew: boolean;
   isSeasonal: boolean;
   isAvailable: boolean;

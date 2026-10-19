@@ -1,5 +1,44 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma.js";
 import { env } from "./env.js";
+
+type Db = Prisma.TransactionClient;
+
+/** The database is remote, so stock transactions (many small queries) can outlast Prisma's 5s default. */
+const LONG_TRANSACTION = { timeout: 30_000, maxWait: 10_000 };
+
+/** productId → its parent's id, for the dependent products among `productIds` (one query, outside any transaction). */
+async function loadStockSources(productIds: (string | null)[]): Promise<Map<string, string>> {
+  const ids = [...new Set(productIds.filter((id): id is string => !!id))];
+  if (ids.length === 0) return new Map();
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids }, stockSourceId: { not: null } },
+    select: { id: true, stockSourceId: true },
+  });
+  return new Map(products.map((p) => [p.id, p.stockSourceId as string]));
+}
+
+/**
+ * A dependent product (stockSourceId set) has no inventory of its own: its
+ * `stock` column is just a 1:1 mirror of its parent's. Every code path that
+ * changes a parent's stock must call this afterwards so the mirrors — which
+ * the storefront, cart and admin filters read as ordinary stock — never drift.
+ */
+export async function syncDependentStock(db: Db, parentIds: Iterable<string>): Promise<void> {
+  for (const parentId of new Set(parentIds)) {
+    const parent = await db.product.findUnique({ where: { id: parentId }, select: { stock: true } });
+    if (!parent) continue;
+    await db.product.updateMany({
+      where: { stockSourceId: parentId },
+      data: { stock: parent.stock },
+    });
+    // A dependent's variants are sold 1:1 against the same parent stock, so each mirrors it too.
+    await db.productVariant.updateMany({
+      where: { product: { stockSourceId: parentId } },
+      data: { stock: parent.stock },
+    });
+  }
+}
 
 /**
  * Decrements stock for confirmed order items and records exactly how much
@@ -26,10 +65,24 @@ export async function decrementStockForItems(
 ): Promise<void> {
   const relevant = items.filter((item) => item.variantId || item.productId);
   if (relevant.length === 0) return;
+  const sourceByProduct = await loadStockSources(relevant.map((i) => i.productId));
   await prisma.$transaction(async (tx) => {
+    const changedParents = new Set<string>();
     for (const item of relevant) {
       let decremented = 0;
-      if (item.variantId) {
+      // A dependent product (with or without variants) takes its stock from its
+      // parent instead of itself; its own product/variant stock is just a mirror.
+      const dependentSourceId = item.productId ? sourceByProduct.get(item.productId) : null;
+      if (dependentSourceId) {
+        const result = await tx.product.updateMany({
+          where: { id: dependentSourceId, stock: { gte: item.quantity } },
+          data: { stock: { decrement: item.quantity } },
+        });
+        if (result.count > 0) {
+          decremented = item.quantity;
+          changedParents.add(dependentSourceId);
+        }
+      } else if (item.variantId) {
         const result = await tx.productVariant.updateMany({
           where: { id: item.variantId, stock: { gte: item.quantity } },
           data: { stock: { decrement: item.quantity } },
@@ -48,14 +101,19 @@ export async function decrementStockForItems(
           where: { id: item.productId!, stock: { gte: item.quantity } },
           data: { stock: { decrement: item.quantity } },
         });
-        if (result.count > 0) decremented = item.quantity;
+        if (result.count > 0) {
+          decremented = item.quantity;
+          // Could itself be a parent whose dependents mirror it.
+          changedParents.add(item.productId!);
+        }
       }
       await tx.orderItem.update({
         where: { id: item.id },
         data: { stockDecremented: decremented },
       });
     }
-  });
+    await syncDependentStock(tx, changedParents);
+  }, LONG_TRANSACTION);
   await revalidateStorefrontCatalog();
 }
 
@@ -71,35 +129,44 @@ export async function decrementStockForItems(
 export async function restockItems(
   items: { productId: string | null; variantId?: string | null; stockDecremented: number }[],
 ): Promise<void> {
-  const operations = items.flatMap((item) => {
-    if (item.stockDecremented <= 0) return [];
-    if (item.variantId) {
-      const ops = [
-        prisma.productVariant.updateMany({
+  const relevant = items.filter((item) => item.stockDecremented > 0);
+  if (relevant.length === 0) return;
+  const sourceByProduct = await loadStockSources(relevant.map((i) => i.productId));
+  await prisma.$transaction(async (tx) => {
+    const changedParents = new Set<string>();
+    for (const item of relevant) {
+      // A dependent product's stock lives on its parent (even for its variants), so give it back there.
+      const sourceId = item.productId ? sourceByProduct.get(item.productId) : null;
+      if (sourceId) {
+        await tx.product.updateMany({
+          where: { id: sourceId, stock: { not: null } },
+          data: { stock: { increment: item.stockDecremented } },
+        });
+        changedParents.add(sourceId);
+        continue;
+      }
+      if (item.variantId) {
+        await tx.productVariant.updateMany({
           where: { id: item.variantId, stock: { not: null } },
           data: { stock: { increment: item.stockDecremented } },
-        }),
-      ];
-      if (item.productId) {
-        ops.push(
-          prisma.product.updateMany({
+        });
+        if (item.productId) {
+          await tx.product.updateMany({
             where: { id: item.productId, stock: { not: null } },
             data: { stock: { increment: item.stockDecremented } },
-          }),
-        );
+          });
+        }
+        continue;
       }
-      return ops;
-    }
-    if (!item.productId) return [];
-    return [
-      prisma.product.updateMany({
+      if (!item.productId) continue;
+      await tx.product.updateMany({
         where: { id: item.productId, stock: { not: null } },
         data: { stock: { increment: item.stockDecremented } },
-      }),
-    ];
-  });
-  if (operations.length === 0) return;
-  await prisma.$transaction(operations);
+      });
+      changedParents.add(item.productId);
+    }
+    await syncDependentStock(tx, changedParents);
+  }, LONG_TRANSACTION);
   await revalidateStorefrontCatalog();
 }
 
