@@ -28,6 +28,15 @@ export async function syncDependentStock(db: Db, parentIds: Iterable<string>): P
   for (const parentId of new Set(parentIds)) {
     const parent = await db.product.findUnique({ where: { id: parentId }, select: { stock: true } });
     if (!parent) continue;
+    // A dependent that was switched to unavailable only because its (mirrored) stock hit 0
+    // comes back when the parent has stock again — otherwise restocking the parent would
+    // leave every dependent stuck on "ناموجود" until each is re-enabled by hand.
+    if (parent.stock == null || parent.stock > 0) {
+      await db.product.updateMany({
+        where: { stockSourceId: parentId, isAvailable: false, stock: 0 },
+        data: { isAvailable: true },
+      });
+    }
     await db.product.updateMany({
       where: { stockSourceId: parentId },
       data: { stock: parent.stock },

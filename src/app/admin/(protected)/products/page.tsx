@@ -381,7 +381,12 @@ function AdminProductsPage() {
         servingSize: p.servingSize ?? "",
         discountPercent:
           p.discountPercent != null ? String(p.discountPercent) : "",
-        stock: p.isAvailable ? (p.stock != null ? String(p.stock) : "") : "0",
+        stock:
+          p.isAvailable || p.stockSourceId
+            ? p.stock != null
+              ? String(p.stock)
+              : ""
+            : "0",
         stockSourceId: p.stockSourceId ?? "",
         dependentIds: stockCandidates.filter((c) => c.stockSourceId === p.id).map((c) => c.id),
         isNew: p.isNew,
