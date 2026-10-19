@@ -34,7 +34,12 @@ export interface CartLine {
   price: number;
   image?: string;
   quantity: number;
+  /** Units this line may hold. For lines in a shared stock group it already accounts for the group's other lines. */
   maxQuantity?: number;
+  /** Shared by every product drawing on the same stock pool (a parent and its dependents). */
+  stockGroupId?: string;
+  /** The whole pool a grouped line draws on, before other lines' share is subtracted. */
+  stockPool?: number;
   pickupOnly: boolean;
   allowPreorder: boolean;
   /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */
@@ -57,6 +62,8 @@ interface CartContextValue {
   closeCart: () => void;
   lineKeyFor: (itemId: string, variantId?: string, addons?: readonly { id: string }[]) => string;
   getQuantity: (itemId: string, variantId?: string, addons?: readonly { id: string }[]) => number;
+  /** True when the item shares a stock pool with other products and the cart already holds all of it. */
+  isGroupAtMax: (item: MenuItem) => boolean;
   addToCart: (
     item: MenuItem,
     variant?: MenuItemVariant,
@@ -94,6 +101,8 @@ function mapApiCartItem(item: ApiCartItem): CartLineInternal {
     image: item.image ? apiUploadUrl(item.image) : undefined,
     quantity: item.quantity,
     maxQuantity: item.maxQuantity ?? undefined,
+    stockGroupId: item.stockGroupId ?? undefined,
+    stockPool: item.stockPool ?? undefined,
     pickupOnly: item.pickupOnly,
     allowPreorder: item.allowPreorder,
     preorderWeekdays: item.preorderWeekdays ?? [],
@@ -104,10 +113,32 @@ function mapApiCartItem(item: ApiCartItem): CartLineInternal {
 export const lineUnitTotal = (line: Pick<CartLine, "price" | "addons">) =>
   line.price + line.addons.reduce((sum, addon) => sum + addon.price, 0);
 
+/** Total units the lines of one stock group hold, optionally leaving one line out. */
+const groupQuantity = (lines: CartLine[], groupId: string, exceptKey?: string) =>
+  lines
+    .filter((line) => line.stockGroupId === groupId && line.key !== exceptKey)
+    .reduce((sum, line) => sum + line.quantity, 0);
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, openAuth } = useAuth();
   const { orderType } = useOrderType();
-  const [lines, setLines] = useState<CartLineInternal[]>([]);
+  const [rawLines, setLines] = useState<CartLineInternal[]>([]);
+  // Lines in a stock group share one pool, so each one's limit shrinks as its group-mates grow.
+  const lines = useMemo<CartLineInternal[]>(
+    () =>
+      rawLines.map((line) =>
+        line.stockGroupId && line.stockPool !== undefined
+          ? {
+              ...line,
+              maxQuantity: Math.max(
+                0,
+                line.stockPool - groupQuantity(rawLines, line.stockGroupId, line.key),
+              ),
+            }
+          : line,
+      ),
+    [rawLines],
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   /** In-flight add-to-cart requests, keyed by line key — lets later updates/removals wait
@@ -137,6 +168,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const notify = (message: string) => setToast(message);
 
+  const isGroupAtMax = (item: MenuItem) => {
+    if (!item.stockGroupId) return false;
+    if (orderType === "preorder" && item.allowPreorder) return false;
+    const pool = item.stock;
+    return pool !== undefined && groupQuantity(lines, item.stockGroupId) >= pool;
+  };
+
   const getQuantity = (itemId: string, variantId?: string, addons?: readonly { id: string }[]) => {
     const key = lineKeyFor(itemId, variantId, addons);
     return lines.find((line) => line.key === key)?.quantity ?? 0;
@@ -155,7 +193,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const key = lineKeyFor(item.id, variant?.id, addons);
     const unlimited = orderType === "preorder" && item.allowPreorder;
-    const maxQuantity = unlimited ? undefined : variant ? variant.stock : item.stock;
+    // Members of a stock group draw on the product's shared pool, not on their (mirrored) variant stock.
+    const stockPool = unlimited
+      ? undefined
+      : variant && !item.stockGroupId
+        ? variant.stock
+        : item.stock;
+    // A product sharing a stock pool with others can only take what the group's other lines leave.
+    const maxQuantity =
+      stockPool !== undefined && item.stockGroupId
+        ? Math.max(0, stockPool - groupQuantity(lines, item.stockGroupId, key))
+        : stockPool;
     const existing = lines.find((line) => line.key === key);
 
     if (existing) {
@@ -175,7 +223,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     const initialQuantity = maxQuantity !== undefined ? Math.min(quantity, maxQuantity) : quantity;
-    if (initialQuantity <= 0) return true;
+    if (initialQuantity <= 0) {
+      if (item.stockGroupId && maxQuantity === 0) notify("موجودی این محصول در سبد شما به سقف رسیده است");
+      return true;
+    }
 
     const basePrice = variant ? variant.price : item.price;
     const price = getDiscountedPrice(basePrice, getEffectiveDiscountPercent(item, orderType));
@@ -194,6 +245,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         image: variant?.image || item.images[0],
         quantity: initialQuantity,
         maxQuantity,
+        stockGroupId: item.stockGroupId,
+        stockPool: item.stockGroupId ? stockPool : undefined,
         pickupOnly: item.pickupOnly,
         allowPreorder: item.allowPreorder,
         preorderWeekdays: item.preorderWeekdays,
@@ -296,6 +349,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     closeCart: () => setIsOpen(false),
     lineKeyFor,
     getQuantity,
+    isGroupAtMax,
     addToCart,
     setQuantity,
     removeLine,

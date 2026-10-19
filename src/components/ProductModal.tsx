@@ -24,7 +24,7 @@ function ProductModal({
 }) {
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const [addonModalOpen, setAddonModalOpen] = useState(false);
-  const { lines, addToCart, notify, getQuantity, setQuantity, lineKeyFor } = useCart();
+  const { lines, addToCart, notify, getQuantity, setQuantity, lineKeyFor, isGroupAtMax } = useCart();
   const { orderType, preorder } = useOrderType();
   const discountPercent = getEffectiveDiscountPercent(item, orderType);
   const hasDiscount = !!discountPercent && item.price > 0;
@@ -47,7 +47,11 @@ function ProductModal({
   // Preorderable products are always available with unlimited inventory in preorder mode.
   const unlimitedPreorder = orderType === "preorder" && !notPreorderable;
   const outOfStock = !unlimitedPreorder && !hasVariants && item.stock === 0;
-  const atMax = !unlimitedPreorder && !hasVariants && item.stock !== undefined && cartQuantity >= item.stock;
+  // Products sharing a stock pool with others (a parent and its dependents) are also capped by the pool's total.
+  const atMax =
+    !unlimitedPreorder &&
+    !hasVariants &&
+    ((item.stock !== undefined && cartQuantity >= item.stock) || isGroupAtMax(item));
   const isUnorderable = unlimitedPreorder ? false : !item.isAvailable || notPreorderable;
 
   const handleAddClick = () => {

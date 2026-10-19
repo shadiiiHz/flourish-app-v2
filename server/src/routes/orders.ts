@@ -13,6 +13,7 @@ import { sendPatternSms } from "../lib/sms.js";
 import { notifyLoyaltyUpgrade } from "../lib/loyaltyUpgradeSms.js";
 import { formatOrderNumber } from "../lib/orderNumber.js";
 import { decrementStockForItems } from "../lib/stock.js";
+import { stockGroupId, stockGroupInclude } from "../lib/stockGroups.js";
 import { isPreorderableOnDate, weekdayNameFa } from "../lib/preorder.js";
 import { resolveItemAddons, sumAddonPrices } from "../lib/addons.js";
 
@@ -142,7 +143,10 @@ ordersRouter.post(
 
     const cartItems = await prisma.cartItem.findMany({
       where: { customerId },
-      include: { product: { include: { addons: { select: { addonId: true } } } }, variant: true },
+      include: {
+        product: { include: { addons: { select: { addonId: true } }, ...stockGroupInclude } },
+        variant: true,
+      },
     });
     if (cartItems.length === 0) {
       res.status(400).json({ error: "سبد خرید خالی است" });
@@ -172,6 +176,26 @@ ordersRouter.post(
       const unavailableItem = cartItems.find((item) => !item.product.isAvailable);
       if (unavailableItem) {
         res.status(400).json({ error: `«${unavailableItem.product.title}» دیگر موجود نیست` });
+        return;
+      }
+      // Products that draw on one shared stock pool (a parent and its dependents) can't together exceed it.
+      const groups = new Map<string, { pool: number; quantity: number; titles: string[] }>();
+      for (const item of cartItems) {
+        const groupId = stockGroupId(item.product);
+        if (!groupId) continue;
+        const pool = item.product.stock;
+        if (pool == null) continue;
+        const group = groups.get(groupId) ?? { pool, quantity: 0, titles: [] };
+        group.quantity += item.quantity;
+        if (!group.titles.includes(item.product.title)) group.titles.push(item.product.title);
+        groups.set(groupId, group);
+      }
+      const overdrawn = [...groups.values()].find((g) => g.quantity > g.pool);
+      if (overdrawn) {
+        const names = overdrawn.titles.map((t) => `«${t}»`).join("، ");
+        res.status(400).json({
+          error: `موجودی کافی نیست؛ از مجموع ${names} حداکثر ${overdrawn.pool} عدد قابل سفارش است`,
+        });
         return;
       }
     }

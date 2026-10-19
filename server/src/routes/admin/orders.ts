@@ -13,6 +13,7 @@ import { notifyLoyaltyUpgrade } from "../../lib/loyaltyUpgradeSms.js";
 import { calculateShipping } from "../../lib/shipping.js";
 import { TAX_RATE, getDiscountedPrice, getEffectiveDiscountPercent } from "../../lib/pricing.js";
 import { decrementStockForItems, restockItems } from "../../lib/stock.js";
+import { stockGroupId, stockGroupInclude } from "../../lib/stockGroups.js";
 
 export const adminOrdersRouter = Router();
 
@@ -151,6 +152,53 @@ interface OrderDraft {
   };
 }
 
+/**
+ * Products linked through a stock relation (a parent and its dependents) share one stock pool, so the
+ * order's lines across the whole group can't total more than it. `heldByOrder` is what an order being
+ * edited already holds (it is restocked before the new version is applied).
+ */
+async function assertStockGroupsHaveRoom(
+  orderItems: OrderDraft["orderItems"],
+  heldByOrder: { productId: string | null; stockDecremented: number }[],
+) {
+  const ids = [
+    ...new Set(
+      [...orderItems.map((i) => i.productId), ...heldByOrder.map((i) => i.productId)].filter(
+        (id): id is string => !!id,
+      ),
+    ),
+  ];
+  if (ids.length === 0) return;
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, title: true, stock: true, stockSourceId: true, ...stockGroupInclude },
+  });
+  const byId = new Map(products.map((p) => [p.id, p]));
+  const groups = new Map<string, { pool: number; ordered: number; titles: string[] }>();
+  for (const item of orderItems) {
+    const product = item.productId ? byId.get(item.productId) : undefined;
+    const groupId = product ? stockGroupId(product) : null;
+    if (!product || !groupId || product.stock == null) continue;
+    const group = groups.get(groupId) ?? { pool: product.stock, ordered: 0, titles: [] };
+    group.ordered += item.quantity;
+    if (!group.titles.includes(product.title)) group.titles.push(product.title);
+    groups.set(groupId, group);
+  }
+  for (const held of heldByOrder) {
+    const product = held.productId ? byId.get(held.productId) : undefined;
+    const group = product ? groups.get(stockGroupId(product) ?? "") : undefined;
+    if (group) group.pool += held.stockDecremented;
+  }
+  const overdrawn = [...groups.values()].find((g) => g.ordered > g.pool);
+  if (overdrawn) {
+    const names = overdrawn.titles.map((t) => `«${t}»`).join("، ");
+    throw new DraftError(
+      400,
+      `موجودی کافی نیست؛ از مجموع ${names} حداکثر ${overdrawn.pool} عدد قابل سفارش است`,
+    );
+  }
+}
+
 class DraftError extends Error {
   constructor(
     public status: number,
@@ -172,7 +220,12 @@ class DraftError extends Error {
  */
 async function buildOrderDraft(
   data: CreateOrderInput,
-  existing?: { discountCode: string | null; walletAmountUsed: number },
+  existing?: {
+    discountCode: string | null;
+    walletAmountUsed: number;
+    /** The order being replaced: the stock it holds returns to the pool, so it counts as available to the new version. */
+    items?: { productId: string | null; stockDecremented: number }[];
+  },
 ): Promise<OrderDraft> {
   const {
     customerId,
@@ -288,6 +341,10 @@ async function buildOrderDraft(
         quantity: item.quantity,
       });
     }
+  }
+
+  if (manualSubtotal == null && orderType === "instant") {
+    await assertStockGroupsHaveRoom(orderItems, existing?.items ?? []);
   }
 
   const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);

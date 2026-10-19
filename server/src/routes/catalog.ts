@@ -5,8 +5,28 @@ import { getSettings } from "../lib/shipping.js";
 import { isSiteOpen } from "../lib/businessHours.js";
 import { DECAY_PERIOD_MONTHS, TOMAN_PER_POINT, getLoyaltyTiers } from "../lib/loyalty.js";
 import { CASHBACK_EXPIRY_DAYS } from "../lib/wallet.js";
+import { stockGroupId, stockGroupInclude } from "../lib/stockGroups.js";
 
 export const catalogRouter = Router();
+
+/**
+ * Tags a product with `stockGroupId` (shared by a parent and its dependents, null when standalone) so the
+ * storefront can stop a customer's cart from exceeding the pool those products share, and drops the raw count.
+ */
+function withStockGroup<
+  T extends { id: string; stockSourceId: string | null; stock: number | null; _count?: { stockDependents: number } },
+>(
+  product: T,
+) {
+  const { _count, ...rest } = product;
+  const groupId = stockGroupId(product);
+  // A dependent's variants only mirror the shared pool, so serve the pool itself and never a stale copy.
+  const variants =
+    groupId && "variants" in rest && Array.isArray(rest.variants)
+      ? rest.variants.map((v: { stock: number | null }) => ({ ...v, stock: rest.stock ?? null }))
+      : undefined;
+  return { ...rest, ...(variants ? { variants } : {}), stockGroupId: groupId };
+}
 
 const addonsInclude = { include: { addon: true }, orderBy: { addon: { name: "asc" } } } as const;
 
@@ -58,11 +78,11 @@ catalogRouter.get(
       include: {
         products: {
           orderBy: { sortOrder: "asc" },
-          include: { variants: true, addons: addonsInclude },
+          include: { variants: true, addons: addonsInclude, ...stockGroupInclude },
         },
       },
     });
-    res.json(categories);
+    res.json(categories.map((c) => ({ ...c, products: c.products.map(withStockGroup) })));
   }),
 );
 
@@ -72,9 +92,9 @@ catalogRouter.get(
     const products = await prisma.product.findMany({
       where: { isNew: true },
       orderBy: { sortOrder: "asc" },
-      include: { variants: true, category: true, addons: addonsInclude },
+      include: { variants: true, category: true, addons: addonsInclude, ...stockGroupInclude },
     });
-    res.json(products);
+    res.json(products.map(withStockGroup));
   }),
 );
 
@@ -87,10 +107,10 @@ catalogRouter.get(
       prisma.product.findMany({
         where: { isSeasonal: true, isCombo: false },
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-        include: { variants: true, category: true, addons: addonsInclude },
+        include: { variants: true, category: true, addons: addonsInclude, ...stockGroupInclude },
       }),
     ]);
-    res.json({ theme: settings.seasonalTheme, products });
+    res.json({ theme: settings.seasonalTheme, products: products.map(withStockGroup) });
   }),
 );
 

@@ -35,6 +35,8 @@ export interface MenuItem {
   /** Replaces discountPercent when this item is preordered. Undefined means preorders get the regular discount. */
   preorderDiscountPercent?: number
   stock?: number
+  /** Shared by a parent product and the dependents drawing on its stock — together they can't exceed that one pool. Absent when standalone. */
+  stockGroupId?: string
   isAvailable: boolean
   allowPreorder: boolean
   /** Weekdays (0=Sunday … 6=Saturday) this item can be preordered for. Empty means every day. */

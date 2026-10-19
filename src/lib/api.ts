@@ -117,6 +117,7 @@ interface ApiProduct {
   discountPercent?: number | null;
   preorderDiscountPercent?: number | null;
   stock?: number | null;
+  stockGroupId?: string | null;
   isAvailable: boolean;
   allowPreorder: boolean;
   preorderWeekdays?: number[];
@@ -170,6 +171,7 @@ function mapProduct(p: ApiProduct, categoryTitle: string): MenuItem {
     discountPercent: p.discountPercent ?? undefined,
     preorderDiscountPercent: p.preorderDiscountPercent ?? undefined,
     stock: p.stock ?? undefined,
+    stockGroupId: p.stockGroupId ?? undefined,
     isAvailable: p.isAvailable,
     allowPreorder: p.allowPreorder,
     preorderWeekdays: p.preorderWeekdays ?? [],
@@ -472,6 +474,10 @@ export interface ApiCartItem {
   image?: string | null;
   quantity: number;
   maxQuantity?: number | null;
+  /** Shared by every product drawing on the same stock pool (a parent and its dependents); null when standalone. */
+  stockGroupId?: string | null;
+  /** The whole pool this line draws on, before other lines' share is subtracted; null means unlimited. */
+  stockPool?: number | null;
   pickupOnly: boolean;
   allowPreorder: boolean;
   /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */

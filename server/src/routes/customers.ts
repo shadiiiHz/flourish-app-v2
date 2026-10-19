@@ -8,6 +8,7 @@ import { parsePagination, paginatedResult } from "../lib/pagination.js";
 import { normalizeAddonIds, resolveItemAddons, type ResolvedAddon } from "../lib/addons.js";
 import { ensureBirthdayMessage } from "../lib/birthdayDiscount.js";
 import { getLoyaltyStatus } from "../lib/loyalty.js";
+import { stockGroupId, stockGroupInclude } from "../lib/stockGroups.js";
 import type { Prisma } from "@prisma/client";
 
 export const customersRouter = Router();
@@ -251,7 +252,7 @@ customersRouter.delete(
 );
 
 const cartItemInclude = {
-  product: { include: { addons: { select: { addonId: true } } } },
+  product: { include: { addons: { select: { addonId: true } }, ...stockGroupInclude } },
   variant: true,
 } satisfies Prisma.CartItemInclude;
 
@@ -264,10 +265,36 @@ function isUnlimitedInPreorder(orderType: z.infer<typeof orderTypeSchema>, allow
   return orderType === "preorder" && allowPreorder;
 }
 
+/**
+ * The stock a cart line draws on: its variant's if it has one, else the product's. Null means unlimited.
+ * Members of a stock group always use the product's own stock (the shared pool) — a dependent's
+ * variants only mirror it, so a stale variant value must never override the pool.
+ */
+function rawStock(item: CartItemWithRelations): number | null {
+  if (stockGroupId(item.product)) return item.product.stock;
+  return item.variant ? item.variant.stock : item.product.stock;
+}
+
+/**
+ * How many units this line may hold. Products linked through a stock group (a parent and its
+ * dependents) share one pool, so the other lines in the same group eat into this line's limit.
+ */
+function remainingForItem(item: CartItemWithRelations, allItems: CartItemWithRelations[]): number | null {
+  const stock = rawStock(item);
+  if (stock == null) return null;
+  const groupId = stockGroupId(item.product);
+  if (!groupId) return stock;
+  const others = allItems
+    .filter((o) => o.id !== item.id && stockGroupId(o.product) === groupId)
+    .reduce((sum, o) => sum + o.quantity, 0);
+  return Math.max(0, stock - others);
+}
+
 function mapCartItem(
   item: CartItemWithRelations,
   addons: ResolvedAddon[],
   orderType: z.infer<typeof orderTypeSchema> = "instant",
+  allItems: CartItemWithRelations[] = [item],
 ) {
   const basePrice = item.variant ? item.variant.price : item.product.price;
   const unlimited = isUnlimitedInPreorder(orderType, item.product.allowPreorder);
@@ -283,7 +310,11 @@ function mapCartItem(
     addonIds: addons.map((addon) => addon.id),
     image: item.variant?.image ?? item.product.images[0],
     quantity: item.quantity,
-    maxQuantity: unlimited ? null : item.variant ? item.variant.stock : item.product.stock,
+    maxQuantity: unlimited ? null : remainingForItem(item, allItems),
+    /** Id shared by every product drawing on the same stock pool, or null when this one stands alone. */
+    stockGroupId: stockGroupId(item.product),
+    /** The whole pool this line draws on (before other lines' share is subtracted); null means unlimited. */
+    stockPool: unlimited ? null : rawStock(item),
     pickupOnly: item.product.pickupOnly,
     allowPreorder: item.product.allowPreorder,
     preorderWeekdays: item.product.preorderWeekdays,
@@ -300,7 +331,7 @@ customersRouter.get(
       orderBy: { createdAt: "asc" },
     });
     const addons = await resolveItemAddons(items);
-    res.json(items.map((item, index) => mapCartItem(item, addons[index], orderType)));
+    res.json(items.map((item, index) => mapCartItem(item, addons[index], orderType, items)));
   }),
 );
 
@@ -326,7 +357,7 @@ customersRouter.post(
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
-      include: { variants: true, addons: { select: { addonId: true } } },
+      include: { variants: true, addons: { select: { addonId: true } }, ...stockGroupInclude },
     });
     if (!product) {
       res.status(404).json({ error: "محصول یافت نشد" });
@@ -343,15 +374,30 @@ customersRouter.post(
       return;
     }
     const unlimited = isUnlimitedInPreorder(orderType, product.allowPreorder);
-    const maxQuantity = unlimited ? null : variant ? variant.stock : product.stock;
+    const groupId = stockGroupId(product);
+    // Members of a stock group draw on the product's pool, not on their (mirrored) variant stock.
+    const pool = unlimited ? null : variant && !groupId ? variant.stock : product.stock;
 
     const item = await prisma.$transaction(async (tx) => {
       // The same product with a different set of addons is a separate cart line.
       const existing = await tx.cartItem.findFirst({
         where: { customerId, productId, variantId: variantId ?? null, addonIds: { equals: addonIds } },
       });
+      // Units of the shared stock pool already held by the customer's other lines in this group.
+      let heldByOthers = 0;
+      if (pool != null && groupId) {
+        const cart = await tx.cartItem.findMany({
+          where: { customerId },
+          select: { id: true, quantity: true, product: { select: { id: true, stockSourceId: true, ...stockGroupInclude } } },
+        });
+        heldByOthers = cart
+          .filter((c) => c.id !== existing?.id && stockGroupId(c.product) === groupId)
+          .reduce((sum, c) => sum + c.quantity, 0);
+      }
+      const maxQuantity = pool == null ? null : Math.max(0, pool - heldByOthers);
       const nextQuantity = (existing?.quantity ?? 0) + quantity;
       const clamped = maxQuantity != null ? Math.min(nextQuantity, maxQuantity) : nextQuantity;
+      if (clamped < 1) return null;
       if (existing) {
         return tx.cartItem.update({
           where: { id: existing.id },
@@ -364,8 +410,14 @@ customersRouter.post(
         include: cartItemInclude,
       });
     });
+    if (!item) {
+      res.status(409).json({ error: "موجودی این محصول به پایان رسیده یا در سبد شما به سقف رسیده است" });
+      return;
+    }
+    // Reload the whole cart: this line's limit depends on its group-mates' quantities.
+    const cart = await prisma.cartItem.findMany({ where: { customerId }, include: cartItemInclude });
     const [addons] = await resolveItemAddons([item]);
-    res.status(201).json(mapCartItem(item, addons, orderType));
+    res.status(201).json(mapCartItem(item, addons, orderType, cart));
   }),
 );
 
@@ -398,19 +450,22 @@ customersRouter.put(
     }
     const { orderType } = parsed.data;
     const unlimited = isUnlimitedInPreorder(orderType, existing.product.allowPreorder);
-    const maxQuantity = unlimited
-      ? null
-      : existing.variant
-        ? existing.variant.stock
-        : existing.product.stock;
+    const cart = await prisma.cartItem.findMany({ where: { customerId }, include: cartItemInclude });
+    const maxQuantity = unlimited ? null : remainingForItem(existing, cart);
     const clamped = maxQuantity != null ? Math.min(parsed.data.quantity, maxQuantity) : parsed.data.quantity;
+    if (clamped < 1) {
+      res.status(409).json({ error: "موجودی این محصول به پایان رسیده یا در سبد شما به سقف رسیده است" });
+      return;
+    }
     const updated = await prisma.cartItem.update({
       where: { id: existing.id },
       data: { quantity: clamped },
       include: cartItemInclude,
     });
     const [addons] = await resolveItemAddons([updated]);
-    res.json(mapCartItem(updated, addons, orderType));
+    res.json(
+      mapCartItem(updated, addons, orderType, cart.map((c) => (c.id === updated.id ? updated : c))),
+    );
   }),
 );
 

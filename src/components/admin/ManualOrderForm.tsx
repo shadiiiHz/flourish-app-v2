@@ -14,6 +14,7 @@ import {
   adminGetCustomerUsableDiscountCodes,
   adminGetCustomers,
   adminGetProducts,
+  adminGetStockCandidates,
   type AdminCreateOrderPayload,
 } from "@/lib/api";
 import type { AdminCustomer, AdminDiscountCode, AdminProduct } from "@/types/admin";
@@ -33,6 +34,8 @@ interface OrderLine {
   preorderUnitPrice: number;
   quantity: number;
   maxStock?: number | null;
+  /** Shared by a parent product and its dependents — together their lines can't exceed the one stock pool. */
+  stockGroupId?: string;
   pickupOnly: boolean;
   /** Set on lines carried over from the order being edited, so saving keeps their recorded price. */
   fixedPrice?: number;
@@ -78,6 +81,24 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
   // can be added, and the order never decrements stock (mirrors how customer
   // preorders already work).
   const [isPreorder, setIsPreorder] = useState(false);
+  // productId -> stock group id, for products linked through a parent/dependent stock relation.
+  const [stockGroups, setStockGroups] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    adminGetStockCandidates()
+      .then((all) =>
+        setStockGroups(
+          new Map(
+            all.flatMap((c): [string, string][] => {
+              const groupId = c.stockSourceId ?? (c.dependentCount > 0 ? c.id : null);
+              return groupId ? [[c.id, groupId]] : [];
+            }),
+          ),
+        ),
+      )
+      .catch(() => {
+        // Without it the server still enforces the shared stock when the order is saved.
+      });
+  }, []);
 
   const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("pickup");
   const [addressId, setAddressId] = useState("");
@@ -275,16 +296,36 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
   const unitPriceOf = (line: OrderLine) =>
     line.fixedPrice ?? (isPreorder ? line.preorderUnitPrice : line.instantUnitPrice);
 
+  /** The stock a product/variant draws on. A stock-group member always uses the product's own (shared pool) stock. */
+  const stockOf = (product: AdminProduct, variant?: AdminProduct["variants"][number]) =>
+    variant && !stockGroups.has(product.id) ? variant.stock : product.stock;
+
+  /** Units already placed on lines of the given stock group (or just the one line when it has no group). */
+  const heldInGroup = (lines: OrderLine[], groupId: string | undefined, key: string) =>
+    lines
+      .filter((i) => (groupId ? i.stockGroupId === groupId : i.key === key))
+      .reduce((sum, i) => sum + i.quantity, 0);
+
+  const isSoldOut = (product: AdminProduct, variant?: AdminProduct["variants"][number]) => {
+    const stock = stockOf(product, variant);
+    if (stock == null) return false;
+    const key = variant ? `${product.id}:${variant.id}` : product.id;
+    return stock <= 0 || heldInGroup(items, stockGroups.get(product.id), key) >= stock;
+  };
+
   const addLine = (product: AdminProduct, variant?: AdminProduct["variants"][number]) => {
     const key = variant ? `${product.id}:${variant.id}` : product.id;
-    const maxStock = variant ? variant.stock : product.stock;
+    const maxStock = stockOf(product, variant);
+    const stockGroupId = stockGroups.get(product.id);
     if (!isPreorder && maxStock != null && maxStock <= 0) return;
     setItems((prev) => {
       const existing = prev.find((i) => i.key === key);
       if (existing) {
-        if (!isPreorder && maxStock != null && existing.quantity >= maxStock) return prev;
+        if (!isPreorder && maxStock != null && heldInGroup(prev, stockGroupId, key) >= maxStock) return prev;
         return prev.map((i) => (i.key === key ? { ...i, quantity: i.quantity + 1 } : i));
       }
+      // A new line joins a group that may already be using up the shared pool.
+      if (!isPreorder && maxStock != null && heldInGroup(prev, stockGroupId, key) >= maxStock) return prev;
       const basePrice = variant ? variant.price : product.price;
       return [
         ...prev,
@@ -298,6 +339,7 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
           preorderUnitPrice: getDiscountedPrice(basePrice, discountPercentFor(product, true)),
           quantity: 1,
           maxStock,
+          stockGroupId,
           pickupOnly: product.pickupOnly,
         },
       ];
@@ -306,12 +348,18 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
     setProductResults([]);
   };
 
+  /** True when the line can't take one more unit: its own stock, or its whole stock group's, is used up. */
+  const lineAtMax = (lines: OrderLine[], line: OrderLine) =>
+    !isPreorder &&
+    line.maxStock != null &&
+    heldInGroup(lines, line.stockGroupId, line.key) >= line.maxStock;
+
   const updateQuantity = (key: string, delta: number) => {
     setItems((prev) =>
       prev
         .map((i) => {
           if (i.key !== key) return i;
-          if (!isPreorder && delta > 0 && i.maxStock != null && i.quantity >= i.maxStock) return i;
+          if (delta > 0 && lineAtMax(prev, i)) return i;
           return { ...i, quantity: i.quantity + delta };
         })
         .filter((i) => i.quantity > 0),
@@ -618,7 +666,7 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
                         key={`${product.id}:${variant.id}`}
                         type="button"
                         onClick={() => addLine(product, variant)}
-                        disabled={!isPreorder && variant.stock === 0}
+                        disabled={!isPreorder && isSoldOut(product, variant)}
                         className="flex items-center justify-between rounded-xl border border-cocoa-900/10 px-3 py-2 text-right text-sm hover:bg-sand-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                       >
                         <span>
@@ -640,7 +688,7 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
                       key={product.id}
                       type="button"
                       onClick={() => addLine(product)}
-                      disabled={!isPreorder && product.stock === 0}
+                      disabled={!isPreorder && isSoldOut(product)}
                       className="flex items-center justify-between rounded-xl border border-cocoa-900/10 px-3 py-2 text-right text-sm hover:bg-sand-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                     >
                       <span>
@@ -689,7 +737,7 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
                   <button
                     type="button"
                     onClick={() => updateQuantity(item.key, 1)}
-                    disabled={!isPreorder && item.maxStock != null && item.quantity >= item.maxStock}
+                    disabled={lineAtMax(items, item)}
                     className="flex h-7 w-7 items-center justify-center rounded-full border border-cocoa-900/10 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                   >
                     <Plus className="h-3 w-3" />

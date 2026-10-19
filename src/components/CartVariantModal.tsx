@@ -23,7 +23,7 @@ function CartVariantModal({
   categoryTitle?: string;
   onClose: () => void;
 }) {
-  const { lines, getQuantity, addToCart, setQuantity, lineKeyFor, totalCount, openCart } = useCart();
+  const { lines, getQuantity, addToCart, setQuantity, lineKeyFor, totalCount, openCart, isGroupAtMax } = useCart();
   const { orderType, preorder } = useOrderType();
   const variants = item.variants ?? [];
   const discountPercent = getEffectiveDiscountPercent(item, orderType);
@@ -137,7 +137,9 @@ function CartVariantModal({
               ? getDiscountedPrice(variant.price, discountPercent)
               : variant.price;
             const outOfStock = !unlimitedPreorder && variant.stock === 0;
-            const atMax = !unlimitedPreorder && variant.stock !== undefined && quantity >= variant.stock;
+            const atMax =
+              !unlimitedPreorder &&
+              ((variant.stock !== undefined && quantity >= variant.stock) || isGroupAtMax(item));
             const variantDescription = variant.description || item.description;
 
             return (
