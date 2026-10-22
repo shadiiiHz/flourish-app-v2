@@ -36,6 +36,14 @@ async function consumeCashbackLots(
   }
 }
 
+/** Cashback from this order's open grants that is still sitting unspent in the customer's wallet. */
+export async function getOutstandingOrderCashback(orderId: string): Promise<number> {
+  const lots = await prisma.walletTransaction.findMany({
+    where: { orderId, type: "cashback", reversedAt: null },
+  });
+  return lots.reduce((sum, l) => sum + Math.max(0, l.remainingAmount ?? 0), 0);
+}
+
 /** Debits the customer's wallet by `amount` and records the redemption, right when an order is created. */
 export async function redeemWallet(customerId: string, amount: number, orderId: string) {
   await prisma.$transaction(async (tx) => {
@@ -97,7 +105,7 @@ export async function refundWalletHold(
  * recycled into more cashback on money that was itself a reward. Safe to
  * call more than once — only the first call (per delivery) actually credits.
  */
-export async function creditWalletCashback(orderId: string) {
+export async function creditWalletCashback(orderId: string, alreadyPaid = 0) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !order.customerId) return;
   if (order.paymentStatus !== "paid") return;
@@ -110,7 +118,8 @@ export async function creditWalletCashback(orderId: string) {
   const percent = tierForPoints(points, tiers).cashbackPercent;
   if (percent <= 0) return;
   const netSubtotal = Math.max(0, order.subtotal - order.walletAmountUsed);
-  const cashback = Math.floor((netSubtotal * percent) / 100);
+  // alreadyPaid: cashback from a previous version of this order that the customer already spent.
+  const cashback = Math.floor((netSubtotal * percent) / 100) - alreadyPaid;
   if (cashback <= 0) return;
   await prisma.$transaction(async (tx) => {
     // Claim the credit atomically: only proceeds if no cashback is outstanding yet, so
@@ -146,7 +155,10 @@ export async function creditWalletCashback(orderId: string) {
  * gone, not still sitting in the wallet, so clawing back the full original
  * amount would over-deduct. No-op if no cashback was credited.
  */
-export async function reverseWalletCashback(orderId: string) {
+export async function reverseWalletCashback(
+  orderId: string,
+  note = "لغو پاداش خرید به دلیل لغو سفارش",
+): Promise<void> {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !order.customerId || order.walletCashbackAmount <= 0) return;
   await prisma.$transaction(async (tx) => {
@@ -156,20 +168,21 @@ export async function reverseWalletCashback(orderId: string) {
     });
     if (claimedOrder.count === 0) return;
 
-    const lot = await tx.walletTransaction.findFirst({
-      where: { orderId: order.id, type: "cashback" },
+    // An edited order accumulates several grants over time (earlier ones already
+    // settled), so close out every still-open one, not just the first row found.
+    const lots = await tx.walletTransaction.findMany({
+      where: { orderId: order.id, type: "cashback", reversedAt: null },
     });
-    // The grant is being closed out now either way — settle it so
-    // expireStaleWalletCashback and the admin UI both leave it alone from
-    // here on, regardless of how much (if any) is actually clawed back below.
-    if (lot) {
-      await tx.walletTransaction.update({
-        where: { id: lot.id },
+    // Settle them now either way, so expireStaleWalletCashback and the admin UI
+    // leave them alone from here on, regardless of how much is actually clawed back.
+    if (lots.length > 0) {
+      await tx.walletTransaction.updateMany({
+        where: { id: { in: lots.map((l) => l.id) } },
         data: { remainingAmount: 0, reversedAt: new Date() },
       });
     }
 
-    const reversedAmount = lot?.remainingAmount ?? 0;
+    const reversedAmount = lots.reduce((sum, l) => sum + (l.remainingAmount ?? 0), 0);
     if (reversedAmount <= 0) return;
 
     const customer = await tx.customer.update({
@@ -183,10 +196,24 @@ export async function reverseWalletCashback(orderId: string) {
         type: "cashback_reversal",
         amount: -reversedAmount,
         balanceAfter: customer.walletBalance,
-        note: "لغو پاداش خرید به دلیل لغو سفارش",
+        note,
       },
     });
   });
+}
+
+/**
+ * Net cashback this order has put into the customer's wallet over its whole
+ * history (grants minus reversals/expiries). After reverseWalletCashback this
+ * is the part the customer already spent, which stays with them; an order edit
+ * must net it off the re-credit so that part isn't granted twice — even across
+ * several edits, when no open grant remains to remember it.
+ */
+export async function getRetainedOrderCashback(orderId: string): Promise<number> {
+  const txs = await prisma.walletTransaction.findMany({
+    where: { orderId, type: { in: ["cashback", "cashback_reversal", "cashback_expired"] } },
+  });
+  return Math.max(0, txs.reduce((sum, t) => sum + t.amount, 0));
 }
 
 /**

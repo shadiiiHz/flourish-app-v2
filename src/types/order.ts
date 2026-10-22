@@ -70,6 +70,8 @@ export interface Order {
   paymentStatus: PaymentStatus;
   paymentRefId?: string | null;
   walletAmountUsed: number;
+  /** Admin order GET only: this order's own cashback still unspent in the wallet. */
+  walletCashbackRemaining?: number;
   walletCashbackAmount: number;
   items: OrderItem[];
   createdAt: string;

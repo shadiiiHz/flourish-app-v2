@@ -117,6 +117,8 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
   // Wallet money this order already holds — it is refunded when the edit is saved,
   // so it counts as available again while editing.
   const [heldWallet, setHeldWallet] = useState(0);
+  // This order's own unspent cashback — clawed back on save, so it isn't spendable here.
+  const [heldCashback, setHeldCashback] = useState(0);
 
   useEffect(() => {
     if (!orderId) return;
@@ -142,6 +144,7 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
         setSelectedCustomer(customer);
         setCustomerDetail(customer);
         setHeldWallet(order.walletAmountUsed);
+        setHeldCashback(order.walletCashbackRemaining ?? 0);
 
         const preorder = order.orderType === "preorder";
         setIsPreorder(preorder);
@@ -215,7 +218,7 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
     };
   }, [selectedCustomerId]);
 
-  const walletBalance = customerDetail ? customerDetail.walletBalance + heldWallet : 0;
+  const walletBalance = customerDetail ? Math.max(0, customerDetail.walletBalance + heldWallet - heldCashback) : 0;
 
   useEffect(() => {
     if (!customerSearch.trim()) {

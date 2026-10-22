@@ -5,6 +5,8 @@ import { asyncHandler } from "../../lib/asyncHandler.js";
 import { parsePagination, parseSearch, paginatedResult } from "../../lib/pagination.js";
 import {
   creditWalletCashback,
+  getOutstandingOrderCashback,
+  getRetainedOrderCashback,
   redeemWallet,
   refundWalletHold,
   reverseWalletCashback,
@@ -221,6 +223,7 @@ class DraftError extends Error {
 async function buildOrderDraft(
   data: CreateOrderInput,
   existing?: {
+    id?: string;
     discountCode: string | null;
     walletAmountUsed: number;
     /** The order being replaced: the stock it holds returns to the pool, so it counts as available to the new version. */
@@ -385,7 +388,14 @@ async function buildOrderDraft(
 
   let walletAmountUsed = 0;
   if (walletAmount && walletAmount > 0) {
-    const availableWallet = customer.walletBalance + (existing?.walletAmountUsed ?? 0);
+    // While editing, this order's own held wallet money comes back and its own
+    // still-unspent cashback goes away, so the "previous state" balance is neither.
+    const availableWallet = Math.max(
+      0,
+      customer.walletBalance +
+        (existing?.walletAmountUsed ?? 0) -
+        (existing?.id ? await getOutstandingOrderCashback(existing.id) : 0),
+    );
     walletAmountUsed = Math.min(walletAmount, availableWallet, total);
   }
 
@@ -495,7 +505,7 @@ adminOrdersRouter.get(
       res.status(404).json({ error: "سفارش یافت نشد" });
       return;
     }
-    res.json(order);
+    res.json({ ...order, walletCashbackRemaining: await getOutstandingOrderCashback(order.id) });
   }),
 );
 
@@ -552,7 +562,8 @@ adminOrdersRouter.put(
     const customerId = customer.id;
 
     // Roll back what the old version of the order did.
-    await reverseWalletCashback(existing.id);
+    await reverseWalletCashback(existing.id, "بازگشت پاداش خرید به دلیل ویرایش سفارش");
+    const keptByCustomer = await getRetainedOrderCashback(existing.id);
     await refundWalletHold(existing.id, "بازگشت وجه کیف پول به دلیل ویرایش سفارش");
     await restockItems(existing.items);
     if (existing.discountCode && existing.discountCode !== appliedDiscount?.code) {
@@ -591,7 +602,7 @@ adminOrdersRouter.put(
       await decrementStockForItems(order.items);
     }
     if (order.status === "delivered") {
-      await creditWalletCashback(order.id);
+      await creditWalletCashback(order.id, keptByCustomer);
     }
     await notifyLoyaltyUpgrade(order.customerId);
 
