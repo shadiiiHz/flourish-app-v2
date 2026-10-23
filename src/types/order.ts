@@ -82,9 +82,11 @@ export type WalletTransactionType =
   | "redeem"
   | "refund"
   | "cashback_reversal"
-  | "cashback_expired";
+  | "cashback_expired"
+  | "admin_deduction";
 
 export const WALLET_TRANSACTION_TYPE_LABELS: Record<WalletTransactionType, string> = {
+  admin_deduction: "کسر بابت اصلاح خطای سیستمی",
   cashback: "پاداش خرید",
   redeem: "استفاده در سفارش",
   refund: "بازگشت وجه",

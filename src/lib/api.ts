@@ -1224,6 +1224,13 @@ export function adminUpdateLoyaltyTiers(
   });
 }
 
+export function adminDeductCustomerWallet(customerId: string, amount: number) {
+  return apiFetch<{ walletBalance: number }>(`/api/admin/wallet/customers/${customerId}/deduct`, {
+    method: "POST",
+    body: JSON.stringify({ amount }),
+  });
+}
+
 export function adminGetCustomerWalletTransactions(customerId: string, page = 1, pageSize = 20) {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   return apiFetch<Paginated<AdminWalletTransaction>>(

@@ -9,6 +9,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import {
   ApiError,
+  adminDeductCustomerWallet,
   adminGetCustomerWalletTransactions,
   adminGetLoyaltyTiers,
   adminGetWalletCustomers,
@@ -21,7 +22,7 @@ import {
   type QueryType,
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
-import { digitsOnly } from "@/lib/formatNumber";
+import { digitsOnly, formatThousands } from "@/lib/formatNumber";
 import {
   WALLET_TRANSACTION_TYPE_LABELS,
   type AdminCustomer,
@@ -250,6 +251,162 @@ function LoyaltyTiersForm() {
   );
 }
 
+const customerLabel = (c: AdminCustomer) =>
+  `${[c.firstName, c.lastName].filter(Boolean).join(" ") || "بدون نام"} — ${c.phone}`;
+
+/** Admin picks a customer and an amount (capped at their balance) to deduct from their wallet. */
+function DeductWalletForm({ onDone }: { onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<AdminCustomer[]>([]);
+  const [selected, setSelected] = useState<AdminCustomer | null>(null);
+  const [amount, setAmount] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !listOpen || selected) return;
+    const timer = window.setTimeout(() => {
+      adminGetWalletCustomers(1, 8, query.trim())
+        .then((res) => setResults(res.items))
+        .catch(() => setResults([]));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [open, listOpen, query, selected]);
+
+  const value = Number(amount) || 0;
+  const overBalance = !!selected && value > selected.walletBalance;
+  const canSubmit = !!selected && value > 0 && !overBalance && !saving;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected || !canSubmit) return;
+    setError(null);
+    setSuccess(null);
+    setSaving(true);
+    try {
+      const res = await adminDeductCustomerWallet(selected.id, value);
+      setSuccess(
+        `${value.toLocaleString("fa-IR")} تومان کسر شد. موجودی جدید: ${res.walletBalance.toLocaleString("fa-IR")} تومان`,
+      );
+      setSelected(null);
+      setQuery("");
+      setAmount("");
+      onDone();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "خطا در کسر مبلغ");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-3xl rounded-[1.5rem] border border-sand-100 bg-white p-5"
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 text-sm font-bold text-cocoa-900"
+      >
+        <span className="flex items-center gap-2">
+          <WalletIcon className="h-4.5 w-4.5 text-sand-500" />
+          کسر دستی از کیف پول مشتری
+        </span>
+        <ChevronDown
+          className={`h-4.5 w-4.5 text-sand-500 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end">
+          <div className="relative">
+            <label className="mb-1 block text-xs font-semibold text-cocoa-600">مشتری</label>
+            <input
+              type="text"
+              placeholder="جستجو با نام یا شماره موبایل"
+              value={selected ? customerLabel(selected) : query}
+              onFocus={() => setListOpen(true)}
+              onBlur={() => setListOpen(false)}
+              onChange={(e) => {
+                setListOpen(true);
+                setSelected(null);
+                setSuccess(null);
+                setQuery(e.target.value);
+              }}
+              className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+            />
+            {listOpen && !selected && results.length > 0 && (
+              <ul className="absolute inset-x-0 top-full z-10 mt-1 max-h-60 overflow-y-auto rounded-xl border border-sand-100 bg-white shadow-lg">
+                {results.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSelected(c);
+                        setSuccess(null);
+                        setError(null);
+                      }}
+                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start text-xs hover:bg-sand-50"
+                    >
+                      <span className="text-cocoa-900">{customerLabel(c)}</span>
+                      <span className="shrink-0 font-bold text-sand-500">
+                        {c.walletBalance.toLocaleString("fa-IR")} تومان
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+              مبلغ کسر (تومان)
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              dir="ltr"
+              value={formatThousands(amount)}
+              disabled={!selected}
+              onChange={(e) => {
+                setSuccess(null);
+                setAmount(digitsOnly(e.target.value));
+              }}
+              className="w-full rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400 disabled:opacity-60"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+          >
+            {saving ? "در حال اعمال…" : "اعمال"}
+          </button>
+          <div className="sm:col-span-3">
+            {selected && (
+              <p className="text-xs text-cocoa-500">
+                موجودی کیف پول: {selected.walletBalance.toLocaleString("fa-IR")} تومان
+              </p>
+            )}
+            {overBalance && (
+              <p className="mt-1 text-xs font-semibold text-danger-500">
+                مبلغ نمی‌تواند از موجودی کیف پول مشتری بیشتر باشد
+              </p>
+            )}
+            {error && <p className="mt-1 text-xs font-semibold text-danger-500">{error}</p>}
+            {success && <p className="mt-1 text-xs font-semibold text-sand-500">{success}</p>}
+          </div>
+        </div>
+      )}
+    </form>
+  );
+}
+
 function AdminWalletPage() {
   const router = useRouter();
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
@@ -388,6 +545,9 @@ function AdminWalletPage() {
 
       <div className="mt-4">
         <LoyaltyTiersForm />
+      </div>
+      <div className="mt-3">
+        <DeductWalletForm onDone={load} />
       </div>
 
       <h2 className="mt-6 text-sm font-bold text-cocoa-900">موجودی مشتریان</h2>

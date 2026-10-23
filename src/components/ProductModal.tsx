@@ -188,14 +188,15 @@ function ProductModal({
                   </span>
                 )}
                 <span className="text-lg font-bold text-sand-400">
-                  {!wrongPreorderDay && !unlimitedPreorder && (!item.isAvailable || outOfStock)
-                    ? "ناموجود"
-                    : notPreorderable && !wrongPreorderDay
-                      ? "غیرقابل پیش‌سفارش"
-                      : item.price > 0
-                        ? `${finalPrice.toLocaleString("fa-IR")} تومان`
-                        : "به‌زودی"}
+                  {item.price > 0 ? `${finalPrice.toLocaleString("fa-IR")} تومان` : "به‌زودی"}
                 </span>
+                {!wrongPreorderDay && !unlimitedPreorder && (!item.isAvailable || outOfStock) ? (
+                  <span className="whitespace-nowrap text-xs text-cocoa-500">(ناموجود)</span>
+                ) : notPreorderable && !wrongPreorderDay ? (
+                  <span className="whitespace-nowrap text-xs text-cocoa-500">
+                    (غیرقابل پیش‌سفارش)
+                  </span>
+                ) : null}
               </div>
               {wrongPreorderDay && (
                 <span className="mt-0.5 text-[11px] text-cocoa-500">

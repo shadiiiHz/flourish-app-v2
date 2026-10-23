@@ -53,6 +53,7 @@ enum WalletTransactionType {
   refund
   cashback_reversal
   cashback_expired
+  admin_deduction
 }
 
 model HeroSlide {

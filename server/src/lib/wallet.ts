@@ -44,6 +44,36 @@ export async function getOutstandingOrderCashback(orderId: string): Promise<numb
   return lots.reduce((sum, l) => sum + Math.max(0, l.remainingAmount ?? 0), 0);
 }
 
+/**
+ * Manual admin debit of a customer's wallet. Returns the new balance, or null when `amount`
+ * exceeds the balance (checked atomically with the debit, so concurrent spends can't overdraw).
+ */
+export async function adminDeductWallet(
+  customerId: string,
+  amount: number,
+  note: string,
+): Promise<number | null> {
+  return prisma.$transaction(async (tx) => {
+    const debited = await tx.customer.updateMany({
+      where: { id: customerId, walletBalance: { gte: amount } },
+      data: { walletBalance: { decrement: amount } },
+    });
+    if (debited.count === 0) return null;
+    const customer = await tx.customer.findUniqueOrThrow({ where: { id: customerId } });
+    await tx.walletTransaction.create({
+      data: {
+        customerId,
+        type: "admin_deduction",
+        amount: -amount,
+        balanceAfter: customer.walletBalance,
+        note,
+      },
+    });
+    await consumeCashbackLots(tx, customerId, amount);
+    return customer.walletBalance;
+  });
+}
+
 /** Debits the customer's wallet by `amount` and records the redemption, right when an order is created. */
 export async function redeemWallet(customerId: string, amount: number, orderId: string) {
   await prisma.$transaction(async (tx) => {
