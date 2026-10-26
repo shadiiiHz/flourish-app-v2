@@ -2,11 +2,12 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 import type { SVGProps } from "react";
 import { siteConfig } from "../config/siteConfig";
 
-const { phone, whatsapp, email, address, instagram } = siteConfig.contact;
+const { phone, whatsapp, email, address, postalCode, instagram } = siteConfig.contact;
 
 const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
 const toPersianDigits = (value: string) =>
@@ -155,6 +156,7 @@ function Footer() {
                   </span>
                   <span className="max-w-80 leading-6 md:text-right">
                     {address}
+                    <span className="block">کد پستی: {toPersianDigits(postalCode)}</span>
                   </span>
                 </li>
               </ul>
@@ -163,10 +165,20 @@ function Footer() {
 
           <div className="border-t border-white/50 px-6 py-5 sm:px-10">
             <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-              <p className="text-center text-xs text-cocoa-500 sm:text-right sm:text-sm">
-                تمامی حقوق مادی و معنوی، متعلق به بوتیک نان و شیرینی فلوریش است. ©{" "}
-                {currentPersianYear}
-              </p>
+              <div className="flex flex-col items-center gap-2 sm:items-start">
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-bold text-cocoa-700 transition-colors hover:text-sand-500"
+                >
+                  قوانین و مقررات
+                </Link>
+                <p className="text-center text-xs text-cocoa-500 sm:text-right sm:text-sm">
+                  تمامی حقوق مادی و معنوی، متعلق به بوتیک نان و شیرینی فلوریش است. ©{" "}
+                  {currentPersianYear}
+                </p>
+              </div>
               <a
                 referrerPolicy="origin"
                 target="_blank"

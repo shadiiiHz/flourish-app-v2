@@ -261,6 +261,9 @@ function CategoryMenuView({
                   <p className="mt-1 text-sm leading-7 text-cocoa-600">
                     {siteConfig.contact.address}
                   </p>
+                  <p className="mt-1 text-sm text-cocoa-600">
+                    کد پستی: {toPersianDigits(siteConfig.contact.postalCode)}
+                  </p>
                   <a
                     href={siteConfig.contact.mapUrl}
                     target="_blank"
