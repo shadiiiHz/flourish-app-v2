@@ -9,6 +9,7 @@ import {
   Clock,
   Flower2,
   ImagePlus,
+  Ghost,
   KeyRound,
   Store,
   Trash2,
@@ -137,6 +138,7 @@ function AdminSettingsPage() {
         });
         setMenuBannerImage(s.menuBannerImage);
         setSeasonalTheme(s.seasonalTheme ?? "spring");
+        setHalloweenMode(s.halloweenMode ?? false);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -182,6 +184,26 @@ function AdminSettingsPage() {
       setThemeError(err instanceof ApiError ? err.message : "خطا در ذخیره‌سازی");
     } finally {
       setThemeSaving(false);
+    }
+  };
+
+  const [halloweenMode, setHalloweenMode] = useState(false);
+  const [halloweenSaving, setHalloweenSaving] = useState(false);
+  const [halloweenError, setHalloweenError] = useState<string | null>(null);
+
+  const handleHalloweenToggle = async () => {
+    if (halloweenSaving) return;
+    const previous = halloweenMode;
+    setHalloweenError(null);
+    setHalloweenSaving(true);
+    setHalloweenMode(!previous);
+    try {
+      await adminUpdateSettings({ halloweenMode: !previous });
+    } catch (err) {
+      setHalloweenMode(previous);
+      setHalloweenError(err instanceof ApiError ? err.message : "خطا در ذخیره‌سازی");
+    } finally {
+      setHalloweenSaving(false);
     }
   };
 
@@ -596,6 +618,32 @@ function AdminSettingsPage() {
           {passwordFormik.isSubmitting ? "در حال تغییر…" : "تغییر رمز عبور"}
         </button>
       </form>
+
+      <div className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
+          <Ghost className="h-4.5 w-4.5 text-sand-500" />
+          تزئینات هالووین
+        </h2>
+        <p className="mt-1 text-xs text-cocoa-500">
+          با روشن بودن این گزینه، تصاویر و انیمیشن‌های هالووین (روح، گارلند، گربه، کدوها و …) در سایت نمایش داده
+          می‌شوند. با خاموش کردن آن، سایت بلافاصله به ظاهر عادی خودش برمی‌گردد و هر وقت خواستید می‌توانید دوباره روشنش کنید.
+        </p>
+        {loading ? (
+          <p className="mt-4 text-sm text-cocoa-500">در حال بارگذاری…</p>
+        ) : (
+          <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+            <input
+              type="checkbox"
+              checked={halloweenMode}
+              onChange={handleHalloweenToggle}
+              disabled={halloweenSaving}
+              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+            />
+            نمایش تزئینات هالووین
+          </label>
+        )}
+        {halloweenError && <p className="mt-3 text-xs font-semibold text-danger-500">{halloweenError}</p>}
+      </div>
 
       <div className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">

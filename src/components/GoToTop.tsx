@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useSiteStatus } from "@/context/SiteStatusContext";
 
 function GoToTop() {
+  const { halloweenMode } = useSiteStatus();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -30,10 +32,10 @@ function GoToTop() {
           whileHover={{ scale: 1.06, y: -2 }}
           whileTap={{ scale: 0.94 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="fixed z-50 flex items-center justify-center  sm:bottom-8 sm:inset-s-4 sm:h-10 sm:w-10"
+          className={`fixed z-50 flex items-center justify-center  sm:bottom-8 sm:inset-s-4 ${halloweenMode ? "sm:h-20 sm:w-20" : "sm:h-10 sm:w-10"}`}
         >
           <motion.img
-            src="/assets/go-to-top.svg"
+            src={halloweenMode ? "/assets/halloween/pumpkin-stack.svg" : "/assets/go-to-top.svg"}
             alt=""
             aria-hidden="true"
             className="h-full w-full select-none"

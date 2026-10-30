@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { CalendarClock, Clock, MapPin, Phone, Wallet } from "lucide-react";
 import { siteConfig, type Category, type CategoryTab, type CategoryTabId } from "@/config/siteConfig";
 import ProductCard from "@/components/ProductCard";
+import { useSiteStatus } from "@/context/SiteStatusContext";
 import { useOrderType } from "@/context/OrderTypeContext";
 import { formatPreorderDateWithWeekday } from "@/lib/preorder";
 
@@ -28,6 +29,7 @@ function CategoryMenuView({
   bannerImage,
 }: CategoryMenuViewProps) {
   const { orderType, preorder, openModal } = useOrderType();
+  const { halloweenMode } = useSiteStatus();
   const hasPreorder = orderType === "preorder" && !!preorder;
   const flatCategories = useMemo(
     () =>
@@ -388,8 +390,19 @@ function CategoryMenuView({
           </div>
 
           <div className="mx-auto max-w-6xl px-3 pb-16 sm:px-6">
-            {tabs.map(({ id: tabId, label }) => (
-              <section key={tabId} className="pt-10">
+            {tabs.map(({ id: tabId, label }, tabIndex) => (
+              <section key={tabId} className="relative pt-10">
+                {halloweenMode && tabIndex === 0 && (
+                  <motion.img
+                    src="/assets/halloween/ghost-with-bats.svg"
+                    alt=""
+                    aria-hidden
+                    draggable={false}
+                    animate={{ y: [0, -8, 0], rotate: [-2, 2, -2] }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                    className="pointer-events-none absolute left-2 top-10 z-10 w-24 select-none md:left-4 md:-top-2 md:w-44"
+                  />
+                )}
                 <h2 className="mb-6 font-display text-xl font-bold text-cocoa-900 sm:text-2xl">
                   {label}
                 </h2>

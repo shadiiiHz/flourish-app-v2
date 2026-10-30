@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 import type { SVGProps } from "react";
+import { useSiteStatus } from "@/context/SiteStatusContext";
 import { siteConfig } from "../config/siteConfig";
 
 const { phone, whatsapp, email, address, postalCode, instagram } = siteConfig.contact;
@@ -34,6 +35,7 @@ function WhatsappIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 function Footer() {
+  const { halloweenMode } = useSiteStatus();
   return (
     <footer className="relative px-3 pb-6 pt-20 sm:px-6 sm:pb-10 sm:pt-28">
       <div className="relative mx-auto max-w-6xl">
@@ -42,16 +44,20 @@ function Footer() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="pointer-events-none absolute z-50 -left-14 -top-10 hidden select-none sm:block sm:h-40 sm:w-40"
+          className={
+            halloweenMode
+              ? "pointer-events-none absolute bottom-[calc(100%-2px)] left-4 z-50 h-20 w-20 select-none sm:left-10 sm:h-40 sm:w-40"
+              : "pointer-events-none absolute z-50 -left-14 -top-10 hidden select-none sm:block sm:h-40 sm:w-40"
+          }
         >
           <motion.img
-            src="/assets/croissant.png"
+            src={halloweenMode ? "/assets/halloween/witch-hat-pumpkin.svg" : "/assets/croissant.png"}
             alt=""
             aria-hidden="true"
             className="h-full w-full select-none"
             animate={{
               y: [0, -6, 0],
-              rotate: [-16, -13, -16],
+              rotate: halloweenMode ? [-2, 2, -2] : [-16, -13, -16],
             }}
             transition={{
               duration: 8,

@@ -340,6 +340,10 @@ model Settings {
    * Which of the four seasonal designs (spring | summer | autumn | winter) the homepage seasonal section uses.
    */
   seasonalTheme         String   @default("spring")
+  /**
+   * Temporary Halloween decorations (ghost, garland, cat, pumpkins, …) across the storefront. The admin can switch them off to restore the regular look.
+   */
+  halloweenMode         Boolean  @default(true)
   updatedAt             DateTime @updatedAt
 }
 

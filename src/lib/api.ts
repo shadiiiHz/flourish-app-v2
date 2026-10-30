@@ -948,6 +948,7 @@ export async function getSiteStatus(): Promise<{
   businessHoursEnd: string;
   walletCashbackPercent: number;
   menuBannerImage: string;
+  halloweenMode: boolean;
 }> {
   try {
     // An operational toggle — never served stale from the SSR data cache;
@@ -960,6 +961,7 @@ export async function getSiteStatus(): Promise<{
       businessHoursEnd: string;
       walletCashbackPercent: number;
       menuBannerImage: string | null;
+      halloweenMode: boolean;
     }>("/api/settings/status", { next: { revalidate: 0 } });
     return {
       siteClosed: data.siteClosed,
@@ -971,6 +973,7 @@ export async function getSiteStatus(): Promise<{
       menuBannerImage: data.menuBannerImage
         ? apiUploadUrl(data.menuBannerImage)
         : DEFAULT_MENU_BANNER_IMAGE,
+      halloweenMode: data.halloweenMode === true,
     };
   } catch {
     return {
@@ -981,6 +984,7 @@ export async function getSiteStatus(): Promise<{
       businessHoursEnd: "22:30",
       walletCashbackPercent: 0,
       menuBannerImage: DEFAULT_MENU_BANNER_IMAGE,
+      halloweenMode: false,
     };
   }
 }
@@ -999,6 +1003,7 @@ export interface AdminSettings {
   businessHoursEnd: string;
   menuBannerImage: string | null;
   seasonalTheme: SeasonalThemeId;
+  halloweenMode: boolean;
 }
 
 export function adminGetSettings() {

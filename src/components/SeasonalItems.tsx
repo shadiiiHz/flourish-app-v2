@@ -7,6 +7,8 @@ import ProductCard from "./ProductCard";
 import { SEASONAL_THEMES } from "../config/seasonalThemes";
 import type { SeasonalThemeId } from "../lib/api";
 import Image from "next/image";
+import { useSiteStatus } from "@/context/SiteStatusContext";
+import { motion } from "framer-motion";
 
 interface SeasonalItemsProps {
   items: MenuItem[];
@@ -28,6 +30,7 @@ function SeasonalArt({ season, file, ...props }: { season: SeasonalThemeId; file
 }
 
 function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
+  const { halloweenMode } = useSiteStatus();
   const trackRef = useRef<HTMLDivElement>(null);
   const [sliderState, setSliderState] = useState({
     overflowing: false,
@@ -92,6 +95,25 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
           boxShadow: theme.panelShadow,
         }}
       >
+        {halloweenMode && (
+<div className="pointer-events-none absolute left-1/2 top-0 z-20 hidden w-36 -translate-x-1/2 -translate-y-[16%] sm:block md:w-40">
+          <motion.div
+            animate={{ rotateX: [0, 28, -8, 20, -4, 0], scaleY: [1, 0.94, 1.02, 0.96, 1, 1] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            style={{ transformOrigin: "50% 16%", transformPerspective: 600 }}
+          >
+            <Image
+              src="/assets/halloween/garland.svg"
+              alt=""
+              width={256}
+              height={256}
+              className="h-auto w-full"
+            />
+          </motion.div>
+        </div>
+)}
+
+        {!halloweenMode && (
         <span className="pointer-events-none absolute top-0 left-0 z-20 flex h-25 w-25 shrink-0 items-start justify-center overflow-hidden md:-top-8 md:h-64 md:w-64">
           <SeasonalArt
             season={themeId}
@@ -101,8 +123,19 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
             className="h-full w-full object-contain"
           />
         </span>
+        )}
 
         <div className="mb-6 flex items-center gap-3 sm:mb-8">
+          {halloweenMode && (
+<Image
+            src="/assets/halloween/candles.svg"
+            alt=""
+            width={80}
+            height={80}
+            className="h-12 w-12 shrink-0 object-contain md:h-20 md:w-20"
+          />
+)}
+          {!halloweenMode && (
           <span className="flex h-10 w-10 md:h-18 md:w-18 items-center justify-center shrink-0 overflow-hidden bg-transparent">
             <SeasonalArt
               season={themeId}
@@ -112,6 +145,7 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
               className="h-full w-full object-contain"
             />
           </span>
+          )}
           <div>
             <h2
               className="font-display text-xl font-bold sm:text-2xl"
@@ -129,6 +163,23 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
         </div>
 
         <div className="relative">
+          {halloweenMode && (
+<div className="pointer-events-none absolute bottom-[calc(100%-0.25rem)] left-[calc(100%_-_12px_-_(100%_-_16px)/1.08_+_1rem)] z-20 w-20 translate-y-[12.5%] md:left-6 md:w-44">
+            <motion.div
+              animate={{ rotate: [-3, 3, -3], scaleY: [1, 1.03, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              style={{ transformOrigin: "50% 87.5%" }}
+            >
+              <Image
+                src="/assets/halloween/ghost-pumpkin-teacup.svg"
+                alt=""
+                width={256}
+                height={256}
+                className="h-auto w-full"
+              />
+            </motion.div>
+          </div>
+)}
           <div
             ref={trackRef}
             className="grid grid-flow-col auto-cols-[calc((100%_-_1rem)/1.08)] gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth px-1 pb-4 pt-1 sm:auto-cols-[calc((100%_-_2.5rem)/3)] sm:gap-5 lg:auto-cols-[calc((100%_-_5rem)/4)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

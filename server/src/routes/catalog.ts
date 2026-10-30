@@ -43,6 +43,7 @@ catalogRouter.get(
       // Highest tier percent — the storefront banner advertises "up to X%".
       walletCashbackPercent: Math.max(0, ...tiers.map((t) => t.cashbackPercent)),
       menuBannerImage: settings.menuBannerImage,
+      halloweenMode: settings.halloweenMode,
     });
   }),
 );

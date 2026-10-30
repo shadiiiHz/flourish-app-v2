@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { MenuItem } from "../config/siteConfig";
+import Image from "next/image";
+import { useSiteStatus } from "@/context/SiteStatusContext";
 import ProductCard from "./ProductCard";
 
 interface NewItemsProps {
@@ -10,6 +12,7 @@ interface NewItemsProps {
 }
 
 function NewItems({ items }: NewItemsProps) {
+  const { halloweenMode } = useSiteStatus();
   const trackRef = useRef<HTMLDivElement>(null);
   const [sliderState, setSliderState] = useState({
     overflowing: false,
@@ -70,6 +73,15 @@ function NewItems({ items }: NewItemsProps) {
         </div>
 
         <div className="relative">
+          {halloweenMode && (
+<Image
+            src="/assets/halloween/black-cat.svg"
+            alt=""
+            width={256}
+            height={256}
+            className="pointer-events-none absolute bottom-[calc(100%-0.25rem)] left-6 z-20 h-auto w-24 translate-y-[23.8%] md:left-12 md:w-36"
+          />
+)}
           <div
             ref={trackRef}
             className="grid grid-flow-col auto-cols-[calc((100%_-_1rem)/1.08)] gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth px-1 pb-4 pt-1 sm:auto-cols-[calc((100%_-_2.5rem)/3)] sm:gap-5 lg:auto-cols-[calc((100%_-_5rem)/4)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

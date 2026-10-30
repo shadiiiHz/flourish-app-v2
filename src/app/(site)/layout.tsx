@@ -3,7 +3,7 @@ import SiteShell from "@/components/SiteShell";
 import { getSiteStatus } from "@/lib/api";
 
 export default async function SiteLayout({ children }: { children: ReactNode }) {
-  const { siteClosed, manuallyClosed, businessHoursEnabled, businessHoursStart, businessHoursEnd } =
+  const { siteClosed, manuallyClosed, businessHoursEnabled, businessHoursStart, businessHoursEnd, halloweenMode } =
     await getSiteStatus();
   return (
     <SiteShell
@@ -12,6 +12,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
       businessHoursEnabled={businessHoursEnabled}
       businessHoursStart={businessHoursStart}
       businessHoursEnd={businessHoursEnd}
+      halloweenMode={halloweenMode}
     >
       {children}
     </SiteShell>

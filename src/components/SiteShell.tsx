@@ -36,6 +36,7 @@ export default function SiteShell({
   businessHoursEnabled = false,
   businessHoursStart = "09:00",
   businessHoursEnd = "22:30",
+  halloweenMode = false,
 }: {
   children: ReactNode;
   siteClosed?: boolean;
@@ -43,6 +44,7 @@ export default function SiteShell({
   businessHoursEnabled?: boolean;
   businessHoursStart?: string;
   businessHoursEnd?: string;
+  halloweenMode?: boolean;
 }) {
   const router = useRouter();
 
@@ -62,6 +64,7 @@ export default function SiteShell({
       businessHoursEnabled={businessHoursEnabled}
       businessHoursStart={businessHoursStart}
       businessHoursEnd={businessHoursEnd}
+      halloweenMode={halloweenMode}
     >
       <div className="relative min-h-svh overflow-x-clip bg-cream text-cocoa-900">
         <div

@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { useSiteStatus } from "@/context/SiteStatusContext";
 import type { Category, CategoryTab, CategoryTabId } from "../config/siteConfig";
 
 const containerVariants = {
@@ -29,6 +30,7 @@ interface CategoriesProps {
 
 function Categories({ tabs, categoriesByTab }: CategoriesProps) {
   const router = useRouter();
+  const { halloweenMode } = useSiteStatus();
   const [activeTab, setActiveTab] = useState<CategoryTabId>("bakery");
   const categories = categoriesByTab[activeTab];
   const trackRef = useRef<HTMLDivElement>(null);
@@ -81,6 +83,17 @@ function Categories({ tabs, categoriesByTab }: CategoriesProps) {
 
   return (
     <section className="relative px-3 py-16 sm:px-6">
+      {halloweenMode && (
+<motion.img
+        src="/assets/halloween/floating-ghost.svg"
+        alt=""
+        aria-hidden
+        draggable={false}
+        animate={{ y: [0, -14, 0], rotate: [-4, 4, -4] }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+        className="pointer-events-none absolute right-3 top-14 z-10 w-20 select-none sm:right-8 sm:top-6 sm:w-24 lg:right-[max(2rem,calc(50%-34rem))] lg:w-32"
+      />
+)}
       <div className="mx-auto max-w-6xl">
         <div className="mb-10 flex justify-center sm:mb-10">
           <div className="relative flex items-center gap-1 rounded-full border border-white/40 bg-white/40 p-1.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(138,84,39,0.25)] backdrop-blur-2xl backdrop-saturate-150">
