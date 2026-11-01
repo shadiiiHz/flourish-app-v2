@@ -65,7 +65,6 @@ function PickupTimeModal({ isOpen, initial, onClose, onConfirm }: PickupTimeModa
   // Slots that already started today can't be picked.
   const availableSlots = useMemo(
     () => TIME_SLOTS.filter((slot) => !isSlotPassed(selectedDate, slot)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedDate, isOpen],
   );
 
