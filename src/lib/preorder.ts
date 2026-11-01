@@ -63,6 +63,29 @@ export function generatePreorderTimeSlots(): string[] {
   return slots;
 }
 
+/** Today and tomorrow only — the days an instant pickup order can be scheduled for. */
+export function generatePickupDateOptions(): PreorderDateOption[] {
+  const today = startOfToday();
+  return [0, 1].map((offset) => {
+    const date = new Date(today);
+    date.setDate(date.getDate() + offset);
+    return {
+      iso: toIsoDate(date),
+      label: offset === 0 ? "امروز" : "فردا",
+      day: date.toLocaleDateString(FA_LATIN_DIGITS_LOCALE, { day: "numeric" }),
+      month: date.toLocaleDateString(FA_LATIN_DIGITS_LOCALE, { month: "long" }),
+    };
+  });
+}
+
+/** Whether a "HH:MM - HH:MM" slot has already ended on `iso` (only ever true for today). A slot in progress still counts as available. */
+export function isSlotPassed(iso: string, slot: string): boolean {
+  if (iso !== toIsoDate(startOfToday())) return false;
+  const [h, m] = slot.split(" - ")[1].split(":").map(Number);
+  const now = new Date();
+  return h * 60 + m <= now.getHours() * 60 + now.getMinutes();
+}
+
 function parseIsoDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d);

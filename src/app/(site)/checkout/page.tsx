@@ -31,6 +31,7 @@ import type { DeliveryMethod } from "@/types/order";
 import AddressModal from "@/components/AddressModal";
 import DeliveryOutOfRangeModal from "@/components/DeliveryOutOfRangeModal";
 import Preloader from "@/components/Preloader";
+import PickupTimeModal, { type PickupTimeSelection } from "@/components/PickupTimeModal";
 import { formatPreorderDateLong, formatPreorderDateWithWeekday, isItemPreorderable } from "@/lib/preorder";
 import { toPersianDigits } from "@/lib/formatNumber";
 
@@ -50,8 +51,12 @@ function CheckoutPage() {
   const { orderType, preorder, openModal, setInstant } = useOrderType();
   const { siteClosed } = useSiteStatus();
   const blockedByClosure = siteClosed && orderType === "instant";
+  const [pickupTime, setPickupTime] = useState<PickupTimeSelection | null>(null);
+  const [pickupModalOpen, setPickupModalOpen] = useState(false);
 
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("delivery");
+  // Instant pickup orders must say when the customer will come to collect them.
+  const needsPickupTime = orderType === "instant" && deliveryMethod === "pickup";
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
@@ -213,7 +218,7 @@ function CheckoutPage() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (pickupOverride?: PickupTimeSelection) => {
     if (blockedByClosure) {
       setError("امروز فلوریش تعطیل است و فقط ثبت پیش‌سفارش امکان‌پذیر است");
       return;
@@ -239,6 +244,12 @@ function CheckoutPage() {
       setError(wrongDayMessage);
       return;
     }
+    const pickupTimeToSend = pickupOverride ?? pickupTime;
+    if (needsPickupTime && !pickupTimeToSend) {
+      setError(null);
+      setPickupModalOpen(true);
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -249,8 +260,9 @@ function CheckoutPage() {
         customerName,
         note: note.trim() || undefined,
         orderType,
-        scheduledDate: orderType === "preorder" ? preorder?.date : undefined,
-        scheduledTimeSlot: orderType === "preorder" ? preorder?.timeSlot : undefined,
+        scheduledDate: orderType === "preorder" ? preorder?.date : needsPickupTime ? pickupTimeToSend?.date : undefined,
+        scheduledTimeSlot:
+          orderType === "preorder" ? preorder?.timeSlot : needsPickupTime ? pickupTimeToSend?.timeSlot : undefined,
         discountCode: appliedDiscount?.code,
         useWallet,
       });
@@ -291,8 +303,8 @@ function CheckoutPage() {
                 </button>
               </div>
               <p className="mt-2 text-sm leading-7 text-cocoa-700">
-                این سفارش در تاریخ {formatPreorderDateLong(preorder.date)} ساعت{" "}
-                {preorder.timeSlot} آماده‌سازی و تحویل خواهد شد.
+                این سفارش در تاریخ {toPersianDigits(formatPreorderDateLong(preorder.date))} ساعت{" "}
+                {toPersianDigits(preorder.timeSlot)} آماده‌سازی و تحویل خواهد شد.
               </p>
               {wrongDayMessage && (
                 <p className="mt-2 rounded-xl bg-danger-50 p-3 text-xs font-semibold leading-6 text-danger-500">
@@ -372,6 +384,22 @@ function CheckoutPage() {
                   مسیریابی
                 </a>
               </div>
+              {needsPickupTime && pickupTime && (
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-sand-50 px-3 py-2.5">
+                  <p className="text-xs font-semibold leading-6 text-sand-500">
+                    زمان تحویل: {toPersianDigits(formatPreorderDateWithWeekday(pickupTime.date))} ساعت{" "}
+                    {toPersianDigits(pickupTime.timeSlot)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPickupModalOpen(true)}
+                    aria-label="ویرایش زمان تحویل"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-sand-100 bg-white text-cocoa-700 transition hover:bg-sand-50"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </GlassCard>
           ) : (
             <GlassCard>
@@ -679,7 +707,7 @@ function CheckoutPage() {
 
           <button
             type="button"
-            onClick={handleSubmit}
+            onClick={() => handleSubmit()}
             disabled={
               submitting ||
               (deliveryMethod === "delivery" && !selectedAddressId) ||
@@ -698,6 +726,17 @@ function CheckoutPage() {
           </button>
         </div>
       </div>
+
+      <PickupTimeModal
+        isOpen={pickupModalOpen}
+        initial={pickupTime}
+        onClose={() => setPickupModalOpen(false)}
+        onConfirm={(selection) => {
+          setPickupTime(selection);
+          setPickupModalOpen(false);
+          handleSubmit(selection);
+        }}
+      />
 
       <DeliveryOutOfRangeModal
         isOpen={outOfRangeModalOpen}

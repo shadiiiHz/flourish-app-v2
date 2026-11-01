@@ -57,6 +57,13 @@ const createOrderSchema = z
     (data) => data.orderType !== "preorder" || (data.scheduledDate && data.scheduledTimeSlot),
     { message: "تاریخ و ساعت پیش‌سفارش الزامی است" },
   )
+  .refine(
+    (data) =>
+      data.orderType !== "instant" ||
+      data.deliveryMethod !== "pickup" ||
+      (data.scheduledDate && data.scheduledTimeSlot),
+    { message: "ساعت تحویل حضوری الزامی است" },
+  )
   .refine((data) => data.deliveryMethod !== "delivery" || !!data.addressId, {
     message: "لطفاً یک آدرس برای ارسال انتخاب کنید",
   });
@@ -122,6 +129,25 @@ ordersRouter.post(
       maxDate.setDate(maxDate.getDate() + MIN_PREORDER_DAYS_AHEAD + MAX_PREORDER_DAYS_AHEAD - 1);
       if (Number.isNaN(scheduledDate.getTime()) || scheduledDate < minDate || scheduledDate > maxDate) {
         res.status(400).json({ error: "تاریخ پیش‌سفارش نامعتبر است" });
+        return;
+      }
+    } else if (deliveryMethod === "pickup") {
+      // Instant pickup: the customer picks today or tomorrow plus a time slot. A day of slack on
+      // each side tolerates the server and customer sitting in different timezones.
+      scheduledDate = new Date(parsed.data.scheduledDate!);
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const minDate = new Date(today);
+      minDate.setUTCDate(minDate.getUTCDate() - 1);
+      const maxDate = new Date(today);
+      maxDate.setUTCDate(maxDate.getUTCDate() + 2);
+      if (
+        Number.isNaN(scheduledDate.getTime()) ||
+        scheduledDate < minDate ||
+        scheduledDate > maxDate ||
+        !/^\d{2}:\d{2} - \d{2}:\d{2}$/.test(scheduledTimeSlot ?? "")
+      ) {
+        res.status(400).json({ error: "زمان تحویل حضوری نامعتبر است" });
         return;
       }
     }
@@ -263,7 +289,7 @@ ordersRouter.post(
         orderType,
         deliveryMethod,
         scheduledDate,
-        scheduledTimeSlot: orderType === "preorder" ? scheduledTimeSlot : undefined,
+        scheduledTimeSlot: scheduledDate ? scheduledTimeSlot : undefined,
         addressId: address?.id,
         addressText:
           deliveryMethod === "delivery" && address

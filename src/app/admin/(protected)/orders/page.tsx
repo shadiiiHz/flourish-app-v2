@@ -480,10 +480,9 @@ function AdminOrdersPage() {
               >
                 {ORDER_SOURCE_LABELS[selectedOrder.source]}
               </span>
-              {selectedOrder.orderType === "preorder" &&
-                selectedOrder.scheduledDate && (
+              {selectedOrder.scheduledDate && (
                   <div className="mb-3 rounded-xl bg-sand-50 p-3 text-sm font-semibold text-cocoa-900">
-                    پیش‌سفارش برای{" "}
+                    {selectedOrder.orderType === "preorder" ? "پیش‌سفارش برای" : "تحویل حضوری"}{" "}
                     {new Date(selectedOrder.scheduledDate).toLocaleDateString(
                       "fa-IR",
                       {

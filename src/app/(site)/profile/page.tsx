@@ -112,10 +112,10 @@ function OrdersPanel() {
                   {ORDER_STATUS_LABELS[order.status]}
                 </span>
               </div>
-              {order.orderType === "preorder" && order.scheduledDate && (
+              {order.scheduledDate && (
                 <div className="mt-2.5 flex items-center gap-1.5 rounded-xl bg-sand-50 px-3 py-2 text-xs font-semibold text-sand-500">
                   <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-                  پیش‌سفارش برای{" "}
+                  {order.orderType === "preorder" ? "پیش‌سفارش برای" : "تحویل حضوری"}{" "}
                   {formatPreorderDateWithWeekday(order.scheduledDate.slice(0, 10))}
                   {order.scheduledTimeSlot ? ` ساعت ${order.scheduledTimeSlot}` : ""}
                 </div>
