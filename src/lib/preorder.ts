@@ -47,9 +47,9 @@ export function generatePreorderDateOptions(): PreorderDateOption[] {
 }
 
 /** Half-hour delivery windows across business hours, e.g. "09:00 - 09:30". */
-export function generatePreorderTimeSlots(): string[] {
+export function generatePreorderTimeSlots(endHour = SLOT_END_HOUR): string[] {
   const slots: string[] = [];
-  for (let hour = SLOT_START_HOUR; hour < SLOT_END_HOUR; hour++) {
+  for (let hour = SLOT_START_HOUR; hour < endHour; hour++) {
     for (const minute of [0, 30]) {
       const startH = String(hour).padStart(2, "0");
       const startM = String(minute).padStart(2, "0");

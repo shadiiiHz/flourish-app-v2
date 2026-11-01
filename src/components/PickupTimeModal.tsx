@@ -19,7 +19,9 @@ interface PickupTimeModalProps {
   onConfirm: (selection: PickupTimeSelection) => void;
 }
 
-const TIME_SLOTS = generatePreorderTimeSlots();
+/** Instant pickup runs an hour later than preorders: the last slot ends at 22:00. */
+const PICKUP_END_HOUR = 22;
+const TIME_SLOTS = generatePreorderTimeSlots(PICKUP_END_HOUR);
 
 function PickupTimeModal({ isOpen, initial, onClose, onConfirm }: PickupTimeModalProps) {
   const [mounted, setMounted] = useState(false);
