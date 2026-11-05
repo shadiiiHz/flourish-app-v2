@@ -344,6 +344,10 @@ model Settings {
    * Temporary Halloween decorations (ghost, garland, cat, pumpkins, …) across the storefront. The admin can switch them off to restore the regular look.
    */
   halloweenMode         Boolean  @default(true)
+  /**
+   * Temporary Yalda (winter solstice) decorations across the storefront. The admin can switch them off to restore the regular look.
+   */
+  yaldaMode             Boolean  @default(false)
   updatedAt             DateTime @updatedAt
 }
 

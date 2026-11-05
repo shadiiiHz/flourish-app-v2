@@ -44,6 +44,7 @@ catalogRouter.get(
       walletCashbackPercent: Math.max(0, ...tiers.map((t) => t.cashbackPercent)),
       menuBannerImage: settings.menuBannerImage,
       halloweenMode: settings.halloweenMode,
+      yaldaMode: settings.yaldaMode,
     });
   }),
 );

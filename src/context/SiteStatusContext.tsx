@@ -16,6 +16,8 @@ interface SiteStatusContextValue {
   businessHoursEnd: string;
   /** Temporary Halloween decorations across the storefront; switched on/off by the admin. */
   halloweenMode: boolean;
+  /** Temporary Yalda decorations across the storefront; switched on/off by the admin. */
+  yaldaMode: boolean;
 }
 
 const DEFAULT_STATUS: SiteStatusContextValue = {
@@ -25,6 +27,7 @@ const DEFAULT_STATUS: SiteStatusContextValue = {
   businessHoursStart: "09:00",
   businessHoursEnd: "22:30",
   halloweenMode: false,
+  yaldaMode: false,
 };
 
 const SiteStatusContext = createContext<SiteStatusContextValue | null>(null);
@@ -49,9 +52,9 @@ export function SiteStatusProvider({
     let cancelled = false;
     const refresh = () => {
       getSiteStatus().then(
-        ({ siteClosed, manuallyClosed, businessHoursEnabled, businessHoursStart, businessHoursEnd, halloweenMode }) => {
+        ({ siteClosed, manuallyClosed, businessHoursEnabled, businessHoursStart, businessHoursEnd, halloweenMode, yaldaMode }) => {
           if (!cancelled) {
-            setStatus({ siteClosed, manuallyClosed, businessHoursEnabled, businessHoursStart, businessHoursEnd, halloweenMode });
+            setStatus({ siteClosed, manuallyClosed, businessHoursEnabled, businessHoursStart, businessHoursEnd, halloweenMode, yaldaMode });
           }
         },
       );

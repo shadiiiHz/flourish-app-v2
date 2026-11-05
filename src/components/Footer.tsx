@@ -35,7 +35,7 @@ function WhatsappIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 function Footer() {
-  const { halloweenMode } = useSiteStatus();
+  const { halloweenMode, yaldaMode } = useSiteStatus();
   return (
     <footer className="relative px-3 pb-6 pt-20 sm:px-6 sm:pb-10 sm:pt-28">
       <div className="relative mx-auto max-w-6xl">
@@ -47,17 +47,25 @@ function Footer() {
           className={
             halloweenMode
               ? "pointer-events-none absolute bottom-[calc(100%-2px)] left-4 z-50 h-20 w-20 select-none sm:left-10 sm:h-40 sm:w-40"
-              : "pointer-events-none absolute z-50 -left-14 -top-10 hidden select-none sm:block sm:h-40 sm:w-40"
+              : yaldaMode
+                ? "pointer-events-none absolute z-50 -left-10 -top-8 hidden select-none sm:block sm:h-28 sm:w-28"
+                : "pointer-events-none absolute z-50 -left-14 -top-10 hidden select-none sm:block sm:h-40 sm:w-40"
           }
         >
           <motion.img
-            src={halloweenMode ? "/assets/halloween/witch-hat-pumpkin.svg" : "/assets/croissant.png"}
+            src={
+              halloweenMode
+                ? "/assets/halloween/witch-hat-pumpkin.svg"
+                : yaldaMode
+                  ? "/assets/yalda/pomegranates.webp"
+                  : "/assets/croissant.png"
+            }
             alt=""
             aria-hidden="true"
-            className="h-full w-full select-none"
+            className="h-full w-full select-none object-contain"
             animate={{
               y: [0, -6, 0],
-              rotate: halloweenMode ? [-2, 2, -2] : [-16, -13, -16],
+              rotate: halloweenMode || yaldaMode ? [-2, 2, -2] : [-16, -13, -16],
             }}
             transition={{
               duration: 8,

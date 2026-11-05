@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { MenuItem } from "../config/siteConfig";
 import ProductCard from "./ProductCard";
-import { SEASONAL_THEMES } from "../config/seasonalThemes";
+import { SEASONAL_THEMES, YALDA_THEME_COLORS } from "../config/seasonalThemes";
 import type { SeasonalThemeId } from "../lib/api";
 import Image from "next/image";
 import { useSiteStatus } from "@/context/SiteStatusContext";
@@ -30,7 +30,7 @@ function SeasonalArt({ season, file, ...props }: { season: SeasonalThemeId; file
 }
 
 function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
-  const { halloweenMode } = useSiteStatus();
+  const { halloweenMode, yaldaMode } = useSiteStatus();
   const trackRef = useRef<HTMLDivElement>(null);
   const [sliderState, setSliderState] = useState({
     overflowing: false,
@@ -83,7 +83,8 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
 
   if (items.length === 0) return null;
 
-  const theme = SEASONAL_THEMES[themeId] ?? SEASONAL_THEMES.spring;
+  const seasonTheme = SEASONAL_THEMES[themeId] ?? SEASONAL_THEMES.spring;
+  const theme = yaldaMode ? { ...seasonTheme, ...YALDA_THEME_COLORS } : seasonTheme;
 
   return (
     <section className="relative px-3 py-8 sm:px-6">
@@ -113,7 +114,30 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
         </div>
 )}
 
-        {!halloweenMode && (
+        {yaldaMode && (
+          <Image
+            src="/assets/yalda/footer-border.webp"
+            alt=""
+            aria-hidden="true"
+            width={900}
+            height={129}
+            className="pointer-events-none absolute bottom-[calc(100%-2px)] left-1/2 z-20 h-auto w-20 -translate-x-1/2 select-none sm:w-32"
+          />
+        )}
+
+        {yaldaMode && (
+          <span className="pointer-events-none absolute top-0 left-0 z-20 flex h-16 w-16 shrink-0 items-start justify-center overflow-hidden md:-top-4 md:h-40 md:w-40">
+            <Image
+              src="/assets/yalda/pomegranate-branch.webp"
+              alt=""
+              width={825}
+              height={640}
+              className="h-full w-full object-contain"
+            />
+          </span>
+        )}
+
+        {!halloweenMode && !yaldaMode && themeId !== "winter" && (
         <span className="pointer-events-none absolute top-0 left-0 z-20 flex h-25 w-25 shrink-0 items-start justify-center overflow-hidden md:-top-8 md:h-64 md:w-64">
           <SeasonalArt
             season={themeId}
@@ -135,7 +159,16 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
             className="h-12 w-12 shrink-0 object-contain md:h-20 md:w-20"
           />
 )}
-          {!halloweenMode && (
+          {yaldaMode && (
+            <Image
+              src="/assets/yalda/watermelon.webp"
+              alt=""
+              width={400}
+              height={249}
+              className="h-10 w-10 shrink-0 object-contain md:h-18 md:w-18"
+            />
+          )}
+          {!halloweenMode && !yaldaMode && (
           <span className="flex h-10 w-10 md:h-18 md:w-18 items-center justify-center shrink-0 overflow-hidden bg-transparent">
             <SeasonalArt
               season={themeId}
@@ -163,6 +196,17 @@ function SeasonalItems({ items, theme: themeId }: SeasonalItemsProps) {
         </div>
 
         <div className="relative">
+          {/* Winter snowman stands on the first card (feet on its top edge). */}
+          {!halloweenMode && !yaldaMode && themeId === "winter" && (
+            <Image
+              src="/assets/winter/snowman.webp"
+              alt=""
+              aria-hidden="true"
+              width={340}
+              height={500}
+              className="pointer-events-none absolute bottom-[calc(100%-0.25rem)] left-16 z-20 h-auto w-12 select-none md:left-10 md:w-20"
+            />
+          )}
           {halloweenMode && (
 <div className="pointer-events-none absolute bottom-[calc(100%-0.25rem)] left-[calc(100%_-_12px_-_(100%_-_16px)/1.08_+_1rem)] z-20 w-20 translate-y-[12.5%] md:left-6 md:w-44">
             <motion.div

@@ -74,4 +74,16 @@ export const SEASONAL_THEMES: Record<SeasonalThemeId, SeasonalTheme> = {
   },
 };
 
+/** Warm pomegranate palette that replaces the season's colors while the admin's Yalda decorations are on. */
+export const YALDA_THEME_COLORS: Pick<
+  SeasonalTheme,
+  "panelBackground" | "panelBorder" | "panelShadow" | "titleColor" | "accent"
+> = {
+  panelBackground: "linear-gradient(135deg, rgba(214,72,72,0.32), rgba(255,255,255,0.55) 55%, rgba(240,150,90,0.26))",
+  panelBorder: "rgba(255,236,226,0.8)",
+  panelShadow: "0 30px 60px -30px rgba(160,35,45,0.5)",
+  titleColor: "#6b1523",
+  accent: "#b3283a",
+};
+
 export const SEASONAL_THEME_IDS = Object.keys(SEASONAL_THEMES) as SeasonalThemeId[];

@@ -11,6 +11,7 @@ import {
   ImagePlus,
   Ghost,
   KeyRound,
+  Snowflake,
   Store,
   Trash2,
   Truck,
@@ -139,6 +140,7 @@ function AdminSettingsPage() {
         setMenuBannerImage(s.menuBannerImage);
         setSeasonalTheme(s.seasonalTheme ?? "spring");
         setHalloweenMode(s.halloweenMode ?? false);
+        setYaldaMode(s.yaldaMode ?? false);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -191,19 +193,46 @@ function AdminSettingsPage() {
   const [halloweenSaving, setHalloweenSaving] = useState(false);
   const [halloweenError, setHalloweenError] = useState<string | null>(null);
 
+  const [yaldaMode, setYaldaMode] = useState(false);
+  const [yaldaSaving, setYaldaSaving] = useState(false);
+  const [yaldaError, setYaldaError] = useState<string | null>(null);
+
+  // Halloween and Yalda decorate the same spots, so turning one on switches the other off.
   const handleHalloweenToggle = async () => {
     if (halloweenSaving) return;
     const previous = halloweenMode;
+    const previousYalda = yaldaMode;
     setHalloweenError(null);
     setHalloweenSaving(true);
     setHalloweenMode(!previous);
+    if (!previous) setYaldaMode(false);
     try {
-      await adminUpdateSettings({ halloweenMode: !previous });
+      await adminUpdateSettings({ halloweenMode: !previous, ...(!previous && { yaldaMode: false }) });
     } catch (err) {
       setHalloweenMode(previous);
+      setYaldaMode(previousYalda);
       setHalloweenError(err instanceof ApiError ? err.message : "خطا در ذخیره‌سازی");
     } finally {
       setHalloweenSaving(false);
+    }
+  };
+
+  const handleYaldaToggle = async () => {
+    if (yaldaSaving) return;
+    const previous = yaldaMode;
+    const previousHalloween = halloweenMode;
+    setYaldaError(null);
+    setYaldaSaving(true);
+    setYaldaMode(!previous);
+    if (!previous) setHalloweenMode(false);
+    try {
+      await adminUpdateSettings({ yaldaMode: !previous, ...(!previous && { halloweenMode: false }) });
+    } catch (err) {
+      setYaldaMode(previous);
+      setHalloweenMode(previousHalloween);
+      setYaldaError(err instanceof ApiError ? err.message : "خطا در ذخیره‌سازی");
+    } finally {
+      setYaldaSaving(false);
     }
   };
 
@@ -643,6 +672,32 @@ function AdminSettingsPage() {
           </label>
         )}
         {halloweenError && <p className="mt-3 text-xs font-semibold text-danger-500">{halloweenError}</p>}
+      </div>
+
+      <div className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-cocoa-900">
+          <Snowflake className="h-4.5 w-4.5 text-sand-500" />
+          تزئینات شب یلدا
+        </h2>
+        <p className="mt-1 text-xs text-cocoa-500">
+          با روشن بودن این گزینه، تصاویر و انیمیشن‌های شب یلدا در سایت نمایش داده می‌شوند. با خاموش کردن آن، سایت
+          بلافاصله به ظاهر عادی خودش برمی‌گردد. روشن کردن این گزینه، تزئینات هالووین را خاموش می‌کند.
+        </p>
+        {loading ? (
+          <p className="mt-4 text-sm text-cocoa-500">در حال بارگذاری…</p>
+        ) : (
+          <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+            <input
+              type="checkbox"
+              checked={yaldaMode}
+              onChange={handleYaldaToggle}
+              disabled={yaldaSaving}
+              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+            />
+            نمایش تزئینات شب یلدا
+          </label>
+        )}
+        {yaldaError && <p className="mt-3 text-xs font-semibold text-danger-500">{yaldaError}</p>}
       </div>
 
       <div className="mb-4 break-inside-avoid rounded-[1.5rem] border border-sand-100 bg-white p-5">

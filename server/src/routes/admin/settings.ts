@@ -21,6 +21,7 @@ const settingsSchema = z.object({
   menuBannerImage: z.string().optional(),
   seasonalTheme: z.enum(["spring", "summer", "autumn", "winter"]).optional(),
   halloweenMode: z.boolean().optional(),
+  yaldaMode: z.boolean().optional(),
 });
 
 adminSettingsRouter.get(
