@@ -111,10 +111,12 @@ function AddonPickerModal({
         </div>
 
         <div className="flex flex-col gap-3 border-t border-sand-50 p-5 sm:p-6">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-cocoa-600">قیمت نهایی</span>
-            <span className="font-bold text-cocoa-900">{total.toLocaleString("fa-IR")} تومان</span>
-          </div>
+          {total > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-cocoa-600">قیمت نهایی</span>
+              <span className="font-bold text-cocoa-900">{total.toLocaleString("fa-IR")} تومان</span>
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <button
               type="button"

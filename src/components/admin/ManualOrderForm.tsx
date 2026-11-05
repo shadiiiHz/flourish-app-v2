@@ -681,7 +681,8 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
                           )}
                         </span>
                         <span className="text-xs font-semibold text-cocoa-600">
-                          {money(getDiscountedPrice(variant.price, discountPercentFor(product, isPreorder)))}
+                          {variant.price > 0 &&
+                            money(getDiscountedPrice(variant.price, discountPercentFor(product, isPreorder)))}
                           {variant.stock != null && ` (موجودی: ${variant.stock.toLocaleString("fa-IR")})`}
                         </span>
                       </button>
@@ -703,7 +704,8 @@ function ManualOrderFormInner({ orderId }: { orderId?: string }) {
                         )}
                       </span>
                       <span className="text-xs font-semibold text-cocoa-600">
-                        {money(getDiscountedPrice(product.price, discountPercentFor(product, isPreorder)))}
+                        {product.price > 0 &&
+                          money(getDiscountedPrice(product.price, discountPercentFor(product, isPreorder)))}
                         {product.stock != null && ` (موجودی: ${product.stock.toLocaleString("fa-IR")})`}
                       </span>
                     </button>

@@ -621,9 +621,7 @@ function AdminProductsPage() {
         headerName: "قیمت",
         width: 130,
         valueGetter: (_, row) =>
-          row.price > 0
-            ? `${row.price.toLocaleString("fa-IR")} تومان`
-            : "به‌زودی",
+          row.price > 0 ? `${row.price.toLocaleString("fa-IR")} تومان` : "",
       },
       {
         field: "stock",

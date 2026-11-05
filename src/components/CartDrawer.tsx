@@ -115,9 +115,11 @@ function CartDrawer() {
                     {line.variantTitle && (
                       <p className="text-xs text-cocoa-500">{line.variantTitle}</p>
                     )}
-                    <p className="mt-1 text-sm font-bold text-sand-400">
-                      {line.price.toLocaleString("fa-IR")} تومان
-                    </p>
+                    {line.price > 0 && (
+                      <p className="mt-1 text-sm font-bold text-sand-400">
+                        {line.price.toLocaleString("fa-IR")} تومان
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex shrink-0 flex-col items-end gap-2">

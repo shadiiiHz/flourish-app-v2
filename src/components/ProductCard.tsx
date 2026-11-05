@@ -52,7 +52,7 @@ function ProductCard({
     !hasVariants &&
     ((item.stock !== undefined && cartQuantity >= item.stock) || isGroupAtMax(item));
   const isUnorderable = unlimitedPreorder ? false : !item.isAvailable || notPreorderable;
-  // The price is always shown; why the product can't be ordered is only a small note beside it.
+  // A set price is always shown (a zero price shows nothing); why the product can't be ordered is only a small note beside it.
   const unavailableNote =
     !unlimitedPreorder && (!item.isAvailable || outOfStock)
       ? "ناموجود"
@@ -134,9 +134,11 @@ function ProductCard({
                     {item.price.toLocaleString("fa-IR")}
                   </span>
                 )}
-                <span className="text-sm font-bold text-sand-400 sm:text-[15px]">
-                  {item.price > 0 ? `${finalPrice.toLocaleString("fa-IR")} تومان` : "به‌زودی"}
-                </span>
+                {item.price > 0 && (
+                  <span className="text-sm font-bold text-sand-400 sm:text-[15px]">
+                    {finalPrice.toLocaleString("fa-IR")} تومان
+                  </span>
+                )}
                 {unavailableNote && !wrongPreorderDay && (
                   <span className="whitespace-nowrap text-[10px] text-cocoa-500 sm:text-xs">
                     ({unavailableNote})

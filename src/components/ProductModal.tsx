@@ -187,9 +187,11 @@ function ProductModal({
                     {item.price.toLocaleString("fa-IR")}
                   </span>
                 )}
-                <span className="text-lg font-bold text-sand-400">
-                  {item.price > 0 ? `${finalPrice.toLocaleString("fa-IR")} تومان` : "به‌زودی"}
-                </span>
+                {item.price > 0 && (
+                  <span className="text-lg font-bold text-sand-400">
+                    {finalPrice.toLocaleString("fa-IR")} تومان
+                  </span>
+                )}
                 {!wrongPreorderDay && !unlimitedPreorder && (!item.isAvailable || outOfStock) ? (
                   <span className="whitespace-nowrap text-xs text-cocoa-500">(ناموجود)</span>
                 ) : notPreorderable && !wrongPreorderDay ? (

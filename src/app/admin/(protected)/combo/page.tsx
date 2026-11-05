@@ -358,7 +358,9 @@ function AdminComboPage() {
         valueGetter: (_, row) =>
           row.discountPercent ? getDiscountedPrice(row.price, row.discountPercent) : row.price,
         renderCell: ({ row }) =>
-          row.discountPercent ? (
+          row.price <= 0 ? (
+            ""
+          ) : row.discountPercent ? (
             <div className="flex h-full items-baseline gap-1.5">
               <span className="text-xs text-cocoa-400 line-through">
                 {row.price.toLocaleString("fa-IR")}

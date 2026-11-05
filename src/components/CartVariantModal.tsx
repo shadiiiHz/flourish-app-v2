@@ -133,7 +133,8 @@ function CartVariantModal({
               : getQuantity(item.id, variant.id);
             const addOne = () =>
               hasAddons ? setPickerVariant(variant) : addToCart(item, variant, 1);
-            const finalPrice = hasDiscount
+            const variantHasDiscount = hasDiscount && variant.price > 0;
+            const finalPrice = variantHasDiscount
               ? getDiscountedPrice(variant.price, discountPercent)
               : variant.price;
             const outOfStock = !unlimitedPreorder && variant.stock === 0;
@@ -148,7 +149,7 @@ function CartVariantModal({
                 className="flex items-center gap-3 rounded-2xl border border-sand-100 bg-white p-3 sm:gap-4 sm:p-4"
               >
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-sand-50 sm:h-18 sm:w-18">
-                  {hasDiscount && (
+                  {variantHasDiscount && (
                     <span className="absolute right-1 top-1 z-10 rounded-full bg-sand-400 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-[0_4px_10px_-4px_rgba(190,18,60,0.7)]">
                       {discountPercent!.toLocaleString("fa-IR")}٪
                     </span>
@@ -176,16 +177,18 @@ function CartVariantModal({
                       className="text-xs text-cocoa-500"
                     />
                   )}
-                  <p className="mt-1 flex items-baseline gap-1.5">
-                    {hasDiscount && (
-                      <span className="text-xs text-cocoa-500 line-through">
-                        {variant.price.toLocaleString("fa-IR")}
+                  {variant.price > 0 && (
+                    <p className="mt-1 flex items-baseline gap-1.5">
+                      {variantHasDiscount && (
+                        <span className="text-xs text-cocoa-500 line-through">
+                          {variant.price.toLocaleString("fa-IR")}
+                        </span>
+                      )}
+                      <span className="text-sm font-bold text-sand-400">
+                        {finalPrice.toLocaleString("fa-IR")} تومان
                       </span>
-                    )}
-                    <span className="text-sm font-bold text-sand-400">
-                      {finalPrice.toLocaleString("fa-IR")} تومان
-                    </span>
-                  </p>
+                    </p>
+                  )}
                 </div>
 
                 {quantity > 0 ? (
@@ -232,15 +235,17 @@ function CartVariantModal({
         </div>
 
         <div className="flex flex-col gap-3 border-t border-sand-50 p-5 sm:p-6">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-cocoa-600">جمع این محصول</span>
-            <span className="font-bold text-cocoa-900">
-              {productPrice.toLocaleString("fa-IR")} تومان
-              <span className="mr-1 text-xs font-normal text-cocoa-500">
-                ({productCount.toLocaleString("fa-IR")} کالا)
+          {(productPrice > 0 || (productCount === 0 && variants.some((v) => v.price > 0))) && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-cocoa-600">جمع این محصول</span>
+              <span className="font-bold text-cocoa-900">
+                {productPrice.toLocaleString("fa-IR")} تومان
+                <span className="mr-1 text-xs font-normal text-cocoa-500">
+                  ({productCount.toLocaleString("fa-IR")} کالا)
+                </span>
               </span>
-            </span>
-          </div>
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <button
               type="button"
