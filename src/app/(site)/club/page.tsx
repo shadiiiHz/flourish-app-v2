@@ -129,7 +129,7 @@ export default async function ClubPage() {
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         {/* Hero */}
-        <section className="grid items-center gap-6 md:grid-cols-2">
+        <section className="grid items-center gap-6 md:grid-cols-[4fr_5fr]">
           <div className="text-center md:text-start">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ffdbe9] px-4 py-1.5 text-sm font-bold text-[#d6457f]">
               <Crown className="h-4 w-4" />
@@ -146,14 +146,14 @@ export default async function ClubPage() {
             </p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-md">
+          <div className="relative mx-auto w-full">
             <Image
-              src="/club/cat-mascot.png"
-              alt="گربه تاج‌دار با سکه کش‌بک"
+              src="/club/club-hero-friends.webp"
+              alt="جمعی از دوستان با قهوه و کروسان فلوریش در کنار نمادهای هدیه، تاج، تخفیف و سکه امتیاز باشگاه مشتریان"
               width={513}
               height={339}
               priority
-              className="animate-float-slow h-auto w-full drop-shadow-xl"
+              className="h-auto w-full drop-shadow-xl"
             />
           </div>
         </section>
