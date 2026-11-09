@@ -124,7 +124,7 @@ export default async function ClubPage() {
     <div className="relative">
       {/* Lightens the footer box on this page only (the style is dropped when leaving it). */}
       <style>{`footer .backdrop-blur-2xl { background-color: rgba(255, 255, 255, 0.55); }`}</style>
-      {/* Paints over the site-wide logo pattern so the whole page keeps one soft colour. */}
+
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#fdf8f3]" />
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
