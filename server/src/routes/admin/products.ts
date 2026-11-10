@@ -49,6 +49,8 @@ const productSchema = z.object({
   isNew: z.boolean().optional(),
   isSeasonal: z.boolean().optional(),
   isAvailable: z.boolean().optional(),
+  /** Off hides the product from the storefront entirely. */
+  isVisible: z.boolean().optional(),
   allowPreorder: z.boolean().optional(),
   /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */
   preorderWeekdays: z

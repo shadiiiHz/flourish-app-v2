@@ -178,6 +178,12 @@ ordersRouter.post(
       res.status(400).json({ error: "سبد خرید خالی است" });
       return;
     }
+    // Hidden products are off the storefront for every order type, preorders included.
+    const hiddenItem = cartItems.find((item) => !item.product.isVisible);
+    if (hiddenItem) {
+      res.status(400).json({ error: `«${hiddenItem.product.title}» دیگر قابل سفارش نیست` });
+      return;
+    }
     if (orderType === "preorder") {
       // Preorder availability depends only on allowPreorder — general isAvailable/stock don't apply.
       const notPreorderable = cartItems.find((item) => !item.product.allowPreorder);

@@ -79,6 +79,7 @@ catalogRouter.get(
       orderBy: { sortOrder: "asc" },
       include: {
         products: {
+          where: { isVisible: true },
           orderBy: { sortOrder: "asc" },
           include: { variants: true, addons: addonsInclude, ...stockGroupInclude },
         },
@@ -92,7 +93,7 @@ catalogRouter.get(
   "/products/new",
   asyncHandler(async (_req, res) => {
     const products = await prisma.product.findMany({
-      where: { isNew: true },
+      where: { isNew: true, isVisible: true },
       orderBy: { sortOrder: "asc" },
       include: { variants: true, category: true, addons: addonsInclude, ...stockGroupInclude },
     });
@@ -107,7 +108,7 @@ catalogRouter.get(
     const [settings, products] = await Promise.all([
       getSettings(),
       prisma.product.findMany({
-        where: { isSeasonal: true, isCombo: false },
+        where: { isSeasonal: true, isCombo: false, isVisible: true },
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         include: { variants: true, category: true, addons: addonsInclude, ...stockGroupInclude },
       }),
@@ -122,6 +123,7 @@ catalogRouter.get(
     const products = await prisma.product.findMany({
       where: {
         isCombo: true,
+        isVisible: true,
         OR: [{ comboExpiresAt: null }, { comboExpiresAt: { gt: new Date() } }],
       },
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],

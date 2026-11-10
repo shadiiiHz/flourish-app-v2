@@ -359,7 +359,7 @@ customersRouter.post(
       where: { id: productId },
       include: { variants: true, addons: { select: { addonId: true } }, ...stockGroupInclude },
     });
-    if (!product) {
+    if (!product || !product.isVisible) {
       res.status(404).json({ error: "محصول یافت نشد" });
       return;
     }

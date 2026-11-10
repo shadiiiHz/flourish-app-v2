@@ -65,6 +65,8 @@ export interface AdminProduct {
   isNew: boolean;
   isSeasonal: boolean;
   isAvailable: boolean;
+  /** Off hides the product from the storefront entirely. */
+  isVisible: boolean;
   allowPreorder: boolean;
   /** Weekdays (0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day. */
   preorderWeekdays: number[];

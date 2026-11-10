@@ -100,6 +100,8 @@ model Product {
   /// Shown in the homepage seasonal section (above "new items"); the section only renders while at least one product has this on.
   isSeasonal              Boolean          @default(false)
   isAvailable             Boolean          @default(true)
+  /// Admin-controlled: when off, the product is hidden from every storefront listing and can't be added to a cart or ordered by customers.
+  isVisible               Boolean          @default(true)
   allowPreorder           Boolean          @default(true)
   /// Weekdays (JS getDay numbering: 0=Sunday … 6=Saturday) this product can be preordered for. Empty means every day.
   preorderWeekdays        Int[]            @default([])

@@ -12,6 +12,7 @@ import DialogContent from "@mui/material/DialogContent";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Switch from "@mui/material/Switch";
 import {
   ApiError,
   adminBulkDeleteProducts,
@@ -64,6 +65,8 @@ interface FormValues {
   isNew: boolean;
   isSeasonal: boolean;
   isAvailable: boolean;
+  /** Off hides the product from the storefront entirely. */
+  isVisible: boolean;
   allowPreorder: boolean;
   /** Empty means preorderable every day. */
   preorderWeekdays: number[];
@@ -92,6 +95,7 @@ const EMPTY_FORM: FormValues = {
   isNew: false,
   isSeasonal: false,
   isAvailable: true,
+  isVisible: true,
   allowPreorder: true,
   preorderWeekdays: [],
   preorderDiscountPercent: "",
@@ -216,6 +220,7 @@ function AdminProductsPage() {
     ids: new Set(),
   });
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
   const [bulkImportLoading, setBulkImportLoading] = useState(false);
@@ -318,6 +323,7 @@ function AdminProductsPage() {
           isNew: values.isNew,
           isSeasonal: values.isSeasonal,
           isAvailable: values.isAvailable,
+          isVisible: values.isVisible,
           allowPreorder: values.allowPreorder,
           preorderWeekdays: values.preorderWeekdays,
           preorderDiscountPercent:
@@ -392,6 +398,7 @@ function AdminProductsPage() {
         isNew: p.isNew,
         isSeasonal: p.isSeasonal,
         isAvailable: p.isAvailable,
+        isVisible: p.isVisible,
         allowPreorder: p.allowPreorder,
         preorderWeekdays: p.preorderWeekdays ?? [],
         preorderDiscountPercent:
@@ -576,6 +583,23 @@ function AdminProductsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Optimistic: flips the row right away and rolls it back if the save fails.
+  const toggleVisibility = async (product: AdminProduct, isVisible: boolean) => {
+    setVisibilityError(null);
+    setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, isVisible } : p)));
+    try {
+      await adminUpdateProduct(product.id, { isVisible });
+      // Keep an open edit form for this product in sync so saving it doesn't undo the toggle.
+      if (editingId === product.id) formik.setFieldValue("isVisible", isVisible);
+      revalidateCatalog();
+    } catch (err) {
+      setProducts((prev) =>
+        prev.map((p) => (p.id === product.id ? { ...p, isVisible: !isVisible } : p)),
+      );
+      setVisibilityError(err instanceof ApiError ? err.message : "خطا در تغییر نمایش محصول");
+    }
+  };
+
   const categoryTitleById = useMemo(
     () => new Map(categories.map((c) => [c.id, c.title])),
     [categories],
@@ -646,6 +670,24 @@ function AdminProductsPage() {
           >
             {isEffectivelyAvailable(row) ? "موجود" : "ناموجود"}
           </span>
+        ),
+      },
+      {
+        field: "isVisible",
+        headerName: "نمایش در سایت",
+        width: 120,
+        align: "center",
+        headerAlign: "center",
+        sortable: false,
+        valueFormatter: (_, row) => (row.isVisible ? "نمایش" : "مخفی"),
+        renderCell: ({ row }) => (
+          <Switch
+            checked={row.isVisible}
+            onChange={(e) => toggleVisibility(row, e.target.checked)}
+            onClick={(e) => e.stopPropagation()}
+            size="small"
+            slotProps={{ input: { "aria-label": "نمایش در سایت" } }}
+          />
         ),
       },
       {
@@ -1081,6 +1123,16 @@ function AdminProductsPage() {
             />
             نمایش در بخش «فصلی»
           </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
+            <input
+              type="checkbox"
+              name="isVisible"
+              checked={formik.values.isVisible}
+              onChange={formik.handleChange}
+              className="h-4 w-4 rounded border-cocoa-900/20 accent-sand-500"
+            />
+            نمایش در سایت (خاموش = محصول برای مشتری‌ها مخفی می‌شود)
+          </label>
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-cocoa-700">
               <input
@@ -1513,6 +1565,10 @@ function AdminProductsPage() {
           </Select>
         </FormControl>
       </div>
+
+      {visibilityError && (
+        <p className="mt-3 text-xs font-semibold text-danger-500">{visibilityError}</p>
+      )}
 
       <div className="mt-3 overflow-hidden rounded-[1.5rem] border border-sand-100 bg-white">
         <CustomDataGrid<AdminProduct>
