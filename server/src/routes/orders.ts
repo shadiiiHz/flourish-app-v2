@@ -290,6 +290,7 @@ ordersRouter.post(
       data: {
         customerId,
         customerPhone,
+        loyaltyTomanPerPoint: settings.loyaltyTomanPerPoint,
         customerName,
         note,
         orderType,

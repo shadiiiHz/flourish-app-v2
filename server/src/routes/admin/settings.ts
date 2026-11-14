@@ -22,6 +22,7 @@ const settingsSchema = z.object({
   seasonalTheme: z.enum(["spring", "summer", "autumn", "winter"]).optional(),
   halloweenMode: z.boolean().optional(),
   yaldaMode: z.boolean().optional(),
+  loyaltyTomanPerPoint: z.number().int().min(1).max(100_000_000).optional(),
 });
 
 adminSettingsRouter.get(

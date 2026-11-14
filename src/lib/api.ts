@@ -1009,6 +1009,8 @@ export interface AdminSettings {
   seasonalTheme: SeasonalThemeId;
   halloweenMode: boolean;
   yaldaMode: boolean;
+  /** Every this many Toman of an order's net items subtotal earns one loyalty point (new orders only). */
+  loyaltyTomanPerPoint: number;
 }
 
 export function adminGetSettings() {

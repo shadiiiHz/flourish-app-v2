@@ -12,8 +12,10 @@ import {
   adminDeductCustomerWallet,
   adminGetCustomerWalletTransactions,
   adminGetLoyaltyTiers,
+  adminGetSettings,
   adminGetWalletCustomers,
   adminUpdateLoyaltyTiers,
+  adminUpdateSettings,
   type LoyaltyTier,
 } from "@/lib/api";
 import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
@@ -51,11 +53,18 @@ function LoyaltyTiersForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [open, setOpen] = useState(false);
+  /** Toman per point as typed; `savedTomanPerPoint` is what the server has, so it's only re-sent when changed. */
+  const [tomanPerPoint, setTomanPerPoint] = useState("");
+  const [savedTomanPerPoint, setSavedTomanPerPoint] = useState<number | null>(null);
 
   useEffect(() => {
-    adminGetLoyaltyTiers()
-      .then((rows) => setTiers(toDrafts(rows)))
-      .finally(() => setLoading(false));
+    Promise.all([
+      adminGetLoyaltyTiers().then((rows) => setTiers(toDrafts(rows))),
+      adminGetSettings().then((s) => {
+        setTomanPerPoint(String(s.loyaltyTomanPerPoint));
+        setSavedTomanPerPoint(s.loyaltyTomanPerPoint);
+      }),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const update = (key: number, patch: Partial<TierDraft>) => {
@@ -106,6 +115,11 @@ function LoyaltyTiersForm() {
     setSuccess(false);
     setSaving(true);
     try {
+      if (Number(tomanPerPoint) !== savedTomanPerPoint) {
+        const settings = await adminUpdateSettings({ loyaltyTomanPerPoint: Number(tomanPerPoint) });
+        setTomanPerPoint(String(settings.loyaltyTomanPerPoint));
+        setSavedTomanPerPoint(settings.loyaltyTomanPerPoint);
+      }
       const saved = await adminUpdateLoyaltyTiers(
         tiers.map((t, i) => ({
           name: t.name.trim(),
@@ -144,8 +158,10 @@ function LoyaltyTiersForm() {
       {open && (
         <div>
           <p className="mt-1 text-xs text-cocoa-500">
-            به ازای هر ۵ هزار تومان از جمع اقلام سفارش‌های پرداخت‌شده (پس از اعمال کد تخفیف و بدون
-            احتساب مالیات و هزینه ارسال) یک امتیاز ثبت می‌شود. پاداش هر سفارش به کیف پول مشتری، به‌اندازهٔ درصد سطحِ فعلی او از جمع
+            به ازای هر{" "}
+            {(savedTomanPerPoint ?? 5000).toLocaleString("fa-IR")} تومان از جمع اقلام سفارش‌های
+            پرداخت‌شده (پس از اعمال کد تخفیف و بدون احتساب مالیات و هزینه ارسال) یک امتیاز ثبت
+            می‌شود. پاداش هر سفارش به کیف پول مشتری، به‌اندازهٔ درصد سطحِ فعلی او از جمع
             اقلام سفارش (بدون احتساب مالیات، تخفیف و هزینه ارسال) واریز می‌شود. تعداد سطح‌ها، نام،
             سقف امتیاز و درصد پاداش هر سطح را می‌توانید تعیین کنید. اگر مشتری ۳ ماه سفارش نداشته
             باشد، یک سطح پایین می‌آید.
@@ -155,6 +171,26 @@ function LoyaltyTiersForm() {
             <p className="mt-4 text-sm text-cocoa-500">در حال بارگذاری…</p>
           ) : (
             <div className="mt-4 flex flex-col gap-3">
+              <div className="rounded-2xl bg-sand-50/60 p-3">
+                <label className="mb-1 block text-xs font-semibold text-cocoa-600">
+                  مبنای امتیاز (مبلغ به ازای هر یک امتیاز — تومان)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  dir="ltr"
+                  value={formatThousands(tomanPerPoint)}
+                  onChange={(e) => {
+                    setSuccess(false);
+                    setTomanPerPoint(digitsOnly(e.target.value));
+                  }}
+                  className="w-full max-w-xs rounded-xl border border-cocoa-900/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-sand-400"
+                />
+                <p className="mt-1 text-[11px] text-cocoa-500">
+                  تغییر مبنا فقط روی سفارش‌های جدید اثر دارد و امتیاز سفارش‌های قبلی با همان مبنای
+                  زمان ثبت‌شان محاسبه می‌شود.
+                </p>
+              </div>
               {tiers.map((tier, index) => (
                 <div
                   key={tier.key}
@@ -240,7 +276,13 @@ function LoyaltyTiersForm() {
 
           <button
             type="submit"
-            disabled={saving || loading || tiers.some((t) => !t.name.trim()) || !ceilingsValid}
+            disabled={
+              saving ||
+              loading ||
+              tiers.some((t) => !t.name.trim()) ||
+              !ceilingsValid ||
+              !(Number(tomanPerPoint) >= 1)
+            }
             className="mt-4 rounded-full bg-sand-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(164,72,25,0.6)] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
           >
             {saving ? "در حال ذخیره…" : "ذخیره تغییرات"}

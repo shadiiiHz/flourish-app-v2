@@ -13,6 +13,7 @@ import {
 } from "../../lib/wallet.js";
 import { notifyLoyaltyUpgrade } from "../../lib/loyaltyUpgradeSms.js";
 import { calculateShipping } from "../../lib/shipping.js";
+import { getTomanPerPoint } from "../../lib/loyalty.js";
 import { TAX_RATE, getDiscountedPrice, getEffectiveDiscountPercent } from "../../lib/pricing.js";
 import { decrementStockForItems, restockItems } from "../../lib/stock.js";
 import { stockGroupId, stockGroupInclude } from "../../lib/stockGroups.js";
@@ -462,6 +463,7 @@ adminOrdersRouter.post(
         customerId,
         customerPhone: customer.phone,
         ...fields,
+        loyaltyTomanPerPoint: await getTomanPerPoint(),
         source: "admin",
         // Manual/in-person orders are entered after the fact (the admin is recording a
         // sale that already happened), so they should land as delivered by default

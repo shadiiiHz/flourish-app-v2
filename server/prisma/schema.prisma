@@ -257,6 +257,8 @@ model Order {
   paymentRefId         String?
   walletAmountUsed     Int                 @default(0)
   walletCashbackAmount Int                 @default(0)
+  /// Toman per loyalty point in effect when the order was placed — changing the setting later leaves earlier orders' points alone.
+  loyaltyTomanPerPoint Int                 @default(5000)
   items                OrderItem[]
   walletTransactions   WalletTransaction[]
   createdAt            DateTime            @default(now())
@@ -350,6 +352,10 @@ model Settings {
    * Temporary Yalda (winter solstice) decorations across the storefront. The admin can switch them off to restore the regular look.
    */
   yaldaMode             Boolean  @default(false)
+  /**
+   * Every this many Toman of an order's net items subtotal earns one loyalty point. Applies to new orders only — each order keeps the value it was placed with.
+   */
+  loyaltyTomanPerPoint  Int      @default(5000)
   updatedAt             DateTime @updatedAt
 }
 

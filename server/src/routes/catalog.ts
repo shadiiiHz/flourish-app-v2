@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { getSettings } from "../lib/shipping.js";
 import { isSiteOpen } from "../lib/businessHours.js";
-import { DECAY_PERIOD_MONTHS, TOMAN_PER_POINT, getLoyaltyTiers } from "../lib/loyalty.js";
+import { DECAY_PERIOD_MONTHS, getLoyaltyTiers, getTomanPerPoint } from "../lib/loyalty.js";
 import { CASHBACK_EXPIRY_DAYS } from "../lib/wallet.js";
 import { stockGroupId, stockGroupInclude } from "../lib/stockGroups.js";
 
@@ -53,9 +53,10 @@ catalogRouter.get(
 catalogRouter.get(
   "/loyalty/tiers",
   asyncHandler(async (_req, res) => {
+    const [tiers, tomanPerPoint] = await Promise.all([getLoyaltyTiers(), getTomanPerPoint()]);
     res.json({
-      tiers: await getLoyaltyTiers(),
-      tomanPerPoint: TOMAN_PER_POINT,
+      tiers,
+      tomanPerPoint,
       decayPeriodMonths: DECAY_PERIOD_MONTHS,
       cashbackExpiryDays: CASHBACK_EXPIRY_DAYS,
     });

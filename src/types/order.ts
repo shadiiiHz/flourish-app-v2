@@ -73,6 +73,8 @@ export interface Order {
   /** Admin order GET only: this order's own cashback still unspent in the wallet. */
   walletCashbackRemaining?: number;
   walletCashbackAmount: number;
+  /** Toman per loyalty point in effect when the order was placed. */
+  loyaltyTomanPerPoint?: number;
   items: OrderItem[];
   createdAt: string;
 }
