@@ -17,7 +17,7 @@ import {
   apiUploadUrl,
   revalidateCatalog,
 } from "@/lib/api";
-import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
+import { downloadXlsx, fetchAllPages } from "@/lib/xlsx";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -292,7 +292,7 @@ function AdminCategoriesPage() {
 
   const handleExportAll = useCallback(async () => {
     const all = await fetchAllPages((p, ps) => adminGetCategories(p, ps, debouncedSearch));
-    downloadCsv("categories.csv", buildCsv(columns, all));
+    await downloadXlsx("categories.xlsx", columns, all);
   }, [columns, debouncedSearch]);
 
   return (

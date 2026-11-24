@@ -31,7 +31,7 @@ import {
   type AdminStockCandidate,
   type BulkImportResult,
 } from "@/lib/api";
-import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
+import { downloadXlsx, fetchAllPages } from "@/lib/xlsx";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -804,7 +804,7 @@ function AdminProductsPage() {
         statusFilter === "all" ? undefined : statusFilter,
       ),
     );
-    downloadCsv("products.csv", buildCsv(csvExportColumns, all));
+    await downloadXlsx("products.xlsx", csvExportColumns, all);
   }, [csvExportColumns, debouncedSearch, categoryFilter, statusFilter]);
 
   return (

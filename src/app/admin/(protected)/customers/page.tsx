@@ -19,7 +19,7 @@ import {
   adminGetCustomers,
   adminUpdateCustomer,
 } from "@/lib/api";
-import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
+import { downloadXlsx, fetchAllPages } from "@/lib/xlsx";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -242,6 +242,7 @@ function AdminCustomersPage() {
         field: "orderCount",
         headerName: "تعداد سفارش",
         width: 140,
+        valueGetter: (_, row) => row._count?.orders ?? 0,
         renderCell: ({ row }) => (
           <Link
             href={`/admin/orders?customerId=${row.id}`}
@@ -346,7 +347,7 @@ function AdminCustomersPage() {
 
   const handleExportAll = useCallback(async () => {
     const all = await fetchAllPages((p, ps) => adminGetCustomers(p, ps, debouncedSearch));
-    downloadCsv("customers.csv", buildCsv(columns, all));
+    await downloadXlsx("customers.xlsx", columns, all);
   }, [columns, debouncedSearch]);
 
   return (

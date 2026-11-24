@@ -6,7 +6,7 @@ import type { GridColDef, GridValidRowModel } from "@mui/x-data-grid";
  * that's usually what already turns raw fields into the fa-IR/currency
  * strings shown on screen.
  */
-function cellText<R extends GridValidRowModel>(row: R, column: GridColDef<R>): string {
+function cellText<R extends GridValidRowModel>(row: R, column: GridColDef<R>): string | number {
   const rawValue = row[column.field as keyof R];
   const getter = column.valueGetter as
     | ((value: unknown, row: R, column: GridColDef<R>, apiRef: unknown) => unknown)
@@ -17,28 +17,41 @@ function cellText<R extends GridValidRowModel>(row: R, column: GridColDef<R>): s
   const raw = getter ? getter(rawValue, row, column, undefined) : rawValue;
   const formatted = formatter ? formatter(raw, row, column, undefined) : raw;
   if (formatted === null || formatted === undefined) return "";
+  // Real numbers stay numeric so Excel can sum/sort them; everything else is text.
+  if (typeof formatted === "number" && Number.isFinite(formatted)) return formatted;
   return String(formatted);
-}
-
-function csvEscape(value: string): string {
-  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
 }
 
 const NON_EXPORTABLE_FIELDS = new Set(["__check__", "actions", "image", "images"]);
 
-export function buildCsv<R extends GridValidRowModel>(columns: GridColDef<R>[], rows: R[]): string {
+/** Builds a real .xlsx (one value per cell, RTL sheet) and downloads it. */
+export async function downloadXlsx<R extends GridValidRowModel>(
+  filename: string,
+  columns: GridColDef<R>[],
+  rows: R[],
+): Promise<void> {
   const exportable = columns.filter((c) => !NON_EXPORTABLE_FIELDS.has(c.field));
-  const header = exportable.map((c) => csvEscape(String(c.headerName ?? c.field))).join(",");
-  const lines = rows.map((row) =>
-    exportable.map((c) => csvEscape(cellText(row, c))).join(","),
-  );
-  // BOM so Excel opens Persian text as UTF-8 instead of mangling it.
-  return "﻿" + [header, ...lines].join("\r\n");
-}
+  // Loaded lazily: exceljs is large and only needed when the admin exports.
+  const { Workbook } = await import("exceljs");
+  const workbook = new Workbook();
+  const sheet = workbook.addWorksheet("Sheet1", { views: [{ rightToLeft: true, state: "frozen", ySplit: 1 }] });
 
-export function downloadCsv(filename: string, csvContent: string): void {
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  sheet.columns = exportable.map((c) => ({
+    header: String(c.headerName ?? c.field),
+    key: c.field,
+    width: 20,
+    style: { alignment: { horizontal: "right", vertical: "middle", wrapText: true } },
+  }));
+  sheet.getRow(1).font = { bold: true };
+  // Phone numbers etc. are strings in the data, so they keep leading zeros.
+  for (const row of rows) {
+    sheet.addRow(Object.fromEntries(exportable.map((c) => [c.field, cellText(row, c)])));
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

@@ -18,7 +18,7 @@ import {
   type GridFilterModel,
   type GridValidRowModel,
 } from "@mui/x-data-grid";
-import { buildCsv, downloadCsv } from "@/lib/csv";
+import { downloadXlsx } from "@/lib/xlsx";
 
 /**
  * With server-side pagination, MUI's header "select all" checkbox can't
@@ -68,7 +68,7 @@ interface BulkDeleteToolbarProps {
   onExportAll?: () => void | Promise<void>;
 }
 
-/** Same layout as MUI's built-in GridToolbar, with bulk-delete + CSV export actions spliced in. */
+/** Same layout as MUI's built-in GridToolbar, with bulk-delete + Excel export actions spliced in. */
 function BulkDeleteToolbar({
   selectedCount = 0,
   onBulkDelete,
@@ -84,7 +84,7 @@ function BulkDeleteToolbar({
     if (!exportColumns) return;
     const rows = Array.from(apiRef.current.getSelectedRows().values());
     if (rows.length === 0) return;
-    downloadCsv(`${exportFileName}-selected.csv`, buildCsv(exportColumns, rows));
+    void downloadXlsx(`${exportFileName}-selected.xlsx`, exportColumns, rows);
   };
 
   const handleExportAll = async () => {

@@ -17,7 +17,7 @@ import {
   adminUpdateAddon,
   revalidateCatalog,
 } from "@/lib/api";
-import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
+import { downloadXlsx, fetchAllPages } from "@/lib/xlsx";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -228,7 +228,7 @@ function AdminAddonsPage() {
     const all = await fetchAllPages((p, ps) =>
       adminGetAddons(p, ps, debouncedSearch),
     );
-    downloadCsv("addons.csv", buildCsv(columns, all));
+    await downloadXlsx("addons.xlsx", columns, all);
   }, [columns, debouncedSearch]);
 
   return (

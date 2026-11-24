@@ -25,7 +25,7 @@ import {
 } from "@/components/admin/CustomDataGrid";
 import { faDataGridLocaleText } from "@/components/admin/dataGridLocale";
 import JalaliDateSelect from "@/components/admin/JalaliDateSelect";
-import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
+import { downloadXlsx, fetchAllPages } from "@/lib/xlsx";
 import ConfirmModal from "@/components/ConfirmModal";
 import type { AdminComboProduct, AdminVariant } from "@/types/admin";
 
@@ -445,7 +445,7 @@ function AdminComboPage() {
 
   const handleExportAll = useCallback(async () => {
     const all = await fetchAllPages((p, ps) => adminGetComboProducts(p, ps, debouncedSearch));
-    downloadCsv("combo.csv", buildCsv(columns, all));
+    await downloadXlsx("combo.xlsx", columns, all);
   }, [columns, debouncedSearch]);
 
   return (

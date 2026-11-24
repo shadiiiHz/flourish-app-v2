@@ -16,7 +16,7 @@ import {
   adminGetDiscountCodes,
   adminUpdateDiscountCode,
 } from "@/lib/api";
-import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
+import { downloadXlsx, fetchAllPages } from "@/lib/xlsx";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -367,7 +367,7 @@ function AdminDiscountCodesPage() {
     const all = await fetchAllPages((p, ps) =>
       adminGetDiscountCodes(p, ps, debouncedSearch),
     );
-    downloadCsv("discount-codes.csv", buildCsv(columns, all));
+    await downloadXlsx("discount-codes.xlsx", columns, all);
   }, [columns, debouncedSearch]);
 
   return (

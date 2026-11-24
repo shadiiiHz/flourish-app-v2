@@ -20,7 +20,7 @@ import {
   adminUpdateOrderPaymentStatus,
   adminUpdateOrderStatus,
 } from "@/lib/api";
-import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
+import { downloadXlsx, fetchAllPages } from "@/lib/xlsx";
 import {
   CustomDataGrid,
   resolveSelectedRowIds,
@@ -196,7 +196,8 @@ function AdminOrdersPage() {
         flex: 1,
         minWidth: 180,
         sortable: false,
-
+        valueGetter: (_, row) =>
+          [row.customerName || "بدون نام", row.customerPhone].filter(Boolean).join(" - "),
         renderCell: ({ row }) => (
           <div className="flex h-full w-full flex-col items-center justify-center leading-tight">
             <span className="font-semibold text-cocoa-900">
@@ -340,7 +341,7 @@ function AdminOrdersPage() {
     const all = await fetchAllPages((p, ps) =>
       adminGetOrders(statusFilter, p, ps, debouncedSearch, customerFilter),
     );
-    downloadCsv("orders.csv", buildCsv(columns, all));
+    await downloadXlsx("orders.xlsx", columns, all);
   }, [columns, statusFilter, debouncedSearch, customerFilter]);
 
   return (

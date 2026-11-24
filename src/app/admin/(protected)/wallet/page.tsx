@@ -18,7 +18,7 @@ import {
   adminUpdateSettings,
   type LoyaltyTier,
 } from "@/lib/api";
-import { buildCsv, downloadCsv, fetchAllPages } from "@/lib/csv";
+import { downloadXlsx, fetchAllPages } from "@/lib/xlsx";
 import {
   CustomDataGrid,
   type QueryType,
@@ -578,7 +578,7 @@ function AdminWalletPage() {
 
   const handleExportAll = useCallback(async () => {
     const all = await fetchAllPages((p, ps) => adminGetWalletCustomers(p, ps, debouncedSearch));
-    downloadCsv("wallet-customers.csv", buildCsv(columns, all));
+    await downloadXlsx("wallet-customers.xlsx", columns, all);
   }, [columns, debouncedSearch]);
 
   return (
